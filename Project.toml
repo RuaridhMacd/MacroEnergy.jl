@@ -33,18 +33,18 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
-[sources]
-MacroEnergySolvers = {url = "https://github.com/macroenergy/MacroEnergySolvers.jl"}
+[sources.MacroEnergySolvers]
+url = "https://github.com/macroenergy/MacroEnergySolvers.jl"
 
 [compat]
 ClusterManagers = "2.0.0"
 Distributed = "1.11.0"
 DistributedArrays = "0.6.7"
-DuckDB = "^0.10.3"
-MacroEnergySolvers = "0.1.0"
+DuckDB = "^0.10.3, 1"
 GitHub = "5.9.0"
 Gurobi = "1.6.0"
 MacroEnergyScaling = "0.2.0"
+MacroEnergySolvers = "0.1.0"
 Markdown = "1.9.0"
 Parquet2 = "0.2.27"
 Pkg = "1.9.0"
