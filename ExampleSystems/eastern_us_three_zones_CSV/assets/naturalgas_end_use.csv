@@ -1,4 +1,0 @@
-Type,id,edges--fuel_demand_edge--unidirectional,edges--fuel_demand_edge--commodity,edges--fuel_demand_edge--has_capacity,edges--fuel_edge--unidirectional,edges--fuel_edge--commodity,edges--fuel_edge--has_capacity,edges--co2_edge--end_vertex,edges--co2_edge--unidirectional,edges--co2_edge--commodity,edges--co2_edge--has_capacity,transforms--constraints--BalanceConstraint,transforms--timedata,edges--fuel_demand_edge--end_vertex,edges--fuel_edge--start_vertex,transforms--emission_rate
-FuelsEndUse,SE_NG_End_Use,true,NaturalGas,false,true,NaturalGas,false,co2_sink,true,CO2,false,true,NaturalGas,natgas_demand_SE,natgas_SE,0.181048235160161
-FuelsEndUse,MIDAT_NG_End_Use,true,NaturalGas,false,true,NaturalGas,false,co2_sink,true,CO2,false,true,NaturalGas,natgas_demand_MIDAT,natgas_MIDAT,0.181048235160161
-FuelsEndUse,NE_NG_End_Use,true,NaturalGas,false,true,NaturalGas,false,co2_sink,true,CO2,false,true,NaturalGas,natgas_demand_NE,natgas_NE,0.181048235160161
