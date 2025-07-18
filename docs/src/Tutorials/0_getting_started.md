@@ -1,7 +1,7 @@
 # Tutorial 0: Getting Started with Macro
 
 !!! note "Interactive Notebook"
-    The interactive version of this tutorial can be found [here](https://github.com/macroenergy/Macro/tree/main/tutorials/tutorial_0_getting_started.ipynb).
+    The interactive version of this tutorial can be found [here](https://github.com/macroenergy/MacroEnergyExamples.jl/blob/main/tutorials/tutorial_0_getting_started.ipynb).
 
 This tutorial will guide you through the steps to install Macro, a solver, and all the necessary dependencies.
 
