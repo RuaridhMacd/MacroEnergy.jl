@@ -1,4 +1,0 @@
-Type,id,edges--elec_edge--constraints--MustRunConstraint,edges--elec_edge--can_retire,edges--elec_edge--unidirectional,edges--elec_edge--can_expand,edges--elec_edge--has_capacity,transforms--timedata,edges--elec_edge--fixed_om_cost,edges--elec_edge--existing_capacity,edges--elec_edge--availability--timeseries--path,edges--elec_edge--availability--timeseries--header,edges--elec_edge--capacity_size,edges--elec_edge--end_vertex
-MustRun,SE_small_hydroelectric_1,true,false,true,false,true,Electricity,45648,249.895,system/availability.csv,SE_small_hydroelectric_1,1.219,elec_SE
-MustRun,MIDAT_small_hydroelectric_1,true,false,true,false,true,Electricity,45648,263.268,system/availability.csv,MIDAT_small_hydroelectric_1,1.236,elec_MIDAT
-MustRun,NE_small_hydroelectric_1,true,false,true,false,true,Electricity,45648,834.494,system/availability.csv,NE_small_hydroelectric_1,1.051,elec_NE
