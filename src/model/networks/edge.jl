@@ -635,16 +635,16 @@ function edges(assets::Vector{AbstractAsset})
     return edges
 end
 
-function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
-
-    if isempty(balance_data(v, i))
+function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol, var::Symbol = :flow)
+    data = balance_data(v, i)
+    if isempty(data)
         return 1.0
-    elseif id(e) ∈ keys(balance_data(v, i))
-        return balance_data(v, i)[id(e)]
-    else
-        return 0.0
     end
-
+    index = find_balance(data, id(e), var)
+    if !isnothing(index)
+        return data[index].coeff
+    end
+    return 0.0
 end
 
 function lossy_edge(e::AbstractEdge)
