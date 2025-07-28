@@ -65,6 +65,16 @@ balance_ids = balance_ids(elec_node)
 """
 balance_ids(v::AbstractVertex) = collect(keys(v.balance_data))
 
+balance_ids(data::BalanceData) = data.id
+
+balance_ids(data::Vector{BalanceData}) = [d.id for d in data]
+
+# Function find_balance(data::Vector{BalanceData}, id::Symbol, var::Symbol) which 
+# return the index of the first BalanceData with matching id and var
+function find_balance(data::Vector{BalanceData}, id::Symbol, var::Symbol)
+    return findfirst(d -> d.id == id && d.var == var, data)
+end
+
 """
     balance_data(v::AbstractVertex, i::Symbol)
 
