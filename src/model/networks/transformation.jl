@@ -16,6 +16,7 @@
 """
 Base.@kwdef mutable struct Transformation <: AbstractVertex
     @AbstractVertexBaseAttributes()
+    trial_data::Dict{Symbol, Vector{BalanceData}} = Dict{Symbol, Vector{BalanceData}}()
 end
 
 function add_linking_variables!(g::Transformation, model::Model)
