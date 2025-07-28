@@ -215,19 +215,24 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
-    thermal_transform.balance_data = Dict(
-        :energy => Dict(
+    add_balance_data(
+        thermal_transform,
+        :energy,
+        Dict(
             elec_edge.id => get(transform_data, :fuel_consumption, 1.0),
             fuel_edge.id => 1.0,
             co2_edge.id => 0.0,
-        ),
-        :emissions => Dict(
+        )
+    )
+    add_balance_data(
+        thermal_transform,
+        :emissions,
+        Dict(
             fuel_edge.id => get(transform_data, :emission_rate, 0.0),
             co2_edge.id => 1.0,
             elec_edge.id => 0.0,
-        ),
+        )
     )
-
 
     return ThermalPower(id, thermal_transform, elec_edge, fuel_edge, co2_edge)
 end
