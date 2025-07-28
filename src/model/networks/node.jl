@@ -255,19 +255,19 @@ function make(commodity::Type{<:Commodity}, input_data::AbstractDict{Symbol,Any}
 
     if any(isa.(node.constraints, BalanceConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:demand => Dict{Symbol,Float64}()))
+            get(data, :balance_data, Dict(:demand => BalanceData[]))
     elseif any(isa.(node.constraints, CO2CapConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:emissions => Dict{Symbol,Float64}()))
+            get(data, :balance_data, Dict(:emissions => BalanceData[]))
     elseif any(isa.(node.constraints, CO2StorageConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:co2_storage => Dict{Symbol,Float64}()))
+            get(data, :balance_data, Dict(:co2_storage => BalanceData[]))
     elseif any(isa.(node.constraints, AggregatedDemandConstraint))
         node.balance_data =
             get(data, :balance_data, Dict(:demand_flow => Dict{Symbol,Float64}()))
     else
         node.balance_data =
-            get(data, :balance_data, Dict(:exogenous => Dict{Symbol,Float64}()))
+            get(data, :balance_data, Dict(:exogenous => BalanceData[]))
     end
 
     if haskey(data, :location)
