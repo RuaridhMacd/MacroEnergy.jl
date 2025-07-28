@@ -1,5 +1,7 @@
 const BalanceData = @NamedTuple{id::Symbol, var::Symbol, coeff::Float64}
-
+macro empty_balance_data()
+    BalanceData(id = :empty, var = :empty, coeff = 0.0)
+end
 """
     @AbstractVertexBaseAttributes()
 
@@ -20,8 +22,7 @@ macro AbstractVertexBaseAttributes()
             id::Symbol
             timedata::TimeData
             location::Union{Missing, Symbol} = missing
-            balance_data::Dict{Symbol,Dict{Symbol,Float64}} =
-                Dict{Symbol,Dict{Symbol,Float64}}()
+            balance_data::Dict{Symbol, Vector{BalanceData}} = Dict{Symbol, Vector{BalanceData}}()
             constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
             operation_expr::Dict = Dict()
         end,
@@ -165,18 +166,24 @@ function get_constraint_by_type(v::AbstractVertex, constraint_type::Type{<:Abstr
     return length(matches) == 1 ? matches[1] : length(matches) > 1 ? matches : nothing
 end
 
-function add_to_balance_data!(v::AbstractVertex, balance_id::Symbol, data::Dict{Symbol, Float64})
+function reformat_balance_data(data::Dict{Symbol,Float64}, var::Symbol = :flow)
+    return BalanceData[
+        (id = k, var = var, coeff = v) for (k, v) in data
+    ]
+end
+
+function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Dict{Symbol, Float64})
     if haskey(v.balance_data, balance_id)
-        merge!(v.balance_data[balance_id], data)
+        append!(v.balance_data[balance_id], reformat_balance_data(data))
     else
-        v.balance_data[balance_id] = data
+        v.balance_data[balance_id] = reformat_balance_data(data)
     end
     return nothing
 end
 
-function add_to_balance_data!(v::AbstractVertex, balance_id::Symbol, data::Vector{BalanceData})
+function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Vector{BalanceData})
     if haskey(v.trial_data, balance_id)
-        merge!(v.trial_data[balance_id], data)
+        append!(v.trial_data[balance_id], data)
     else
         v.trial_data[balance_id] = data
     end
@@ -306,7 +313,7 @@ macro add_balance(component, balance_id, equation)
 
     # Embed the computed terms directly into the generated code
     return esc(:(
-        add_to_balance_data!(
+        add_balance_data(
             $component,
             $balance_id,
             $terms
