@@ -117,6 +117,15 @@ supply_segments(n::Node) = eachindex(n.max_supply);
 max_supply(n::Node) = n.max_supply;
 max_supply(n::Node,s::Int64) = n.max_supply[s];
 price_supply(n::Node,s::Int64) = n.price_supply[s];
+
+function get_vertices(node::Node)
+    return node
+end
+
+function get_vertex_ids(node::Node)
+    return id(node)
+end
+
 ######### Node interface #########
 
 

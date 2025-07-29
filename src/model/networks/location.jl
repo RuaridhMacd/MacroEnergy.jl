@@ -9,6 +9,14 @@ end
 
 id(loc::Location) = loc.id
 
+function get_vertices(loc::Location)
+    return collect(values(loc.nodes))
+end
+
+function get_vertex_ids(loc::Location)
+    return [node.id for node in values(loc.nodes)]
+end
+
 function add_node!(loc::Location, node::Node{T}, replace::Bool = false) where {T<:Commodity}
     node_commodity = typesymbol(commodity_type(node))
     # If a node of the same type exists then throw an error unless replace is true

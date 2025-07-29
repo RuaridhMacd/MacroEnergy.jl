@@ -64,6 +64,18 @@ ids = location_ids(system)
 """
 location_ids(system::System) = map(x -> x.id, system.locations)
 
+function get_vertices(system::AbstractSystem)
+    asset_vertices = get_vertices(system.assets)
+    location_vertices = reduce(vcat, [get_vertices(loc) for loc in system.locations])
+    return vcat(asset_vertices, location_vertices)
+end
+
+function get_vertex_ids(system::AbstractSystem)
+    asset_vertex_ids = get_vertex_id(system.assets)
+    location_vertex_ids = reduce(vcat, [get_vertex_ids(loc) for loc in system.locations])
+    return vcat(asset_vertex_ids, location_vertex_ids)
+end
+
 """
     get_asset_types(system::System)
 
