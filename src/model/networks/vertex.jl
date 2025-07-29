@@ -230,11 +230,18 @@ function parse_balance_eq(ex)
                     term_vectors = [parse_balance_eq(args[i]) for i in 2:len]
                     return vcat(term_vectors...) 
                 elseif f == :-
-                    # Subtraction, will always have 3 args
+                    # Subtraction, will always have 3 args as its non-associative
                     # We need to negate the right-hand side
                     lhs = parse_balance_eq(ex.args[2])
                     rhs = parse_balance_eq(ex.args[3])
-                    rhs = [(id = t.id, var = t.var, coeff = -t.coeff) for t in rhs]
+                    
+                    rhs = [
+                        (
+                            id = t.id, 
+                            var = t.var, 
+                            coeff = (isa(t.coeff, Number)) ? -t.coeff : Expr(:call, :-, t.coeff)
+                        ) for t in rhs
+                    ]
                     return vcat(lhs, rhs)
                 elseif f == :*
                     # Multiplication, where we assume the last term is the variable
@@ -244,7 +251,6 @@ function parse_balance_eq(ex)
                     else
                         term1 = Expr(:call, f, ex.args[2:end-1]...)
                     end 
-                    println(term1)
                     term2 = ex.args[end]
                     if isa(term1, Number) || isa(term2, Number)
                         if isa(ex.args[2], Number)
@@ -283,15 +289,6 @@ function post_process_terms(terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
     return terms_expr
 end
 
-function add_id(terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
-    # Add ".id" to all the ids which are not :constant
-    for i in eachindex(terms)
-        if terms[i].id != :constant
-            terms[i] = (id = Expr(:call, :id, terms[i].id), var = terms[i].var, coeff = terms[i].coeff)
-        end
-    end
-    return terms
-end
 
 function combine_constants!(constant_terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
     # If terms contains any id = :constant terms
@@ -351,30 +348,10 @@ macro add_balance(component, balance_id, equation)
     # Step 3: Move everything to left side (LHS - RHS)
     # For now, let's just normalize to LHS - RHS and return the normalized expression
     normalized_expr = :($left_side - $right_side)
-    
-    @debug("Original equation: $equation")
-    @debug("Final operator: $operator")
-    @debug("Left side: $left_side")
-    @debug("Right side: $right_side")
-    println("Normalized (LHS - RHS): $normalized_expr")
+    @debug("Normalized (LHS - RHS): $normalized_expr")
 
     terms = parse_balance_eq(normalized_expr)
-    println.(terms)
-    println(typeof(terms))
-    println(" ----- ")
-    for t in terms
-        println(typeof(t))
-        println(typeof(t) == BalanceData)
-        println(typeof(t.id))
-        println(typeof(t.var))
-        println(typeof(t.coeff))
-    end
     terms = post_process_terms(terms)
-
-    println(" ----- ")
-    println.(terms)
-    println(typeof(terms))
-    println(" ----- ")
 
     # Embed the computed terms directly into the generated code
     return esc(quote
