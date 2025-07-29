@@ -165,6 +165,15 @@ edges = get_edges(thermal_plant)
 get_edges(asset::AbstractAsset; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(asset, AbstractEdge) : get_macro_objs(asset, AbstractEdge)
 get_edges(assets::Vector{<:AbstractAsset}; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(assets, AbstractEdge) : get_macro_objs(assets, AbstractEdge)
 
+get_edge_id(asset::AbstractAsset) = id.(get_edges(asset))
+get_edge_id(assets::Vector{<:AbstractAsset}) = reduce(vcat, get_edge_id.(assets))
+
+get_vertices(assets::Vector{<:AbstractAsset}; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(assets, AbstractVertex) : get_macro_objs(assets, AbstractVertex)
+get_vertices(asset::AbstractAsset; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map([asset], AbstractVertex) : get_macro_objs([asset], AbstractVertex)
+
+get_vertex_id(asset::AbstractAsset) = id.(get_vertices(asset))
+get_vertex_id(assets::Vector{<:AbstractAsset}) = reduce(vcat, get_vertex_id.(assets))
+
 # The following functions are used to extract the edges with capacity variables from a Vector of Assets or a single Asset.
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.  
 function edges_with_capacity_variables(assets::Vector{<:AbstractAsset}; return_ids_map::Bool=false)
