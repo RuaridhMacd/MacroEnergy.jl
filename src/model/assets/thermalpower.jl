@@ -226,7 +226,7 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
     # )
     @add_balance(
         thermal_transform,
-        :fuel_consumption,
+        :energy,
         flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) == 0.0
     )
     @add_balance(
