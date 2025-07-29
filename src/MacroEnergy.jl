@@ -20,6 +20,7 @@ using GitHub
 using Markdown
 using Logging
 using LoggingExtras
+using DataStructures: IntDisjointSets, find_root
 
 import MacroEnergyScaling: scale_constraints!
 import JuMP: set_optimizer, set_optimizer_attributes
@@ -145,6 +146,7 @@ include("model/networks/asset.jl")
 include("model/system.jl")
 include("model/case.jl")
 include("model/networks/macroobject.jl")
+include("model/networks/network_analysis.jl")
 include("model/generate_model.jl")
 include("model/optimizer.jl")
 include("model/scaling.jl")
