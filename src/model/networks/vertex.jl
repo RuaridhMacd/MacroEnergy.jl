@@ -1,6 +1,6 @@
 const BalanceData = @NamedTuple{id::Symbol, var::Symbol, coeff::Float64}
 macro empty_balance_data()
-    BalanceData(id = :empty, var = :empty, coeff = 0.0)
+    (id = :empty, var = :empty, coeff = 0.0)
 end
 """
     @AbstractVertexBaseAttributes()
@@ -192,76 +192,117 @@ function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Dict{Symb
 end
 
 function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Vector{BalanceData})
-    if haskey(v.trial_data, balance_id)
-        append!(v.trial_data[balance_id], data)
+    if haskey(v.balance_data, balance_id)
+        append!(v.balance_data[balance_id], data)
     else
-        v.trial_data[balance_id] = data
+        v.balance_data[balance_id] = data
     end
     return nothing
 end
 
 function parse_balance_eq(ex)
-    if ex isa Number
+    if isa(ex, Number)
         return [(id = :constant, var = :constant, coeff = Float64(ex))]
-    
-    elseif ex isa Symbol
+
+    elseif isa(ex, Symbol)
         return [(id = :constant, var = :constant, coeff = 0.0)]  # Just in case
 
-    elseif ex isa Expr
+    elseif isa(ex, Expr)
         if ex.head == :call
-            f = ex.args[1]
-            # Addition and subtraction
-            if f == :+ || f == :-
-                lhs = parse_balance_eq(ex.args[2])
-                rhs = parse_balance_eq(ex.args[3])
+            args = ex.args
+            len = length(args)
+            f = args[1]
+            if len == 1
+                error("Functions with no arguments are not supported: $ex")
+            elseif len == 2
                 if f == :-
-                    rhs = [(id = t.id, var = t.var, coeff = -t.coeff) for t in rhs]
-                end
-                return vcat(lhs, rhs)
-
-            # Multiplication
-            elseif f == :*
-                if ex.args[2] isa Number
-                    coeff = Float64(ex.args[2])
-                    terms = parse_balance_eq(ex.args[3])
-                elseif ex.args[3] isa Number
-                    coeff = Float64(ex.args[3])
-                    terms = parse_balance_eq(ex.args[2])
+                    terms = parse_balance_eq(args[2])[1]
+                    return [(id = terms[2], var = terms[1], coeff = -terms[3])]
                 else
-                    error("Unsupported multiplication format in: $ex")
+                    # Extract symbol from QuoteNode if needed
+                    # id_val = args[2] isa QuoteNode ? args[2].value : args[2]
+                    return [(id = args[2], var = args[1], coeff = 1.0)]
                 end
-                return [(id = t.id, var = t.var, coeff = coeff * t.coeff) for t in terms]
-
-            # Negation
-            elseif f == :- && length(ex.args) == 2
-                terms = parse_expr(ex.args[2])
-                return [(id = t.id, var = t.var, coeff = -t.coeff) for t in terms]
-
-            # Function calls like flow(:x)
             else
-                if length(ex.args) == 2 && ex.args[2] isa QuoteNode
-                    return [(id = ex.args[2].value, var = f, coeff = 1.0)]
-                else
-                    error("Unrecognized function term: $ex")
+                if f == :+
+                    # Addition, where we must allow for associativity leading to 
+                    # any number of terms
+                    term_vectors = [parse_balance_eq(args[i]) for i in 2:len]
+                    return vcat(term_vectors...) 
+                elseif f == :-
+                    # Subtraction, will always have 3 args
+                    # We need to negate the right-hand side
+                    lhs = parse_balance_eq(ex.args[2])
+                    rhs = parse_balance_eq(ex.args[3])
+                    rhs = [(id = t.id, var = t.var, coeff = -t.coeff) for t in rhs]
+                    return vcat(lhs, rhs)
+                elseif f == :*
+                    # Multiplication, where we assume the last term is the variable
+                    # as associativity means we can have any number of terms
+                    if len == 3
+                        term1 = ex.args[2]
+                    else
+                        term1 = Expr(:call, f, ex.args[2:end-1]...)
+                    end 
+                    println(term1)
+                    term2 = ex.args[end]
+                    if isa(term1, Number) || isa(term2, Number)
+                        if isa(ex.args[2], Number)
+                            coeff = Float64(ex.args[2])
+                            terms = parse_balance_eq(ex.args[3])
+                        elseif isa(ex.args[3], Number)
+                            coeff = Float64(ex.args[3])
+                            terms = parse_balance_eq(ex.args[2])
+                        end
+                        return [(id = t.id, var = t.var, coeff = coeff * t.coeff) for t in terms]
+                    end
+                    terms = parse_balance_eq(term2)
+                    return [t.coeff == 1.0 ? (id = t.id, var = t.var, coeff = term1) : (id = t.id, var = t.var, coeff = Expr(:call, :*, term1, t.coeff)) for t in terms]
                 end
             end
+            error("Unrecognized expression format: $ex")
         end
     end
     error("Unrecognized expression: $ex")
 end
 
-function combine_constants!(terms::Vector{BalanceData})
-    # If terms contains any id = :constant terms
-    # then Add together all id = :constant terms
+function post_process_terms(terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
     constant_terms = filter(t -> t.id == :constant, terms)
-    if !isempty(constant_terms)
-        constant_value = sum(t.coeff for t in constant_terms)
-        terms = filter(t -> t.id != :constant, terms)
-        if constant_value != 0.0
-            push!(terms, (id = :constant, var = :constant, coeff = constant_value))
+    constant_term = combine_constants!(constant_terms)
+
+    terms = filter(t -> t.id != :constant, terms)
+    terms_expr = [
+        :((id=$(Expr(:., t.id, QuoteNode(:id))), var=$(QuoteNode(t.var)), coeff=$(t.coeff))) for t in terms
+    ]
+
+    if !isnothing(constant_term)
+        constant_term_expr = :((id=$(QuoteNode(constant_term.id)), var=$(QuoteNode(constant_term.var)), coeff=$(constant_term.coeff)))
+        terms_expr = vcat(terms_expr, constant_term_expr)
+    end
+
+    return terms_expr
+end
+
+function add_id(terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
+    # Add ".id" to all the ids which are not :constant
+    for i in eachindex(terms)
+        if terms[i].id != :constant
+            terms[i] = (id = Expr(:call, :id, terms[i].id), var = terms[i].var, coeff = terms[i].coeff)
         end
     end
     return terms
+end
+
+function combine_constants!(constant_terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
+    # If terms contains any id = :constant terms
+    # then add together all id = :constant terms
+    if !isempty(constant_terms)
+        constant_value = sum(t.coeff for t in constant_terms)
+        if constant_value != 0.0
+            return (id = :constant, var = :constant, coeff = constant_value)
+        end
+    end
+    return nothing
 end
 
 """
@@ -315,18 +356,32 @@ macro add_balance(component, balance_id, equation)
     @debug("Final operator: $operator")
     @debug("Left side: $left_side")
     @debug("Right side: $right_side")
-    @debug("Normalized (LHS - RHS): $normalized_expr")
+    println("Normalized (LHS - RHS): $normalized_expr")
 
     terms = parse_balance_eq(normalized_expr)
-    combine_constants!(terms)
-    @debug(terms)
+    println.(terms)
+    println(typeof(terms))
+    println(" ----- ")
+    for t in terms
+        println(typeof(t))
+        println(typeof(t) == BalanceData)
+        println(typeof(t.id))
+        println(typeof(t.var))
+        println(typeof(t.coeff))
+    end
+    terms = post_process_terms(terms)
+
+    println(" ----- ")
+    println.(terms)
+    println(typeof(terms))
+    println(" ----- ")
 
     # Embed the computed terms directly into the generated code
-    return esc(:(
+    return esc(quote
         add_balance_data(
             $component,
             $balance_id,
-            $terms
+            BalanceData[ $(terms...) ]  # splices into array
         )
-    ))
+    end)
 end
