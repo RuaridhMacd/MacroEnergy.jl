@@ -97,8 +97,13 @@ end
 
 function Base.hash(a::T, h::UInt) where {T<:Union{MacroObject,AbstractTimeData,AbstractTypeConstraint}}
     ht = hash(T, h)
-    for prop in propertynames(a)
-        ht = hash(getproperty(a,prop), ht)
+    for prop_name in propertynames(a)
+        prop = getproperty(a, prop_name)
+        if isa(prop, AbstractEdge)
+            ht = hash(id(prop), ht)
+        else
+            ht = hash(prop, ht)
+        end
     end
     return ht
 end
