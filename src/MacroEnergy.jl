@@ -44,6 +44,13 @@ abstract type AluminumScrap <: Commodity end ## tonnes
 abstract type Alumina <: Commodity end ## tonnes
 abstract type Graphite <: Commodity end ## tonnes
 abstract type Bauxite <: Commodity end ## tonnes
+abstract type IronOreBF <: Commodity end ## tonnes
+abstract type IronOreDR <: Commodity end ## tonnes
+abstract type SteelScrap <: Commodity end ## tonnes
+abstract type DRI <: Commodity end ## tonnes
+abstract type MetCoal <: Commodity end ## tonnes
+abstract type ThermalCoal <: Commodity end ## tonnes
+abstract type CrudeSteel <: Commodity end ## tonnes
 
 ## Time data types
 abstract type AbstractTimeData{T<:Commodity} end
@@ -168,6 +175,11 @@ include("model/assets/cementplant.jl")
 include("model/assets/aluminumrefining.jl")
 include("model/assets/aluminumsmelting.jl")
 include("model/assets/aluminaplant.jl")
+include("model/assets/bfbof.jl")
+include("model/assets/bfbofccs.jl")
+include("model/assets/dreaf.jl")
+include("model/assets/dreafccs.jl")
+include("model/assets/eaf.jl")
 
 include("config/configure_settings.jl")
 include("config/case_settings.jl")
@@ -281,6 +293,18 @@ export AbstractAsset,
     download_examples,
     example_readme,
     example_contents,
-    authenticate_github
+    authenticate_github,
+    IronOreBF,
+    IronOreDR,
+    SteelScrap,
+    DRI,
+    MetCoal,
+    ThermalCoal,
+    CrudeSteel,
+    BfBof,
+    BfBofCCS,
+    DrEaf,
+    DrEafCCS,
+    Eaf
     
 end # module MacroEnergy
