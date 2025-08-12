@@ -3,11 +3,7 @@ function initialize_planning_problem!(case::Case,opt::Dict)
     
     planning_problem = generate_planning_problem(case);
 
-    if opt[:solver] == Gurobi.Optimizer
-        optimizer = create_optimizer(opt[:solver], GRB_ENV[], opt[:attributes])
-    else
-        optimizer = create_optimizer(opt[:solver], missing, opt[:attributes])
-    end
+    optimizer = create_optimizer(opt[:solver], opt_env(opt[:solver]), opt[:attributes])
 
     set_optimizer(planning_problem, optimizer)
 
