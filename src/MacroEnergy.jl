@@ -99,7 +99,7 @@ function opt_env(optimizer::Symbol)
     return get(OPT_ENV_REGISTRY, optimizer, nothing)
 end
 
-function opt_env(optimizer::Any)
+function opt_env(optimizer::Type{T}) where {T}
     try
         module_name = Symbol(parentmodule(optimizer))
         return get(OPT_ENV_REGISTRY, module_name, nothing)
@@ -110,6 +110,10 @@ end
 
 function set_opt_env!(optimizer::Symbol, env::Any)
     OPT_ENV_REGISTRY[optimizer] = env
+end
+
+function has_opt_env(optimizer::Symbol)
+    return haskey(OPT_ENV_REGISTRY, optimizer) && !isnothing(opt_env(optimizer))
 end
 
 # function __init__()
