@@ -149,8 +149,9 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         ironore_start_node,
         ironore_end_node,
     )
-    ironore_edge.unidirectional = get(ironore_edge_data, :unidirectional, true)
-    
+    ironore_edge.unidirectional = true
+    ironore_edge.has_capacity = false;
+
     # steel scrap edge
 
     steelscrap_edge_key = :steelscrap_edge
@@ -179,7 +180,8 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         steelscrap_start_node,
         steelscrap_end_node,
     )
-    steelscrap_edge.unidirectional = get(steelscrap_edge_data, :unidirectional, true)
+    steelscrap_edge.unidirectional = true
+    steelscrap_edge.has_capacity = false;
 
     # metalurgical coal edge
 
@@ -209,6 +211,7 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         metcoal_end_node,
     )
     metcoal_edge.unidirectional = true;
+    metcoal_edge.has_capacity = false;
 
     # thermal coal edge
 
@@ -239,6 +242,7 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         thermalcoal_end_node,
     )
     thermalcoal_edge.unidirectional = true;
+    thermalcoal_edge.has_capacity = false;
 
     # natural gas edge
 
@@ -269,6 +273,7 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         natgas_end_node,
     )
     natgas_edge.unidirectional = true;
+    natgas_edge.has_capacity = false;
 
 
     # electricity edge
@@ -299,6 +304,7 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         elec_end_node,
     )
     elec_edge.unidirectional = true
+    elec_edge.has_capacity = false
 
     # CO2 edge
 
@@ -359,6 +365,9 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         co2_captured_end_node,
     )
 
+    co2_captured_edge.unidirectional = true;
+    co2_captured_edge.has_capacity = false;
+
     # crude steel edge
     crudesteel_edge_key = :crudesteel_edge
     @process_data(
@@ -390,8 +399,8 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         crudesteel_edge_data,
         :constraints,
         [MustRunConstraint()])
-    crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
-
+    crudesteel_edge.unidirectional = true
+    
     # stochiometry
     bfbofccs_transform.balance_data = Dict(
         :ironore_consumption=> Dict(
