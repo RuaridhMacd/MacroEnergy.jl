@@ -44,8 +44,7 @@ abstract type AluminumScrap <: Commodity end ## tonnes
 abstract type Alumina <: Commodity end ## tonnes
 abstract type Graphite <: Commodity end ## tonnes
 abstract type Bauxite <: Commodity end ## tonnes
-abstract type IronOreBF <: Commodity end ## tonnes
-abstract type IronOreDR <: Commodity end ## tonnes
+abstract type IronOre <: Commodity end ## tonnes
 abstract type SteelScrap <: Commodity end ## tonnes
 abstract type CrudeSteel <: Commodity end ## tonnes
 
@@ -291,8 +290,7 @@ export AbstractAsset,
     example_readme,
     example_contents,
     authenticate_github,
-    IronOreBF,
-    IronOreDR,
+    IronOre,
     SteelScrap,
     CrudeSteel,
     BfBof,
