@@ -47,9 +47,6 @@ abstract type Bauxite <: Commodity end ## tonnes
 abstract type IronOreBF <: Commodity end ## tonnes
 abstract type IronOreDR <: Commodity end ## tonnes
 abstract type SteelScrap <: Commodity end ## tonnes
-abstract type DRI <: Commodity end ## tonnes
-abstract type MetCoal <: Commodity end ## tonnes
-abstract type ThermalCoal <: Commodity end ## tonnes
 abstract type CrudeSteel <: Commodity end ## tonnes
 
 ## Time data types
@@ -297,9 +294,6 @@ export AbstractAsset,
     IronOreBF,
     IronOreDR,
     SteelScrap,
-    DRI,
-    MetCoal,
-    ThermalCoal,
     CrudeSteel,
     BfBof,
     BfBofCCS,
