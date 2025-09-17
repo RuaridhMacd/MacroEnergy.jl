@@ -348,10 +348,10 @@ function make(asset_type::Type{BfBofCCS}, data::AbstractDict{Symbol,Any}, system
         co2_captured_end_node,
         co2_captured_edge_data,
         CO2Captured,
-        [(co2_edge_data, :end_vertex), (data, :co2_sink), (data, :location)],
+        [(co2_captured_edge_data, :end_vertex), (data, :co2_captured_sink), (data, :location)],
     )    
     co2_captured_edge = Edge(
-        Symbol(id, "_", co2_edge_key),
+        Symbol(id, "_", co2_captured_edge_key),
         co2_captured_edge_data,
         system.time_data[:CO2Captured],
         CO2Captured,
