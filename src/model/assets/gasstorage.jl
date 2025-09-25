@@ -338,32 +338,31 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
 
     gas_storage.discharge_edge = gas_storage_discharge
     gas_storage.charge_edge = gas_storage_charge
-    
-    gas_storage.balance_data = Dict(
-        :storage => Dict(
-            gas_storage_discharge.id => 1 / get(discharge_edge_data, :efficiency, 1.0),
-            gas_storage_charge.id => get(charge_edge_data, :efficiency, 1.0),
-        )
+
+    @add_balance(
+        gas_storage,
+        :storage,
+        1 / get(discharge_edge_data, :efficiency, 1.0) * flow(gas_storage_discharge) + get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge) == 0.0
     )
-    pump_transform.balance_data = Dict(
-        :charge_electricity_consumption => Dict(
-            #This is multiplied by -1 because they are both edges that enters storage, 
-            #so we need to get one of them on the right side of the equality balance constraint    
-            charge_elec_edge.id => -1.0,
-            external_charge_edge.id => get(transform_data, :charge_electricity_consumption, 0.0), 
-        ),
-        :discharge_electricity_consumption => Dict(
-            discharge_elec_edge.id => 1.0,
-            external_discharge_edge.id => get(transform_data, :discharge_electricity_consumption, 0.0),
-        ),
-        :external_charge_balance => Dict(
-            external_charge_edge.id => 1.0,
-            gas_storage_charge.id => 1.0,
-        ),
-        :external_discharge_balance => Dict(
-            external_discharge_edge.id => 1.0,
-            gas_storage_discharge.id => 1.0,
-        ),
+    @add_balance(
+        pump_transform,
+        :charge_electricity_consumption,
+        get(transform_data, :charge_electricity_consumption, 0.0) * flow(external_charge_edge) == flow(charge_elec_edge)
+    )
+    @add_balance(
+        pump_transform,
+        :discharge_electricity_consumption,
+        flow(discharge_elec_edge) + get(transform_data, :discharge_electricity_consumption, 0.0) * flow(external_discharge_edge) == 0.0
+    )
+    @add_balance(
+        pump_transform,
+        :external_charge_balance,
+        flow(external_charge_edge) + flow(gas_storage_charge) == 0.0
+    )
+    @add_balance(
+        pump_transform,
+        :external_discharge_balance,
+        flow(external_discharge_edge) + flow(gas_storage_discharge) == 0.0
     )
 
     return GasStorage(

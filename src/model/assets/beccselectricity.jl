@@ -231,23 +231,25 @@ function make(asset_type::Type{BECCSElectricity}, data::AbstractDict{Symbol,Any}
         co2_captured_end_node,
     )
 
-    beccs_transform.balance_data = Dict(
-        :elec_production => Dict(
-            elec_edge.id => 1.0,
-            biomass_edge.id => get(transform_data, :electricity_production, 0.0)
-        ),
-        :negative_emissions => Dict(
-            biomass_edge.id => get(transform_data, :co2_content, 0.0),
-            co2_edge.id => -1.0
-        ),
-        :emissions => Dict(
-            biomass_edge.id => get(transform_data, :emission_rate, 1.0),
-            co2_emission_edge.id => 1.0
-        ),
-        :capture => Dict(
-            biomass_edge.id => get(transform_data, :capture_rate, 1.0),
-            co2_captured_edge.id => 1.0
-        )
+    @add_balance(
+        beccs_transform,
+        :elec_production,
+        flow(elec_edge) + get(transform_data, :electricity_production, 0.0) * flow(biomass_edge) == 0.0
+    )
+    @add_balance(
+        beccs_transform,
+        :negative_emissions,
+        get(transform_data, :co2_content, 0.0) * flow(biomass_edge) == flow(co2_edge)
+    )
+    @add_balance(
+        beccs_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 1.0) * flow(biomass_edge) + flow(co2_emission_edge) == 0.0
+    )
+    @add_balance(
+        beccs_transform,
+        :capture,
+        get(transform_data, :capture_rate, 1.0) * flow(biomass_edge) + flow(co2_captured_edge) == 0.0
     )
 
     return BECCSElectricity(id, beccs_transform, biomass_edge, elec_edge, co2_edge, co2_emission_edge, co2_captured_edge)

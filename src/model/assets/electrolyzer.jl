@@ -158,11 +158,10 @@ function make(asset_type::Type{Electrolyzer}, data::AbstractDict{Symbol,Any}, sy
         h2_end_node,
     )
 
-    electrolyzer.balance_data = Dict(
-        :energy => Dict(
-            h2_edge.id => 1.0,
-            elec_edge.id => get(transform_data, :efficiency_rate, 1.0),
-        ),
+    @add_balance(
+        electrolyzer,
+        :energy,
+        flow(h2_edge) + get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge) == 0.0
     )
 
     return Electrolyzer(id, electrolyzer, h2_edge, elec_edge)

@@ -178,15 +178,15 @@ function make(asset_type::Type{FuelsEndUse}, data::AbstractDict{Symbol,Any}, sys
         co2_end_node,
     )
 
-    fuelsenduse_transform.balance_data = Dict(
-        :fuel_demand => Dict(
-            fuel_edge.id => 1.0,
-            fuel_demand_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => 1.0
-        )
+    @add_balance(
+        fuelsenduse_transform,
+        :fuel_demand,
+        flow(fuel_edge) + flow(fuel_demand_edge) == 0.0
+    )
+    @add_balance(
+        fuelsenduse_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
     )
 
     return FuelsEndUse(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge) 

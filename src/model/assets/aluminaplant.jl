@@ -249,29 +249,26 @@ function make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, sy
     )
 
     # Balance Constraint Values
-    aluminaplant_transform.balance_data = Dict(
-        :elec_to_alumina => Dict(
-            elec_edge.id => 1.0,
-            fuel_edge.id => 0.0,
-            bauxite_edge.id => 0.0,
-            alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.0)
-        ),
-        :bauxite_to_alumina => Dict(
-            elec_edge.id => 0.0,
-            fuel_edge.id => 0.0,
-            bauxite_edge.id => 1.0,
-            alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 0.0)
-        ),
-        :fuel_to_alumina => Dict(
-            elec_edge.id => 0.0,
-            fuel_edge.id => 1.0,
-            bauxite_edge.id => 0.0,
-            alumina_edge.id => get(transform_data, :fuel_alumina_rate, 0.0)
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.0),
-            co2_edge.id => 1.0
-        )
+    @add_balance(
+        aluminaplant_transform,
+        :elec_to_alumina,
+        flow(elec_edge) + get(transform_data, :elec_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
     )
+    @add_balance(
+        aluminaplant_transform,
+        :bauxite_to_alumina,
+        flow(bauxite_edge) + get(transform_data, :bauxite_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
+    )
+    @add_balance(
+        aluminaplant_transform,
+        :fuel_to_alumina,
+        flow(fuel_edge) + get(transform_data, :fuel_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
+    )
+    @add_balance(
+        aluminaplant_transform,
+        :emissions,
+        get(transform_data, :fuel_emissions_rate, 1.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
+    )
+
     return AluminaPlant(id, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
 end

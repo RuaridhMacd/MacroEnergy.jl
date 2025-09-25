@@ -157,11 +157,10 @@ function make(asset_type::Type{FuelCell}, data::AbstractDict{Symbol,Any}, system
         h2_end_node,
     )
 
-    fuelcell.balance_data = Dict(
-        :energy => Dict(
-            h2_edge.id => get(transform_data, :efficiency_rate, 1.0),
-            elec_edge.id => 1.0,
-        ),
+    @add_balance(
+        fuelcell,
+        :energy,
+        flow(elec_edge) + get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge) == 0.0
     )
 
     return FuelCell(id, fuelcell, h2_edge, elec_edge)

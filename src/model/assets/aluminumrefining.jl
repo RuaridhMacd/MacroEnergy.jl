@@ -195,17 +195,16 @@ function make(asset_type::Type{AluminumRefining}, data::AbstractDict{Symbol,Any}
 
     # Set up balance constraints for the transformation process
     # These define how inputs (electricity and aluminum scrap) are converted to outputs (aluminum)
-    aluminumrefining_transform.balance_data = Dict(
-        :elec_to_aluminum => Dict(
-            elec_edge.id => 1.0,                  # Electricity input coefficient
-            aluminumscrap_edge.id => 0.0,         # No direct conversion from electricity to aluminum scrap
-            aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 0.0)
-        ),
-        :aluminumscrap_to_aluminum => Dict(
-            elec_edge.id => 0.0,
-            aluminumscrap_edge.id => 1.0,
-            aluminum_edge.id => get(transform_data, :aluminumscrap_aluminum_rate, 0.0)
-        )
+    @add_balance(
+        aluminumrefining_transform,
+        :elec_to_aluminum,
+        flow(elec_edge) + get(transform_data, :elec_aluminum_rate, 0.0) * flow(aluminum_edge) == 0.0
     )
+    @add_balance(
+        aluminumrefining_transform,
+        :aluminumscrap_to_aluminum,
+        flow(aluminumscrap_edge) + get(transform_data, :aluminumscrap_aluminum_rate, 1.0) * flow(aluminum_edge) == 0.0
+    )
+
     return AluminumRefining(id, aluminumrefining_transform, elec_edge, aluminumscrap_edge, aluminum_edge)
 end

@@ -73,19 +73,7 @@ end
 function make(asset_type::Type{<:VRE}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
-    # if id == :SE_utilitypv_class1_moderate_70_0_2_1
-    #     @info data
-    # end
-
     @setup_data(asset_type, data, id)
-
-    # if id == :SE_utilitypv_class1_moderate_70_0_2_1
-    #     @info data
-    # end
-
-    # if id == :SE_utilitypv_class1_moderate_70_0_2_1
-    #     @info defaults
-    # end
 
     energy_key = :transforms
     @process_data(
@@ -114,14 +102,6 @@ function make(asset_type::Type{<:VRE}, data::AbstractDict{Symbol,Any}, system::S
             (data, key),
         ],
     )
-
-    # if id == :SE_utilitypv_class1_moderate_70_0_2_1
-    #     @info data
-    # end
-
-    # if id == :SE_utilitypv_class1_moderate_70_0_2_1
-    #     @info elec_edge_data
-    # end
 
     elec_start_node = vre_transform
     @end_vertex(
