@@ -304,32 +304,36 @@ function make(asset_type::Type{SyntheticLiquidFuels}, data::AbstractDict{Symbol,
         co2_emission_end_node,
     )
 
-    synthetic_liquid_fuels_transform.balance_data = Dict(
-        :gasoline_production => Dict(
-            gasoline_edge.id => 1.0,
-            co2_captured_edge.id => get(transform_data, :gasoline_production, 0.0)
-        ),
-        :jetfuel_production => Dict(
-            jetfuel_edge.id => 1.0,
-            co2_captured_edge.id => get(transform_data, :jetfuel_production, 0.0)
-        ),
-        :diesel_production => Dict(
-            diesel_edge.id => 1.0,
-            co2_captured_edge.id => get(transform_data, :diesel_production, 0.0)
-        ),
-        :elec_consumption => Dict(
-            elec_edge.id => -1.0,
-            co2_captured_edge.id => get(transform_data, :electricity_consumption, 0.0)
-        ),
-        :h2_consumption => Dict(
-            h2_edge.id => -1.0,
-            co2_captured_edge.id => get(transform_data, :h2_consumption, 0.0)
-        ),
-        :emissions => Dict(
-            co2_captured_edge.id => get(transform_data, :emission_rate, 1.0),
-            co2_emission_edge.id => 1.0
-        )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :gasoline_production,
+        flow(gasoline_edge) + get(transform_data, :gasoline_production, 0.0) * flow(co2_captured_edge) == 0.0
+    )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :jetfuel_production,
+        flow(jetfuel_edge) + get(transform_data, :jetfuel_production, 0.0) * flow(co2_captured_edge) == 0.0
+    )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :diesel_production,
+        flow(diesel_edge) + get(transform_data, :diesel_production, 0.0) * flow(co2_captured_edge) == 0.0
+    )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :elec_consumption,
+        get(transform_data, :electricity_consumption, 0.0) * flow(co2_captured_edge) == flow(elec_edge)
+    )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :h2_consumption,
+        get(transform_data, :h2_consumption, 0.0) * flow(co2_captured_edge) == flow(h2_edge)
+    )
+    @add_balance(
+        synthetic_liquid_fuels_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 1.0) * flow(co2_captured_edge) + flow(co2_emission_edge) == 0.0
     )
 
-    return SyntheticLiquidFuels(id, synthetic_liquid_fuels_transform, co2_captured_edge,gasoline_edge,jetfuel_edge,diesel_edge,elec_edge,h2_edge,co2_emission_edge) 
+    return SyntheticLiquidFuels(id, synthetic_liquid_fuels_transform, co2_captured_edge, gasoline_edge, jetfuel_edge, diesel_edge, elec_edge, h2_edge, co2_emission_edge)
 end

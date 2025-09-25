@@ -191,15 +191,15 @@ function make(asset_type::Type{FossilFuelsUpstream}, data::AbstractDict{Symbol,A
         co2_end_node,
     )
 
-    fossilfuelsupstream_transform.balance_data = Dict(
-        :fuel => Dict(
-            fossil_fuel_edge.id => 1.0,
-            fuel_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            fossil_fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => 1.0
-        )
+    @add_balance(
+        fossilfuelsupstream_transform,
+        :fuel,
+        flow(fossil_fuel_edge) + flow(fuel_edge) == 0.0
+    )
+    @add_balance(
+        fossilfuelsupstream_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fossil_fuel_edge) + flow(co2_edge) == 0.0
     )
 
     return FossilFuelsUpstream(id, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge) 
