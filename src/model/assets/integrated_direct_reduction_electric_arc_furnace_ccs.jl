@@ -4,7 +4,7 @@ struct DrEafCCS{T} <: AbstractAsset
     crudesteel_edge::Edge{CrudeSteel}
     reductant_edge::Edge{T}
     elec_edge::Edge{Electricity}
-    ironore_edge::Edge{IronOreDR}
+    ironore_edge::Edge{<:IronOre}
     co2_edge::Edge{CO2}
     co2_captured_edge::Edge{CO2Captured}
 
@@ -46,7 +46,7 @@ function full_default_data(::Type{DrEafCCS}, id=missing)
                 :commodity => missing
             ),
             :ironore_edge => @edge_data(
-                :commodity => "IronOreDR"
+                :commodity => "IronOre"
             ),
             :elec_edge => @edge_data(
                 :commodity => "Electricity",
@@ -118,10 +118,12 @@ function make(asset_type::Type{DrEafCCS}, data::AbstractDict{Symbol,Any}, system
             (data, Symbol("ironore_", key)),
         ]
     )
+    commodity_symbol = Symbol(ironore_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
         ironore_start_node,
         ironore_edge_data,
-        IronOreDR,
+        commodity,
         [(ironore_edge_data, :start_vertex), (data, :location)],
     )
 
@@ -129,8 +131,8 @@ function make(asset_type::Type{DrEafCCS}, data::AbstractDict{Symbol,Any}, system
     ironore_edge = Edge(
         Symbol(id, "_", ironore_edge_key),
         ironore_edge_data,
-        system.time_data[:IronOreDR],
-        IronOreDR,
+        system.time_data[commodity_symbol],
+        commodity,
         ironore_start_node,
         ironore_end_node,
     )
@@ -238,7 +240,7 @@ function make(asset_type::Type{DrEafCCS}, data::AbstractDict{Symbol,Any}, system
         co2_captured_end_node,
         co2_captured_edge_data,
         CO2Captured,
-        [(co2_captured_edge_data, :end_vertex), (data, :co2_captured_sink), (data, :location)],
+        [(co2_captured_edge_data, :end_vertex), (data, :location)],
     )    
     co2_captured_edge = Edge(
         Symbol(id, "_", co2_captured_edge_key),

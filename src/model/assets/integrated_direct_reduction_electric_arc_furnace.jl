@@ -1,11 +1,11 @@
-struct DrEaf{T} <: AbstractAsset
+struct DrEaf{T1 <: Commodity,T2 <: Commodity} <: AbstractAsset
     id::AssetId
     dreaf_transform::Transformation
     crudesteel_edge::Edge{CrudeSteel}
-    reductant_edge::Edge{T}
+    reductant_edge::Edge{T1}
     elec_edge::Edge{Electricity}
-    metcoal_edge::Edge{MetCoal}
-    ironore_edge::Edge{IronOreDR}
+    carbonsource_edge::Edge{T2}
+    ironore_edge::Edge{<:IronOre}
     co2_edge::Edge{CO2}
 end
 
@@ -28,7 +28,7 @@ function full_default_data(::Type{DrEaf}, id=missing)
             :ironore_consumption => 0.0,
             :electricity_consumption => 0.0,
             :reductant_consumption => 0.0,
-            :metcoal_consumption => 0.0,
+            :carbonsource_consumption => 0.0,
             :emission_rate => 0.0
         ),
         :edges => Dict{Symbol,Any}(
@@ -46,13 +46,13 @@ function full_default_data(::Type{DrEaf}, id=missing)
                 :commodity => missing
             ),
             :ironore_edge => @edge_data(
-                :commodity => "IronOreDR"
+                :commodity => "IronOre"
             ),
             :elec_edge => @edge_data(
                 :commodity => "Electricity",
             ),
-            :metcoal_edge => @edge_data(
-                :commodity => "MetCoal"
+            :carbonsource_edge => @edge_data(
+                :commodity => missing
             ),
             :co2_edge => @edge_data(
                 :commodity => "CO2"
@@ -72,7 +72,7 @@ function simple_default_data(::Type{DrEaf}, id=missing)
         :ironore_consumption => 0.0,
         :electricity_consumption => 0.0,
         :reductant_consumption => 0.0,
-        :metcoal_consumption => 0.0,
+        :carbonsource_consumption => 0.0,
         :emission_rate => 0.0
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
@@ -120,10 +120,12 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
             (data, Symbol("ironore_", key)),
         ]
     )
+    commodity_symbol = Symbol(ironore_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
         ironore_start_node,
         ironore_edge_data,
-        IronOreDR,
+        commodity,
         [(ironore_edge_data, :start_vertex), (data, :location)],
     )
 
@@ -131,8 +133,8 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
     ironore_edge = Edge(
         Symbol(id, "_", ironore_edge_key),
         ironore_edge_data,
-        system.time_data[:IronOreDR],
-        IronOreDR,
+        system.time_data[commodity_symbol],
+        commodity,
         ironore_start_node,
         ironore_end_node,
     )
@@ -198,34 +200,36 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
     )
     reductant_edge.unidirectional = true;
 
-    # metalurgical coal edge
+    # carbonsource edge
 
-    metcoal_edge_key = :metcoal_edge
+    carbonsource_edge_key = :carbonsource_edge
     @process_data(
-        metcoal_edge_data, 
-        data[:edges][metcoal_edge_key], 
+        carbonsource_edge_data, 
+        data[:edges][carbonsource_edge_key], 
         [
-            (data[:edges][metcoal_edge_key], key),
-            (data[:edges][metcoal_edge_key], Symbol("metcoal_", key)),
-            (data, Symbol("metcoal_", key)),
+            (data[:edges][carbonsource_edge_key], key),
+            (data[:edges][carbonsource_edge_key], Symbol("carbonsource_", key)),
+            (data, Symbol("carbonsource_", key)),
         ]
     )
+    commodity_symbol = Symbol(carbonsource_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
-        metcoal_start_node,
-        metcoal_edge_data,
-        MetCoal,
-        [(metcoal_edge_data, :start_vertex), (data, :location)],
+        carbonsource_start_node,
+        carbonsource_edge_data,
+        commodity,
+        [(carbonsource_edge_data, :start_vertex), (data, :location)],
     )
-    metcoal_end_node = dreaf_transform
-    metcoal_edge = Edge(
-        Symbol(id, "_", metcoal_edge_key),
-        metcoal_edge_data,
-        system.time_data[:MetCoal],
-        MetCoal,
-        metcoal_start_node,
-        metcoal_end_node,
+    carbonsource_end_node = dreaf_transform
+    carbonsource_edge = Edge(
+        Symbol(id, "_", carbonsource_edge_key),
+        carbonsource_edge_data,
+        system.time_data[commodity_symbol],
+        commodity,
+        carbonsource_start_node,
+        carbonsource_end_node,
     )
-    metcoal_edge.unidirectional = true;
+    carbonsource_edge.unidirectional = true;
 
     # co2 edge
 
@@ -305,9 +309,9 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
             crudesteel_edge.id => get(transform_data, :reductant_consumption, 0.0),
             reductant_edge.id => 1.0
         ),
-        :metcoal_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :metcoal_consumption, 0.0),
-            metcoal_edge.id => 1.0
+        :carbonsource_consumption => Dict(
+            crudesteel_edge.id => get(transform_data, :carbonsource_consumption, 0.0),
+            carbonsource_edge.id => 1.0
         ),
         :emissions => Dict(
             crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
@@ -315,5 +319,5 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
         ),
     )
 
-    return DrEaf(id, dreaf_transform, crudesteel_edge, reductant_edge, elec_edge, metcoal_edge, ironore_edge, co2_edge)
+    return DrEaf(id, dreaf_transform, crudesteel_edge, reductant_edge, elec_edge, carbonsource_edge, ironore_edge, co2_edge)
 end

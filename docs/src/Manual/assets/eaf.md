@@ -16,7 +16,7 @@ An EAF plant is made of the following components:
     - 1 **incoming** `Feedstock Edge`, representing the supply of the feedstock, either scrap or DRI. 
     - 1 **incoming** `Electricity Edge`, representing the supply of electricity.
     - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas.
-    - 1 **incoming** `MetCoal Edge`, representing the supply of metallurgical coal. **(minimal amount added to adjust the carbon content of the steel)**.
+    - 1 **incoming** `CarbonSource Edge`, representing the supply of metallurgical coal. **(minimal amount added to adjust the carbon content of the steel)**.
     - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
     - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
       
@@ -65,6 +65,8 @@ The EAF asset follows these stoichiometric relationships:
 \begin{aligned}
 \phi_{feedstock} &= \phi_{crudesteel} \cdot \epsilon_{feedstock\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{elec\_consumption} \\
+\phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{natgas\_consumption} \\
+\phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{metcoal\_consumption} \\
 \phi_{co2} &= \phi_{crudesteel} \cdot \epsilon_{emission\_rate} \\
 \end{aligned}
 ```
@@ -107,7 +109,7 @@ The following tables outline the attributes that can be set for a DrEaf.
 | `feedstock_consumption` | Float64 | reductant consumption per ton of crude steel output | $MWh_{H2}/t_{crudesteel}$ or $t_{steelscrap}/t_{crudesteel}$ | 0.0 |
 | `electricity_consumption` | Float64 | electricity consumption per ton of crude steel output | $MWh_{elec}/t_{crudesteel}$ | 0.0 |
 | `natgas_consumption` | Float64 | natural gas consumption per ton of crude steel output | $MWh/t_{crudesteel}$ | 0.0 |
-| `metcoal_consumption` | Float64 | metallurgical coal consumption per ton of crude steel output | $t/t_{crudesteel}$ | 0.0 |
+| `carbonsource_consumption` | Float64 | carbon source (i.e. metallurgical coal, charcoal, biomass, etc.) consumption per ton of crude steel output | $t/t_{crudesteel}$ | 0.0 |
 | `emission_rate` | Float64 | CO2 emissions  per ton of crude steel output | $t_{CO2}/t_{crudesteel}$ | 0.0 |
 
 ### Edges

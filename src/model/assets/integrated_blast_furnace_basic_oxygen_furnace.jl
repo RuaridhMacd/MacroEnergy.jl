@@ -1,9 +1,9 @@
 struct BfBof <: AbstractAsset
     id::AssetId
     bfbof_transform::Transformation
-    ironore_edge::Edge{IronOreBF}
-    metcoal_edge::Edge{MetCoal}
-    thermalcoal_edge::Edge{ThermalCoal}
+    ironore_edge::Edge{<:IronOre}
+    metcoal_edge::Edge{<:Coal}
+    thermalcoal_edge::Edge{<:Coal}
     steelscrap_edge::Edge{SteelScrap}
     natgas_edge::Edge{NaturalGas}
     crudesteel_edge::Edge{CrudeSteel}
@@ -47,13 +47,13 @@ function full_default_data(::Type{BfBof}, id=missing)
                 ),
             ),
             :metcoal_edge => @edge_data(
-                :commodity => "MetCoal"
+                :commodity => "Coal"
             ),
             :thermalcoal_edge => @edge_data(
-                :commodity => "ThermalCoal"
+                :commodity => "Coal"
             ),
             :ironore_edge => @edge_data(
-                :commodity => "IronOreBF"
+                :commodity => "IronOre"
             ),
             :steelscrap_edge => @edge_data(
                 :commodity => "SteelScrap"
@@ -126,10 +126,12 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
             (data, Symbol("ironore_", key)),
         ]
     )
+    commodity_symbol = Symbol(ironore_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
         ironore_start_node,
         ironore_edge_data,
-        IronOreBF,
+        commodity,
         [(ironore_edge_data, :start_vertex), (data, :location)],
     )
 
@@ -137,8 +139,8 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
     ironore_edge = Edge(
         Symbol(id, "_", ironore_edge_key),
         ironore_edge_data,
-        system.time_data[:IronOreBF],
-        IronOreBF,
+        system.time_data[commodity_symbol],
+        commodity,
         ironore_start_node,
         ironore_end_node,
     )
@@ -186,18 +188,20 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
             (data, Symbol("metcoal_", key)),
         ]
     )
+    commodity_symbol = Symbol(metcoal_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
         metcoal_start_node,
         metcoal_edge_data,
-        MetCoal,
+        commodity,
         [(metcoal_edge_data, :start_vertex), (data, :location)],
     )
     metcoal_end_node = bfbof_transform
     metcoal_edge = Edge(
         Symbol(id, "_", metcoal_edge_key),
         metcoal_edge_data,
-        system.time_data[:MetCoal],
-        MetCoal,
+        system.time_data[commodity_symbol],
+        commodity,
         metcoal_start_node,
         metcoal_end_node,
     )
@@ -215,10 +219,12 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
             (data, Symbol("thermalcoal_", key)),
         ]
     )
+    commodity_symbol = Symbol(thermalcoal_edge_data[:commodity])
+    commodity = commodity_types()[commodity_symbol]
     @start_vertex(
         thermalcoal_start_node,
         thermalcoal_edge_data,
-        ThermalCoal,
+        commodity,
         [(thermalcoal_edge_data, :start_vertex), (data, :location)],
     )
 
@@ -227,8 +233,8 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
     thermalcoal_edge = Edge(
         Symbol(id, "_", thermalcoal_edge_key),
         thermalcoal_edge_data,
-        system.time_data[:ThermalCoal],
-        ThermalCoal,
+        system.time_data[commodity_symbol],
+        commodity,
         thermalcoal_start_node,
         thermalcoal_end_node,
     )
