@@ -144,7 +144,8 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         ironore_start_node,
         ironore_end_node,
     )
-    ironore_edge.unidirectional = get(ironore_edge_data, :unidirectional, true)
+    ironore_edge.unidirectional = true
+    ironore_edge.has_capacity = false;
     
     # steel scrap edge
 
@@ -174,7 +175,8 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         steelscrap_start_node,
         steelscrap_end_node,
     )
-    steelscrap_edge.unidirectional = get(steelscrap_edge_data, :unidirectional, true)
+    steelscrap_edge.unidirectional = true
+    steelscrap_edge.has_capacity = false;
 
     # metalurgical coal edge
 
@@ -206,6 +208,7 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         metcoal_end_node,
     )
     metcoal_edge.unidirectional = true;
+    metcoal_edge.has_capacity = false;
 
     # thermal coal edge
 
@@ -239,6 +242,7 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         thermalcoal_end_node,
     )
     thermalcoal_edge.unidirectional = true;
+    thermalcoal_edge.has_capacity = false;
 
     # natural gas edge
 
@@ -269,6 +273,7 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         natgas_end_node,
     )
     natgas_edge.unidirectional = true;
+    natgas_edge.has_capacity = false;
 
     # electricity edge
 
@@ -298,6 +303,7 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         elec_end_node,
     )
     elec_edge.unidirectional = true
+    elec_edge.has_capacity = false
 
     # CO2 edge
 
@@ -364,7 +370,7 @@ function make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::S
         crudesteel_edge_data,
         :constraints,
         [MustRunConstraint(), CapacityConstraint()])
-    crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
+    crudesteel_edge.unidirectional = true
 
     # stochiometry
 

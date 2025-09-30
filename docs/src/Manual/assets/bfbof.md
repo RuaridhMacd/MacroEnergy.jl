@@ -15,7 +15,7 @@ A BfBof plant (with and without CCS) is made of the following components:
 - 9 `Edge` components:
     - 1 **incoming** `IronOre Edge`, representing the supply of iron ore of a suitable grade for BfBof, represented by the IronOreBF commodity. 
     - 1 **incoming** `MetCoal Edge`, representing the supply of metallurgical coal. 
-    - 1 **incoming** `ThermalCoal Edge`, representing the supply of metallurgical coal.
+    - 1 **incoming** `ThermalCoal Edge`, representing the supply of thermal coal.
     - 1 **incoming** `SteelScrap Edge`, representing the supply of merchant steel scrap.
     - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas. 
     - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
@@ -118,8 +118,8 @@ The following tables outline the attributes that can be set for a BfBof.
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
-| `metcoal_consumption` | Float64 | metcoal consumption per ton of crude steel output | $t_{metcoal}/t_{crudesteel}$ | 0.0 |
-| `thermal_consumption` | Float64 | thermalcoal consumption per ton of crude steel output | $MWh_{thermalcoal}/t_{crudesteel}$ | 0.0 |
+| `metcoal_consumption` | Float64 | metallurgical coal consumption per ton of crude steel output | $t_{metcoal}/t_{crudesteel}$ | 0.0 |
+| `thermal_consumption` | Float64 | thermal coal consumption per ton of crude steel output | $MWh_{thermalcoal}/t_{crudesteel}$ | 0.0 |
 | `steelscrap_consumption` | Float64 | steel scrap consumption per ton of crude steel output | $t_{steelscrap}/t_{crudesteel}$ | 0.0 |
 | `electricity_production` | Float64 | electricity production per ton of crude steel output | $MWh_{elec}/t_{crudesteel}$ | 0.0 |
 | `natgas_consumption` | Float64 | natural gas consumption per ton of crude steel output | $MWh_{natgas}/t_{crudesteel}$ | 0.0 |
