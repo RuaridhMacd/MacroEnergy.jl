@@ -37,7 +37,6 @@ function full_default_data(::Type{DrEafCCS}, id=missing)
                 :has_capacity => true,
                 :can_retire => true,
                 :can_expand => true,
-                :can_retire => true,
                 :constraints => Dict{Symbol, Bool}(
                     :CapacityConstraint => true,
                 ),
@@ -223,6 +222,7 @@ function make(asset_type::Type{DrEafCCS}, data::AbstractDict{Symbol,Any}, system
         co2_start_node,
         co2_end_node,
     )
+    co2_edge.unidirectional = true;
 
     # CO2 captured edge
     co2_captured_edge_key = :co2_captured_edge
@@ -284,7 +284,8 @@ function make(asset_type::Type{DrEafCCS}, data::AbstractDict{Symbol,Any}, system
         :constraints,
         [
             CapacityConstraint()
-        ])
+        ]
+    )
     crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
 
     dreafccs_transform.balance_data = Dict(

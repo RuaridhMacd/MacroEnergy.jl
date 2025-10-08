@@ -37,7 +37,6 @@ function full_default_data(::Type{DrEaf}, id=missing)
                 :has_capacity => true,
                 :can_retire => true,
                 :can_expand => true,
-                :can_retire => true,
                 :constraints => Dict{Symbol, Bool}(
                     :CapacityConstraint => true
                 ),
@@ -258,7 +257,8 @@ function make(asset_type::Type{DrEaf}, data::AbstractDict{Symbol,Any}, system::S
         co2_start_node,
         co2_end_node,
     )
-
+    co2_edge.unidirectional = true;
+    
     # crude steel edge
 
     crudesteel_edge_key = :crudesteel_edge

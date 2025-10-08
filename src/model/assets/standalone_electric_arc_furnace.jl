@@ -38,7 +38,6 @@ function full_default_data(::Type{Eaf}, id=missing)
                 :has_capacity => true,
                 :can_retire => true,
                 :can_expand => true,
-                :can_retire => true,
                 :constraints => Dict{Symbol, Bool}(
                     :CapacityConstraint => true,
                 ),
@@ -229,8 +228,6 @@ function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::Sys
     )
     carbonsource_edge.unidirectional = true;
 
-
-
     # crude steel edge
     crudesteel_edge_key = :crudesteel_edge
     @process_data(
@@ -288,7 +285,6 @@ function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::Sys
     )
     co2_edge.constraints = Vector{AbstractTypeConstraint}()
     co2_edge.unidirectional = true;
-    co2_edge.has_capacity = false;
 
     # stochiometry
     eaf_transform.balance_data = Dict(
