@@ -27,9 +27,9 @@ function solve_case(case::Case, opt::Optimizer, ::Myopic)
 
     @info("*** Running simulation with myopic iteration ***")
     
-    models = run_myopic_iteration!(case,opt)
+    myopic_results = run_myopic_iteration!(case,opt)
 
-    return (case, MyopicResults(models))
+    return (case, myopic_results)
 end
 
 ####### Benders decomposition algorithm #######

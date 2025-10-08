@@ -85,6 +85,18 @@ Base.@kwdef mutable struct Storage{T} <: AbstractStorage{T}
     @AbstractStorageBaseAttributes()
 end
 
+
+commodity_type(::Type{AbstractStorage{T}}) where {T} = T
+function commodity_type(t::Type{AbstractStorage{<:T}}) where {T}
+    ub_type = t.var.ub
+    return commodity_type(AbstractStorage{ub_type})
+end
+commodity_type(::Type{Storage{T}}) where {T} = T
+function commodity_type(t::Type{Storage{<:T}}) where {T}
+    ub_type = t.var.ub
+    return commodity_type(Storage{ub_type})
+end
+
 function make_storage(
     id::Symbol,
     data::Dict{Symbol,Any},

@@ -3,11 +3,7 @@ function initialize_planning_problem!(case::Case,opt::Dict)
     
     planning_problem = generate_planning_problem(case);
 
-    if opt[:solver] == Gurobi.Optimizer
-        optimizer = create_optimizer(opt[:solver], GRB_ENV[], opt[:attributes])
-    else
-        optimizer = create_optimizer(opt[:solver], missing, opt[:attributes])
-    end
+    optimizer = create_optimizer(opt[:solver], opt_env(opt[:solver]), opt[:attributes])
 
     set_optimizer(planning_problem, optimizer)
 
@@ -60,6 +56,9 @@ function generate_planning_problem(case::Case)
 
         @info(" -- Including age-based retirements")
         add_age_based_retirements!.(system.assets, model)
+
+        @info(" -- Adding retrofit constraints")
+        add_retrofit_constraints!(system, model)
 
         if period_idx < number_of_periods
             @info(" -- Available capacity in period $(period_idx) is being carried over to period $(period_idx+1)")
@@ -230,6 +229,7 @@ function update_with_planning_solution!(e::AbstractEdge, planning_variable_value
         e.capacity = planning_variable_values[name(e.capacity)]
         e.new_capacity = value(x->planning_variable_values[name(x)], e.new_capacity)
         e.retired_capacity = value(x->planning_variable_values[name(x)], e.retired_capacity)
+        e.retrofitted_capacity = value(x->planning_variable_values[name(x)], e.retrofitted_capacity)
     end
 end
 #### Removing for now, needs more testing  

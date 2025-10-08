@@ -186,7 +186,6 @@ function make(asset_type::Type{HydroRes}, data::AbstractDict{Symbol,Any}, system
         Electricity,
         [(spill_edge_data, :end_vertex), (data, :hydro_source), (data, :location),],
     )
-    spill_end_node = find_node(system.locations, Symbol(spill_edge_data[:end_vertex]))
     spill_edge = Edge(
         Symbol(id, "_", spill_edge_key),
         spill_edge_data,

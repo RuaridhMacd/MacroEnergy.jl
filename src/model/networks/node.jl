@@ -50,6 +50,12 @@ Base.@kwdef mutable struct Node{T} <: AbstractVertex
     @AbstractNodeBaseAttributes()
 end
 
+commodity_type(::Type{Node{T}}) where {T} = T
+function commodity_type(t::Type{Node{<:T}}) where {T}
+    ub_type = t.var.ub
+    return commodity_type(Node{ub_type})
+end
+
 function make_node(data::AbstractDict{Symbol,Any}, time_data::TimeData, commodity::DataType)
     node_kwargs = Base.fieldnames(Node)
     filtered_data = Dict{Symbol, Any}(

@@ -13,5 +13,9 @@ with_logger(test_logger) do
     Test.@testset verbose = true "Writing Outputs" begin
         include("test_output.jl")
     end
+    
+    Test.@testset verbose = true "Myopic Functionality" begin
+        include("test_myopic.jl")
+    end
     return nothing
 end

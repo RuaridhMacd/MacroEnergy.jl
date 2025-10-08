@@ -16,9 +16,10 @@ using Pkg
 using DistributedArrays
 using Distributed
 using ClusterManagers
-using Gurobi
 using GitHub
 using Markdown
+using Logging
+using LoggingExtras
 
 import MacroEnergyScaling: scale_constraints!
 import JuMP: set_optimizer, set_optimizer_attributes
@@ -93,19 +94,31 @@ const JuMPVariable =
     Union{Array,Containers.DenseAxisArray,Containers.SparseAxisArray,VariableRef}
 
 # Load subcommodities from file when MacroEnergy is loaded
-# Also load the Gurobi environment
-const GRB_ENV = Ref{Gurobi.Env}()
-function __init__()
-    isdir(ME_DEPOT_PATH) && load_subcommodities_from_file(ME_DEPOT_PATH)
+
+# Default optimizer environment
+const OPT_ENV_REGISTRY = Dict{Symbol,Any}(
+    :HiGHS => nothing
+)
+
+function opt_env(optimizer::Symbol)
+    return get(OPT_ENV_REGISTRY, optimizer, nothing)
+end
+
+function opt_env(optimizer::Type{T}) where {T}
     try
-        GRB_ENV[] = Gurobi.Env()
+        module_name = Symbol(parentmodule(optimizer))
+        return get(OPT_ENV_REGISTRY, module_name, nothing)
     catch e
-        if isa(e, ErrorException) && occursin("Gurobi Error", string(e))
-            @debug "Gurobi is not available."
-        else
-            rethrow(e)
-        end
+        return nothing
     end
+end
+
+function set_opt_env!(optimizer::Symbol, env::Any)
+    OPT_ENV_REGISTRY[optimizer] = env
+end
+
+function has_opt_env(optimizer::Symbol)
+    return haskey(OPT_ENV_REGISTRY, optimizer) && !isnothing(opt_env(optimizer))
 end
 
 function include_all_in_folder(folder::AbstractString, root_path::AbstractString=@__DIR__)
@@ -137,6 +150,7 @@ include("model/case.jl")
 include("model/networks/macroobject.jl")
 include("model/generate_model.jl")
 include("model/optimizer.jl")
+include("model/retrofit.jl")
 include("model/scaling.jl")
 include("model/solver.jl")
 include("model/myopic.jl")
@@ -198,11 +212,14 @@ export AbstractAsset,
     Biomass,
     Coal,
     Cement,
+    CrudeSteel,
     BECCSElectricity,
     BECCSHydrogen,
     BECCSGasoline,
     BECCSLiquidFuels,
     BECCSNaturalGas,
+    BfBof,
+    BfBofCCS,
     CO2,
     CO2CapConstraint,
     CO2Captured,
@@ -211,11 +228,14 @@ export AbstractAsset,
     CapacityConstraint,
     collect_results,
     Commodity,
+    DrEaf,
+    DrEafCCS,
     Edge,
     EdgeWithUC,
     Electricity,
     Electrolyzer,
     ElectricDAC,
+    Eaf,
     FossilFuelsUpstream,
     FuelCell,
     FuelsEndUse,
@@ -228,6 +248,7 @@ export AbstractAsset,
     get_optimal_retired_capacity,
     HydroRes,
     Hydrogen,
+    IronOre,
     LongDurationStorage,
     LongDurationStorageImplicitMinMaxConstraint,
     LongDurationStorageChangeConstraint,
@@ -255,6 +276,7 @@ export AbstractAsset,
     PolicyConstraint,
     RampingLimitConstraint,
     run_case,
+    SteelScrap,
     Storage,
     StorageCapacityConstraint,
     StorageChargeDischargeRatioConstraint,
@@ -290,13 +312,7 @@ export AbstractAsset,
     example_readme,
     example_contents,
     authenticate_github,
-    IronOre,
-    SteelScrap,
-    CrudeSteel,
-    BfBof,
-    BfBofCCS,
-    DrEaf,
-    DrEafCCS,
-    Eaf
+    mermaid_diagram,
+    save_mermaid_diagram
     
 end # module MacroEnergy
