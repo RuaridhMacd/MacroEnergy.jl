@@ -185,11 +185,11 @@ include("model/assets/cementplant.jl")
 include("model/assets/aluminumrefining.jl")
 include("model/assets/aluminumsmelting.jl")
 include("model/assets/aluminaplant.jl")
-include("model/assets/integrated_blast_furnace_basic_oxygen_furnace.jl")
-include("model/assets/integrated_blast_furnace_basic_oxygen_furnace_ccs.jl")
-include("model/assets/integrated_direct_reduction_electric_arc_furnace.jl")
-include("model/assets/integrated_direct_reduction_electric_arc_furnace_ccs.jl")
-include("model/assets/standalone_electric_arc_furnace.jl")
+include("model/assets/integratedblastfurnacebasicoxygenfurnace.jl")
+include("model/assets/integratedblastfurnacebasicoxygenfurnaceccs.jl")
+include("model/assets/integrateddirectreductionelectricarcfurnace.jl")
+include("model/assets/integrateddirectreductionelectricarcfurnaceccs.jl")
+include("model/assets/standaloneelectricarcfurnace.jl")
 
 include("config/configure_settings.jl")
 include("config/case_settings.jl")
@@ -218,8 +218,8 @@ export AbstractAsset,
     BECCSGasoline,
     BECCSLiquidFuels,
     BECCSNaturalGas,
-    BfBof,
-    BfBofCCS,
+    BlastFurnaceBasicOxygenFurnace,
+    BlastFurnaceBasicOxygenFurnaceCCS,
     CO2,
     CO2CapConstraint,
     CO2Captured,
@@ -228,14 +228,14 @@ export AbstractAsset,
     CapacityConstraint,
     collect_results,
     Commodity,
-    DrEaf,
-    DrEafCCS,
+    DirectReductionElectricArcFurnace,
+    DirectReductionElectricArcFurnaceCCS,
     Edge,
     EdgeWithUC,
     Electricity,
     Electrolyzer,
     ElectricDAC,
-    Eaf,
+    ElectricArcFurnace,
     FossilFuelsUpstream,
     FuelCell,
     FuelsEndUse,

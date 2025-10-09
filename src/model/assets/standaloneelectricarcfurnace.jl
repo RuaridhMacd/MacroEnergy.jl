@@ -1,16 +1,16 @@
-struct Eaf{T1 <: Commodity,T2 <: Commodity} <: AbstractAsset
+struct ElectricArcFurnace{T <: Commodity} <: AbstractAsset
     id::AssetId
     eaf_transform::Transformation
     crudesteel_edge::Edge{CrudeSteel}
     elec_edge::Edge{Electricity}
-    feedstock_edge::Edge{T1} # feedstock can be dri or steel scrap
+    steelscrap_edge::Edge{SteelScrap} 
     naturalgas_edge::Edge{NaturalGas}
-    carbonsource_edge::Edge{T2}
+    carbonsource_edge::Edge{T}
     co2_edge::Edge{CO2}
 end
 
 
-function default_data(t::Type{Eaf}, id=missing, style="full")
+function default_data(t::Type{ElectricArcFurnace}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -18,7 +18,7 @@ function default_data(t::Type{Eaf}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{Eaf}, id=missing)
+function full_default_data(::Type{ElectricArcFurnace}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -27,7 +27,7 @@ function full_default_data(::Type{Eaf}, id=missing)
                 :BalanceConstraint => true,
             ),
             :electricity_consumption => 0.0,
-            :feedstock_consumption => 0.0,
+            :steelscrap_consumption => 0.0,
             :naturalgas_consumption => 0.0,
             :carbonsource_consumption => 0.0,
             :emission_rate => 0.0
@@ -42,8 +42,8 @@ function full_default_data(::Type{Eaf}, id=missing)
                     :CapacityConstraint => true,
                 ),
             ),
-            :feedstock_edge => @edge_data(
-                :commodity => missing
+            :steelscrap_edge => @edge_data(
+                :commodity => "SteelScrap"
             ),
             :elec_edge => @edge_data(
                 :commodity => "Electricity"
@@ -62,7 +62,7 @@ function full_default_data(::Type{Eaf}, id=missing)
 end
 
 
-function simple_default_data(::Type{Eaf}, id=missing)
+function simple_default_data(::Type{ElectricArcFurnace}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -70,7 +70,7 @@ function simple_default_data(::Type{Eaf}, id=missing)
         :can_retire => true,
         :existing_capacity => 0.0,
         :electricity_consumption => 0.0,
-        :feedstock_consumption => 0.0,
+        :steelscrap_consumption => 0.0,
         :naturalgas_consumption => 0.0,
         :carbonsource_consumption => 0.0,
         :emission_rate => 0.0,
@@ -80,10 +80,10 @@ function simple_default_data(::Type{Eaf}, id=missing)
     )
 end
 
-function set_commodity!(::Type{Eaf}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
-    edge_keys = [:feedstock_edge]
-    if haskey(data, :feedstock_commodity)
-        data[:feedstock_commodity] = string(commodity)
+function set_commodity!(::Type{ElectricArcFurnace}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+    edge_keys = [:carbonsource_edge]
+    if haskey(data, :carbonsource_commodity)
+        data[:carbonsource_commodity] = string(commodity)
     end
     if haskey(data, :edges)
         for edge_key in edge_keys
@@ -96,7 +96,7 @@ function set_commodity!(::Type{Eaf}, commodity::Type{<:Commodity}, data::Abstrac
     end
 end
 
-function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
     @setup_data(asset_type, data, id)
 
@@ -136,36 +136,35 @@ function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::Sys
     )
     elec_edge.unidirectional = true
 
-    # feedstock edge
+    # steel scrap edge
 
-    feedstock_edge_key = :feedstock_edge
+    steelscrap_edge_key = :steelscrap_edge
     @process_data(
-        feedstock_edge_data, 
-        data[:edges][feedstock_edge_key], 
+        steelscrap_edge_data, 
+        data[:edges][steelscrap_edge_key], 
         [
-            (data[:edges][feedstock_edge_key], key),
-            (data[:edges][feedstock_edge_key], Symbol("feedstock_", key)),
-            (data, Symbol("feedstock_", key)),
+            (data[:edges][steelscrap_edge_key], key),
+            (data[:edges][steelscrap_edge_key], Symbol("steelscrap_", key)),
+            (data, Symbol("steelscrap_", key)),
         ]
     )
-    commodity_symbol = Symbol(feedstock_edge_data[:commodity])
-    commodity = commodity_types()[commodity_symbol]
+
     @start_vertex(
-        feedstock_start_node,
-        feedstock_edge_data,
-        commodity,
-        [(feedstock_edge_data, :start_vertex), (data, :location)],
+        steelscrap_start_node,
+        steelscrap_edge_data,
+        SteelScrap,
+        [(steelscrap_edge_data, :start_vertex), (data, :location)],
     )
-    feedstock_end_node = eaf_transform
-    feedstock_edge = Edge(
-        Symbol(id, "_", feedstock_edge_key),
-        feedstock_edge_data,
-        system.time_data[commodity_symbol],
-        commodity,
-        feedstock_start_node,
-        feedstock_end_node,
+    steelscrap_end_node = eaf_transform
+    steelscrap_edge = Edge(
+        Symbol(id, "_", steelscrap_edge_key),
+        steelscrap_edge_data,
+        system.time_data[:SteelScrap],
+        SteelScrap,
+        steelscrap_start_node,
+        steelscrap_end_node,
     )
-    feedstock_edge.unidirectional = true;
+    steelscrap_edge.unidirectional = true;
 
     # natural gas edge
 
@@ -292,9 +291,9 @@ function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::Sys
             crudesteel_edge.id => get(transform_data, :electricity_consumption, 1.0),
             elec_edge.id => 1.0,
         ),
-        :feedstock_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :feedstock_consumption, 1.0),
-            feedstock_edge.id => 1.0
+        :steelscrap_consumption => Dict(
+            crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 1.0),
+            steelscrap_edge.id => 1.0
         ),
         :naturalgas_consumption => Dict(
             crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 1.0),
@@ -311,11 +310,11 @@ function make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::Sys
     )
 
 
-    return Eaf(id,
+    return ElectricArcFurnace(id,
             eaf_transform,
             crudesteel_edge,
             elec_edge,
-            feedstock_edge,
+            steelscrap_edge,
             naturalgas_edge,
             carbonsource_edge,
             co2_edge
