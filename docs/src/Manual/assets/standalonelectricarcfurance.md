@@ -41,14 +41,14 @@ flowchart BT
     e5@{ animate: true }
     e6@{ animate: true }
  end
-    style A1 font-size:15px,r:45px,fill:#008080,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A2 font-size:15px,r:45px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A3 font-size:15px,r:45px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A4 font-size:15px,r:45px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A1 font-size:15px,r:50px,fill:#008080,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:50px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:15px,r:50px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A4 font-size:15px,r:50px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
 
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:15px,r:45px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C2 font-size:15px,r:45px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:15px,r:50px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:15px,r:50px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
     linkStyle 0,1 stroke:#008080, stroke-width: 2px;
     linkStyle 1,2 stroke:#FFD700, stroke-width: 2px;
