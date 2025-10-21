@@ -31,7 +31,7 @@ flowchart BT
     A2(("**Electricity**")) e2@-->B{{"**scrap-EAF**"}}
     A3(("**NaturalGas**")) e3@-->B{{"**scrap-EAF**"}}
     A4(("**CarbonSource**")) e4@-->B{{"**scrap-EAF**"}}
-    B{{"**scrap-EAF**"}} e5@-->C1(("**Crude Steel**"))
+    B{{"**scrap-EAF**"}} e5@-->C1(("**CrudeSteel**"))
     B{{"**scrap-EAF**"}} e6@-->C2(("**CO2**"))
 
     e1@{ animate: true }
