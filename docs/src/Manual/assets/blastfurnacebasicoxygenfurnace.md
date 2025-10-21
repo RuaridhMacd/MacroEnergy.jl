@@ -16,8 +16,8 @@ A BF-BOF plant (with and without CCS) is made of the following components:
     - 1 **incoming** `IronOre Edge`, representing the iron ore supply, represented by the IronOreBF subcommodity.  **(Macro distinguishes between two iron ore sub-commodities: IronOreBF, a blast-furnace-grade ore with approximately 65% iron content, and IronOreDR, a higher-purity ore (above ~67% iron) suitable for use in direct-reduction furnaces.)**
     - 1 **incoming** `MetCoal Edge`, representing metallurgical coal supply. 
     - 1 **incoming** `ThermalCoal Edge`, representing thermal coal supply.
-    - 1 **incoming** `SteelScrap Edge`, representing merchant steel scrap supply **(Scrap that is externally sourced, in contrast to home scrap, which is generated within the facility.)**..
-    - 1 **incoming** `NaturalGas Edge`, representing natural gas supply. **(Natural gas can serve as a supplemental reductant to lower coke consumption, or be blended with process off-gases to generate heat and electricity)**
+    - 1 **incoming** `SteelScrap Edge`, representing merchant steel scrap supply. **(Steel scrap that is externally sourced, in contrast to home scrap, which is generated within the facility. It is mainly used to limit overheating from the highly exothermic oxidation reactions in the BOF.)**
+    - 1 **incoming** `NaturalGas Edge`, representing natural gas supply. **(Natural gas can serve as a supplemental reductant to lower coke consumption, or be blended with process off-gases to generate heat and electricity.)**
     - 1 **outgoing** `CrudeSteel Edge`, representing crude steel production.
     - 1 **outgoing** `Electricity Edge`, representing excess electricity production. **(if CCS is present, the BF-BOF-CCS facility is a net importer and the electricity edge is an incoming edge.)**.
     - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
