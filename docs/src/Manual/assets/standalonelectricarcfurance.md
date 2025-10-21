@@ -6,7 +6,7 @@
 
 ## [Overview](@id "eaf_overview")
 
-In Macro, Electric Arc Furnace (EAF) refers to standalone steelmaking facilities where steel scrap is melted and refined into crude steel using electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as scrap_eaf.json or scrap_eaf.csv.
+In Macro, Electric Arc Furnace (EAF) refers to standalone steelmaking facilities where steel scrap is melted and refined into crude steel using electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as standalone_scrap_electric_arc_furnace.json or standalone_scrap_electric_arc_furnace.csv.
 
 ## [Asset Structure](@id "eaf_asset_structure")
 
