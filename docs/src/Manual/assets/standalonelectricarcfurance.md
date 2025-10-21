@@ -50,11 +50,11 @@ flowchart BT
     style C1 font-size:15px,r:50px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
     style C2 font-size:15px,r:50px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
-    linkStyle 0,1 stroke:#008080, stroke-width: 2px;
-    linkStyle 1,2 stroke:#FFD700, stroke-width: 2px;
-    linkStyle 2,3 stroke:#005F6A, stroke-width: 2px;
-    linkStyle 3,4 stroke:#8B4513, stroke-width: 2px;
-    linkStyle 4,5 stroke:#2874A6, stroke-width: 2px;
+    linkStyle 0 stroke:#008080, stroke-width: 2px;
+    linkStyle 1 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 2 stroke:#005F6A, stroke-width: 2px;
+    linkStyle 3 stroke:#8B4513, stroke-width: 2px;
+    linkStyle 4 stroke:#2874A6, stroke-width: 2px;
 
 ```
 ## [Flow Equations](@id "dreaf_flow_equations")
