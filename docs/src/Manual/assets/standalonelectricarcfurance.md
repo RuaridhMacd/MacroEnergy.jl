@@ -11,14 +11,14 @@ In Macro, Electric Arc Furnace (EAF) refers to standalone steelmaking facilities
 ## [Asset Structure](@id "eaf_asset_structure")
 
 An EAF plant is made of the following components:
-- 1 `Transformation` component, representing the DR-EAF (with and without CCS).
+- 1 `Transformation` component, representing the electric arc furnace.
 - 6 `Edge` components:
-    - 1 **incoming** `SteelScrap Edge`, representing the supply of steel scrap. 
-    - 1 **incoming** `Electricity Edge`, representing the supply of electricity.
-    - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas.
-    - 1 **incoming** `CarbonSource Edge`, representing the supply of carbon source. **(minimal amount added to adjust the carbon content of the steel, the carbon source can be metallurgical coal, charcoal, etc.)**.
-    - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
-    - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
+    - 1 **incoming** `SteelScrap Edge`, representing the steel scrap supply. 
+    - 1 **incoming** `Electricity Edge`, representing the electricity supply.
+    - 1 **incoming** `NaturalGas Edge`, representing the natural gas supply.
+    - 1 **incoming** `CarbonSource Edge`, representing the carbon source supply. **(minimal amount added to adjust the carbon content of the steel, the carbon source can be metallurgical coal, charcoal, etc.)**.
+    - 1 **outgoing** `CrudeSteel Edge`, representing  crude steel production.
+    - 1 **outgoing** `CO2 Edge`, representing CO2 emitted into the atmosphere.
       
 Here is a graphical representation of a scrap-fed EAF asset:
 
