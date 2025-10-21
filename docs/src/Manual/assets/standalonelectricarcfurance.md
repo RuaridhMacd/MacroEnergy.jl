@@ -82,7 +82,7 @@ The easiest way to include a standalone scrap-EAF asset in a model is to create 
 ```
 your_case/
 ├── assets/
-│   ├── sstandalone_scrap_electric_arc_furnace.json    # or scrap_eaf.csv
+│   ├── sstandalone_scrap_electric_arc_furnace.json    # or standalone_scrap_electric_arc_furnace.csv
 │   ├── other_assets.json
 │   └── ...
 ├── system/
