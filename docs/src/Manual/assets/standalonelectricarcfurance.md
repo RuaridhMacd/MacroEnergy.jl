@@ -60,7 +60,7 @@ flowchart BT
 ```
 ## [Flow Equations](@id "eaf_flow_equations")
 
-The EAF asset follows these stoichiometric relationships:
+The ElectricArcFurnace asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
@@ -124,7 +124,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `type` | `String` | Any Macro commodity type matching the commodity of the edge | Required | Commodity of the edge. E.g. "Electricity". |
 | `start_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the starting vertex of the edge. The node must be present in the `nodes.json` file. E.g. "elec\_node\_1". |
 | `end_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the ending vertex of the edge. The node must be present in the `nodes.json` file. E.g. "crudesteel\_node\_1". |
-| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "Eaf"}}`.|
+| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "ElectricArcFurnace"}}`.|
 | `has_capacity` | `Bool` | `Bool` | `false` | Whether capacity variables are created for the edge. |
 | `integer_decisions` | `Bool` | `Bool` | `false` | Whether capacity variables are integers. |
 | `unidirectional` | `Bool` | `Bool` | `false` | Whether the edge is unidirectional. |
