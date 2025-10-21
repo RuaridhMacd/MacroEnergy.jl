@@ -77,12 +77,12 @@ Where:
 
 ## [Input File (Standard Format)](@id "eaf_input_file")
 
-The easiest way to include an integrated DR-EAF asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include a standalone scrap-EAF asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
 ├── assets/
-│   ├── scrap_eaf.json    # or scrap_eaf.csv
+│   ├── sstandalone_scrap_electric_arc_furnace.json    # or scrap_eaf.csv
 │   ├── other_assets.json
 │   └── ...
 ├── system/
