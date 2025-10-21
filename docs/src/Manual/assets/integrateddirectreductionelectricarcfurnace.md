@@ -90,7 +90,7 @@ your_case/
 
 This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref "dreaf_examples") section.
 
-The following tables outline the attributes that can be set for a DrEaf.
+The following tables outline the attributes that can be set for a DirectReductionElectricArcFurnace.
 
 ### Transform Attributes
 #### Essential Attributes
@@ -150,7 +150,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 
 ### [Constraints Configuration](@id "dreaf_constraints")
 
-DrEaf assets can have different constraints applied to them, and the user can configure them using the following fields:
+DirectReductionElectricArcFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -245,7 +245,7 @@ dreaf_transform.balance_data = Dict(
 
 ## [Examples](@ref "dreaf_examples")
 
-This example illustrates a basic DrEaf configuration using hydrogen as a reductant in JSON format, featuring standard parameters in a three-zone case.
+This example illustrates a basic DirectReductionElectricArcFurnace configuration using natural gas as a reductant and metallurgical coal as a carbon source in JSON format, featuring standard parameters in a three-zone case.
 
 
 ```json
