@@ -14,7 +14,7 @@ These assets are defined using either JSON or CSV input files placed in the `ass
 A BF-BOF plant (with and without CCS) is made of the following components:
 - 1 `Transformation` component, representing the BF-BOF (with and without CCS).
 - 9 `Edge` components:
-    - 1 **incoming** `IronOre Edge`, representing the iron ore supply, represented by the IronOreBF subcommodity.  **(Macro distinguishes between two iron ore sub-commodities: IronOreBF, a blast-furnace-grade ore with approximately 65% iron content, and IronOreDR, a higher-purity ore (above ~67% iron) suitable for use in direct-reduction furnaces.)**
+    - 1 **incoming** `IronOre Edge`, representing iron ore supply in the form of the IronOreBF subcommodity.  **(Macro distinguishes between two iron ore sub-commodities: IronOreBF, a blast-furnace-grade ore with approximately 65% iron content, and IronOreDR, a higher-purity ore (above ~67% iron) suitable for use in direct-reduction furnaces.)**
     - 1 **incoming** `MetCoal Edge`, representing metallurgical coal supply. 
     - 1 **incoming** `ThermalCoal Edge`, representing thermal coal supply.
     - 1 **incoming** `SteelScrap Edge`, representing merchant steel scrap supply. **(Steel scrap that is externally sourced, in contrast to home scrap, which is generated within the facility. Steel scrap is mainly used to limit overheating from the highly exothermic oxidation reactions in the BOF.)**
