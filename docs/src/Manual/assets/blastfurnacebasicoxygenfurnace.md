@@ -48,15 +48,15 @@ flowchart BT
     e7@{ animate: true }
     e8@{ animate: true }
  end
-    style A1 font-size:18px,r:45px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A2 font-size:18px,r:45px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A3 font-size:18px,r:45px,fill:#A0522D,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A4 font-size:18px,r:45px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A5 font-size:18px,r:45px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A1 font-size:15px,r:45px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:45px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:15px,r:45px,fill:#A0522D,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A4 font-size:15px,r:45px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A5 font-size:15px,r:45px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:18px,r:45px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C2 font-size:18px,r:45px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C3 font-size:18px,r:45px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:15px,r:45px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:15px,r:45px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C3 font-size:15px,r:45px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
     linkStyle 0 stroke:#FFD700D, stroke-width: 2px;
     linkStyle 1 stroke:#8B4513, stroke-width: 2px;
     linkStyle 2 stroke:#A0522D, stroke-width: 2px;
