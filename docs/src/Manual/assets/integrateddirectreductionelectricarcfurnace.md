@@ -1,4 +1,4 @@
-# DrEaf (with and without CCS)
+# Integrated Direct Reduction Electric Arc Furnace (with and without CCS)
 
 ## Contents
 
@@ -6,33 +6,33 @@
 
 ## [Overview](@id "dreaf_overview")
 
-In Macro, DrEaf represents integrated steelmaking facilities that combine direct reduction (DR) units with electric arc furnaces (EAF). In these configurations, iron ore is initially reduced in a direct reduction reactor, using either natural gas or hydrogen, to produce hot direct reduced iron (hDRI), which is subsequently processed into crude steel in electric arc furnaces. 
-These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as hydrogen_dr_eaf.json or hydrogen_dr_eaf.csv.
+In Macro, the Integrated Direct Reduction–Electric Arc Furnace (DR-EAF) pathway represents integrated steelmaking facilities that combine direct reduction units with electric arc furnaces. In this configuration, iron ore is first reduced in a direct reduction reactor using natural gas or hydrogen as the reductant to produce hot direct reduced iron (hDRI), which is then melted in electric arc furnaces to produce crude steel.
+These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as integrated_hydrogen_direct_reduction_electric_arc_furnace.json or integrated_naturalgas_direct_reduction_electric_arc_furnace_ccs.csv.
 
 ## [Asset Structure](@id "dreaf_asset_structure")
 
 A DR-EAF plant (with and without CCS) is made of the following components:
 - 1 `Transformation` component, representing the DR-EAF (with and without CCS).
 - 8 `Edge` components:
-    - 1 **incoming** `IronOre Edge`, representing the supply of iron ore of a suitable grade for direct reduction, represented by the IronOreDR commodity. 
-    - 1 **incoming** `Reductant Edge`, representing the supply of the reductant, which can be natural gas or hydrogen.
-    - 1 **incoming** `Electricity Edge`, representing the supply of electricity.
-    - 1 **incoming** `Metcoal Edge`, representing the supply of metallurgical coal. **(only if hydrogen is used as a reductant, metallurgical coal provides the necessary carbon for the steel)**.
+    - 1 **incoming** `IronOre Edge`, representing the iron ore supply in the form of the IronOreDR subcommodity. (Macro distinguishes between two iron ore sub-commodities: IronOreBF, a blast-furnace-grade ore with approximately 65% iron content, and IronOreDR, a higher-purity ore (above ~67% iron) suitable for use in direct-reduction furnaces.)
+    - 1 **incoming** `Reductant Edge`, representing reductant supply, which can be natural gas or hydrogen.
+    - 1 **incoming** `Electricity Edge`, representing electricity supply.
+    - 1 **incoming** `CarbonSource Edge`, representing the carbon source supply. **(Applicable only when hydrogen is used as the reductant. The resulting DRI is carbon-free, and a carbon source—such as metallurgical coal, charcoal, or other carbon materials—is added to adjust the steel’s carbon content, minimize iron oxide losses, and supply additional chemical energy.)**.
     - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
     - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
     - 1 **outgoing** `CO2Captured Edge`, representing the CO2 that is captured **(only if CCS is present)**.
       
-Here is a graphical representation of the NG-DR-EAF asset without CCS:
+Here is a graphical representation of a natural gas-based DR-EAF asset without CCS:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart BT
   subgraph NG-DR-EAF
   direction BT
-    A1(("**Iron Ore**")) e1@-->B{{"**NG-DR-EAF**"}}
+    A1(("**IronOre**")) e1@-->B{{"**NG-DR-EAF**"}}
     A2(("**NaturalGas**")) e2@-->B{{"**NG-DR-EAF**"}}
     A3(("**Electricity**")) e3@-->B{{"**NG-DR-EAF**"}}
-    B{{"**NG-DR-EAF**"}} e4@-->C1(("**Crude Steel**"))
+    B{{"**NG-DR-EAF**"}} e4@-->C1(("**CrudeSteel**"))
     B{{"**NG-DR-EAF**"}} e5@-->C2(("**CO2**"))
 
     e1@{ animate: true }
@@ -41,17 +41,18 @@ flowchart BT
     e4@{ animate: true }
     e5@{ animate: true }
  end
-    style A1 font-size:15px,r:45px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A1 font-size:15px,r:45px,fill:#A52A2A,stroke:black,color:black,stroke-dasharray: 3,5;
     style A2 font-size:15px,r:45px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
     style A3 font-size:15px,r:45px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:15px,r:45px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:15px,r:45px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
     style C2 font-size:15px,r:45px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
-    linkStyle 0,1 stroke:#FFD700D, stroke-width: 2px;
-    linkStyle 1,2 stroke:#005F6A, stroke-width: 2px;
-    linkStyle 2,3 stroke:#FFD700, stroke-width:2px;
-    linkStyle 3,4 stroke:#696969, color:lightgray, stroke-width: 2px;
+    linkStyle 0 stroke:#A52A2A, stroke-width: 2px;
+    linkStyle 1 stroke:#005F6A, stroke-width: 2px;
+    linkStyle 2 stroke:#FFD700, stroke-width:2px;
+    linkStyle 3 stroke:#566573, stroke-width: 2px;
+    linkStyle 3 stroke:#696969, color:lightgray, stroke-width: 2px;
 
 ```
 ## [Flow Equations](@id "dreaf_flow_equations")
