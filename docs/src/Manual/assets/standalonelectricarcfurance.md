@@ -217,15 +217,15 @@ make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,Any}, syste
 ```julia
 eaf_transform.balance_data = Dict(
     :electricity_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :electricity_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0,
     ),
     :steelscrap_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
         steelscrap_edge.id => 1.0
     ),
     :naturalgas_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 0.0),
         naturalgas_edge.id => 1.0,
     ),
     :carbonsource_consumption => Dict(
