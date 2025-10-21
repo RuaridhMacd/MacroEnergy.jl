@@ -70,7 +70,7 @@ flowchart BT
 ```
 ## [Flow Equations](@id "bfbof_flow_equations")
 
-The BfBof asset follows these stoichiometric relationships:
+The BlastFurnaceBasicOxygenFurnace asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
@@ -90,12 +90,12 @@ Where:
 
 ## [Input File (Standard Format)](@id "bfbof_input_file")
 
-The easiest way to include a BfBof asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include an integrated BlastFurnaceBasicOxygenFurnace asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
 ├── assets/
-│   ├── bfbof.json    # or bfbof.csv
+│   ├── integrated_blast_furnace_basic_oxygen_furnace.json    # or integrated_blast_furnace_basic_oxygen_furnace.csv
 │   ├── other_assets.json
 │   └── ...
 ├── system/
@@ -111,7 +111,7 @@ The following tables outline the attributes that can be set for a BfBof.
 #### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "BfBof" |
+| `Type` | String | Asset type identifier: "BlastFurnaceBasicOxygenFurnace" |
 | `id` | String | Unique identifier for the asset instance |
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |
@@ -139,7 +139,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `type` | `String` | Any Macro commodity type matching the commodity of the edge | Required | Commodity of the edge. E.g. "Electricity". |
 | `start_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the starting vertex of the edge. The node must be present in the `nodes.json` file. E.g. "elec\_node\_1". |
 | `end_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the ending vertex of the edge. The node must be present in the `nodes.json` file. E.g. "crudesteel\_node\_1". |
-| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "BfBof"}}`.|
+| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "BlastFurnaceBasicOxygenFurnace"}}`.|
 | `has_capacity` | `Bool` | `Bool` | `false` | Whether capacity variables are created for the edge. |
 | `integer_decisions` | `Bool` | `Bool` | `false` | Whether capacity variables are integers. |
 | `unidirectional` | `Bool` | `Bool` | `false` | Whether the edge is unidirectional. |
@@ -166,7 +166,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 
 ### [Constraints Configuration](@id "bfbof_constraints")
 
-BfBof assets can have different constraints applied to them, and the user can configure them using the following fields:
+BlastFurnaceBasicOxygenFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -192,7 +192,7 @@ For example, if the user wants to apply the [`BalanceConstraint`](@ref "balance_
 Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a BfBof asset.
 
 #### Default constraints
-To simplify the input file and the asset configuration, the following constraints are applied to the BfBof asset by default:
+To simplify the input file and the asset configuration, the following constraints are applied to the BlastFurnaceBasicOxygenFurnace asset by default:
 
 - [Balance constraint](@ref "balance_constraint_ref") (applied to the transformation component)
 - [Capacity constraint](@ref "capacity_constraint_ref") (applied to the output crude steel edge)
@@ -200,19 +200,19 @@ To simplify the input file and the asset configuration, the following constraint
 
 ## [Types - Asset Structure](@id "bfbof_type_definition")
 
-The BfBof asset is defined as follows:
+The BlastFurnaceBasicOxygenFurnace asset is defined as follows:
 
 ```julia
-struct BfBof <: AbstractAsset
+struct BlastFurnaceBasicOxygenFurnace <: AbstractAsset
     id::AssetId
     bfbof_transform::Transformation
-    ironore_edge::Edge{IronOreBF}
-    metcoal_edge::Edge{MetCoal}
-    thermalcoal_edge::Edge{ThermalCoal}
+    ironore_edge::Edge{<:IronOre}
+    metcoal_edge::Edge{<:Coal}
+    thermalcoal_edge::Edge{<:Coal}
     steelscrap_edge::Edge{SteelScrap}
+    natgas_edge::Edge{NaturalGas}
     crudesteel_edge::Edge{CrudeSteel}
     elec_edge::Edge{Electricity}
-    natgas_edge::Edge{NaturalGas}
     co2_edge::Edge{CO2}
 end
 ```
@@ -221,12 +221,12 @@ end
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{BfBof}` | Macro type of the asset |
+| `asset_type` | `Type{BlastFurnaceBasicOxygenFurnace}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
@@ -234,34 +234,34 @@ make(asset_type::Type{BfBof}, data::AbstractDict{Symbol,Any}, system::System)
 
 ```julia
 bfbof_transform.balance_data = Dict(
-        :ironore_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
-            ironore_edge.id => 1.0
-        ),
-        :steelscrap_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
-            steelscrap_edge.id => 1.0
-        ),
-        :electricity_production => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_production, 0.0),
-            elec_edge.id => -1.0
-        ),
-        :metcoal_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :metcoal_consumption, 0.0),
-            metcoal_edge.id => 1.0
-        ),
-        :thermalcoal_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :thermalcoal_consumption, 0.0),
-            thermalcoal_edge.id => 1.0
-        ),
-        :natgas_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :natgas_consumption, 0.0),
-            natgas_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0,
-        )
+    :ironore_consumption=> Dict(
+        crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
+        ironore_edge.id => 1.0
+    ),
+    :steelscrap_consumption=> Dict(
+        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
+        steelscrap_edge.id => 1.0
+    ),
+    :electricity_production => Dict(
+        crudesteel_edge.id => get(transform_data, :electricity_production, 0.0),
+        elec_edge.id => -1.0
+    ),
+    :metcoal_consumption => Dict(
+        crudesteel_edge.id => get(transform_data, :metcoal_consumption, 0.0),
+        metcoal_edge.id => 1.0
+    ),
+    :thermalcoal_consumption => Dict(
+        crudesteel_edge.id => get(transform_data, :thermalcoal_consumption, 0.0),
+        thermalcoal_edge.id => 1.0
+    ),
+    :natgas_consumption => Dict(
+        crudesteel_edge.id => get(transform_data, :natgas_consumption, 0.0),
+        natgas_edge.id => 1.0
+    ),
+    :emissions => Dict(
+        crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
+        co2_edge.id => -1.0,
+    )
 )
 ```
 !!! warning "Dictionary keys must match"
@@ -271,14 +271,14 @@ bfbof_transform.balance_data = Dict(
 
 ## [Examples](@ref "bfbof_examples")
 
-This example illustrates a basic BfBof configuration in JSON format, featuring standard parameters in a three-zone case.
+This example illustrates a basic BlastFurnaceBasicOxygenFurnace configuration in JSON format, featuring standard parameters in a three-zone case.
 
 
 ```json
 {
-    "BfBof": [
+    "BlastFurnaceBasicOxygenFurnace": [
         {
-            "type": "BfBof",
+            "type": "BlastFurnaceBasicOxygenFurnace",
             "global_data":{
                 "nodes": {},
                 "transforms": {
@@ -294,7 +294,7 @@ This example illustrates a basic BfBof configuration in JSON format, featuring s
                         "integer_decisions": false
                     },
                     "ironore_edge":{
-                        "commodity": "IronOreBF",
+                        "commodity": "IronOreBF", 
                         "unidirectional": true,
                         "has_capacity": false
                     },
