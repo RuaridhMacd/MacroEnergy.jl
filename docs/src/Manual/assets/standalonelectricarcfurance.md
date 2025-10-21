@@ -64,7 +64,7 @@ The EAF asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
-\phi_{feedstock} &= \phi_{crudesteel} \cdot \epsilon_{feedstock\_consumption} \\
+\phi_{steelscrap} &= \phi_{crudesteel} \cdot \epsilon_{steelscrap\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{elec\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{natgas\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{carbonsource\_consumption} \\
