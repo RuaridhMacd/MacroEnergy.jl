@@ -15,7 +15,7 @@ An EAF plant is made of the following components:
 - 6 `Edge` components:
     - 1 **incoming** `SteelScrap Edge`, representing the steel scrap supply. 
     - 1 **incoming** `Electricity Edge`, representing the electricity supply.
-    - 1 **incoming** `NaturalGas Edge`, representing the natural gas supply.**(used in natural gas burners that pre-heat scrap and reduce electric energy consumption)**
+    - 1 **incoming** `NaturalGas Edge`, representing the natural gas supply.**(used in natural gas burners that pre-heat scrap and reduce electricity consumption)**
     - 1 **incoming** `CarbonSource Edge`, representing the carbon source supply. **(minimal amount added to adjust the carbon content of the steel, reduce iron oxide losses, and add chemical energy. The carbon source can be metallurgical coal, charcoal, etc.)**.
     - 1 **outgoing** `CrudeSteel Edge`, representing  crude steel production.
     - 1 **outgoing** `CO2 Edge`, representing CO2 emitted into the atmosphere.
