@@ -1,4 +1,4 @@
-# Eaf
+# Electric Arc Furnace
 
 ## Contents
 
@@ -6,17 +6,17 @@
 
 ## [Overview](@id "eaf_overview")
 
-In Macro, EAF represents standalone electric arc furnace steelmaking facilities. In these plants, scrap steel or direct reduced iron (DRI) is processed into crude steel in electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as scrap_eaf.json or scrap_eaf.csv.
+In Macro, EAF represents standalone electric arc furnace steelmaking facilities. In these plants, steel scrap is processed into crude steel in electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as scrap_eaf.json or scrap_eaf.csv.
 
 ## [Asset Structure](@id "eaf_asset_structure")
 
 An EAF plant is made of the following components:
 - 1 `Transformation` component, representing the DR-EAF (with and without CCS).
 - 6 `Edge` components:
-    - 1 **incoming** `Feedstock Edge`, representing the supply of the feedstock, either scrap or DRI. 
+    - 1 **incoming** `SteelScrap Edge`, representing the supply of steel scrap. 
     - 1 **incoming** `Electricity Edge`, representing the supply of electricity.
     - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas.
-    - 1 **incoming** `CarbonSource Edge`, representing the supply of metallurgical coal. **(minimal amount added to adjust the carbon content of the steel)**.
+    - 1 **incoming** `CarbonSource Edge`, representing the supply of carbon source. **(minimal amount added to adjust the carbon content of the steel, the carbon source can be metallurgical coal, charcoal, etc.)**.
     - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
     - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
       
@@ -30,7 +30,7 @@ flowchart BT
     A1(("**SteelScrap**")) e1@-->B{{"**scrap-EAF**"}}
     A2(("**Electricity**")) e2@-->B{{"**scrap-EAF**"}}
     A3(("**NaturalGas**")) e3@-->B{{"**scrap-EAF**"}}
-    A4(("**MetCoal**")) e4@-->B{{"**scrap-EAF**"}}
+    A4(("**CarbonSource**")) e4@-->B{{"**scrap-EAF**"}}
     B{{"**scrap-EAF**"}} e5@-->C1(("**Crude Steel**"))
     B{{"**scrap-EAF**"}} e6@-->C2(("**CO2**"))
 
@@ -66,7 +66,7 @@ The EAF asset follows these stoichiometric relationships:
 \phi_{feedstock} &= \phi_{crudesteel} \cdot \epsilon_{feedstock\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{elec\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{natgas\_consumption} \\
-\phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{metcoal\_consumption} \\
+\phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{carbonsource\_consumption} \\
 \phi_{co2} &= \phi_{crudesteel} \cdot \epsilon_{emission\_rate} \\
 \end{aligned}
 ```
@@ -106,7 +106,7 @@ The following tables outline the attributes that can be set for a DrEaf.
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
-| `feedstock_consumption` | Float64 | reductant consumption per ton of crude steel output | $MWh_{H2}/t_{crudesteel}$ or $t_{steelscrap}/t_{crudesteel}$ | 0.0 |
+| `steelscrap_consumption` | Float64 | steel scrap consumption per ton of crude steel output | $t_{steelscrap}/t_{crudesteel}$ | 0.0 |
 | `electricity_consumption` | Float64 | electricity consumption per ton of crude steel output | $MWh_{elec}/t_{crudesteel}$ | 0.0 |
 | `natgas_consumption` | Float64 | natural gas consumption per ton of crude steel output | $MWh/t_{crudesteel}$ | 0.0 |
 | `carbonsource_consumption` | Float64 | carbon source (i.e. metallurgical coal, charcoal, biomass, etc.) consumption per ton of crude steel output | $t/t_{crudesteel}$ | 0.0 |
@@ -150,7 +150,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 
 ### [Constraints Configuration](@id "dreaf_constraints")
 
-Eaf assets can have different constraints applied to them, and the user can configure them using the following fields:
+ElectricArcFurnance assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -184,32 +184,32 @@ To simplify the input file and the asset configuration, the following constraint
 
 ## [Types - Asset Structure](@id "eaf_type_definition")
 
-The Eaf asset is defined as follows:
+The ElectricArcFurnace asset is defined as follows:
 
 ```julia
-struct Eaf{T} <: AbstractAsset
+struct ElectricArcFurnace{T <: Commodity} <: AbstractAsset
     id::AssetId
     eaf_transform::Transformation
     crudesteel_edge::Edge{CrudeSteel}
     elec_edge::Edge{Electricity}
-    feedstock_edge::Edge{T} # feedstock can be dri or steel scrap
+    steelscrap_edge::Edge{SteelScrap} 
     naturalgas_edge::Edge{NaturalGas}
-    metcoal_edge::Edge{MetCoal}
+    carbonsource_edge::Edge{T}
     co2_edge::Edge{CO2}
 end
 ```
-Here, T denotes the feedstock, which may be either steel scrap or DRI.
+Here, T denotes the carbon source, which may be metallurgical coal, charcoal, etc.
 
 ## [Constructors](@id "eaf_constructors")
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{Eaf}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{Eaf}` | Macro type of the asset |
+| `asset_type` | `Type{ElectricArcFurnace}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
@@ -220,17 +220,17 @@ eaf_transform.balance_data = Dict(
         crudesteel_edge.id => get(transform_data, :electricity_consumption, 1.0),
         elec_edge.id => 1.0,
     ),
-    :feedstock_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :feedstock_consumption, 1.0),
-        feedstock_edge.id => 1.0
+    :steelscrap_consumption => Dict(
+        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 1.0),
+        steelscrap_edge.id => 1.0
     ),
     :naturalgas_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :feedstock_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 1.0),
         naturalgas_edge.id => 1.0,
     ),
-    :metcoal_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :metcoal_consumption, 0.0),
-        metcoal_edge.id => 1.0,
+    :carbonsource_consumption => Dict(
+        crudesteel_edge.id => get(transform_data, :carbonsource_consumption, 0.0),
+        carbonsource_edge.id => 1.0,
     ),
     :emissions => Dict(
         crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
@@ -239,20 +239,20 @@ eaf_transform.balance_data = Dict(
 )
 ```
 !!! warning "Dictionary keys must match"
-    In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:feedstock_consumption` or `:emission_rate`.
+    In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:steelscrap_consumption` or `:emission_rate`.
     These keys **must exactly match** the corresponding field names in your input asset `.json` or `.csv` files. Mismatched key names between the constructor file and the asset input will result in missing or incorrect parameter values (defaulting to `0.0`).
     
 
 ## [Examples](@ref "eaf_examples")
 
-This example illustrates a basic DrEaf configuration in JSON format, featuring standard parameters in a three-zone case.
+This example illustrates a basic standalone electric arc furnace configuration in JSON format, featuring standard parameters in a three-zone case. In the example below, the carbon source is assumed to be metallurgical coal.
 
 
-```json
+```json 
 {
-    "Scrap_eaf": [
+    "StandaloneScrapElectricArcFurnace": [
         {
-            "type": "Eaf",
+            "type": "ElectricArcFurnace",
             "global_data":{
                 "transforms": {
                     "timedata": "Electricity",
@@ -272,24 +272,22 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                             "CapacityConstraint": true
                         }
                     },
-                    "feedstock_edge":{
+                    "steelscrap_edge":{
                         "commodity": "SteelScrap",
                         "unidirectional": true,
                         "has_capacity": false
-
                     },
                     "elec_edge":{
                         "commodity": "Electricity",
                         "unidirectional": true,
                         "has_capacity": false
-
                     },
                     "naturalgas_edge": {
                         "commodity": "NaturalGas",
                         "unidirectional": true,
                         "has_capacity": false
                     },
-                    "metcoal_edge": {
+                    "carbonsource_edge": {
                         "commodity": "MetCoal",
                         "unidirectional": true,
                         "has_capacity": false
@@ -306,10 +304,10 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                 {
                     "id": "SE_scrap_eaf",
                     "transforms": {
-                        "feedstock_consumption": 1.14,
+                        "steelscrap_consumption": 1.14,
                         "electricity_consumption": 0.63,
                         "naturalgas_consumption": 0.41,
-                        "metcoal_consumption": 0.02,
+                        "carbonsource_consumption": 0.02,
                         "emission_rate": 0.16
                     },
                     "edges": {
@@ -320,7 +318,7 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                             "fixed_om_cost": 41943,
                             "variable_om_cost": 72
                         },
-                        "feedstock_edge": {
+                        "steelscrap_edge": {
                             "start_vertex": "steelscrap_source"
                         },
                         "elec_edge": {
@@ -329,21 +327,18 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                         "naturalgas_edge": {
                             "start_vertex": "natgas_SE"
                         },
-                        "metcoal_edge": {
+                        "carbonsource_edge": {
                             "start_vertex": "metcoal_source"
-                        },
-                        "co2_edge": {
-                            "start_vertex": "co2_source"
                         }
                     }
                 },
                 {
                     "id": "MIDAT_scrap_eaf",
                     "transforms": {
-                        "feedstock_consumption": 1.14,
+                        "steelscrap_consumption": 1.14,
                         "electricity_consumption": 0.63,
                         "naturalgas_consumption": 0.41,
-                        "metcoal_consumption": 0.02,
+                        "carbonsource_consumption": 0.02,
                         "emission_rate": 0.16   
                     },
                     "edges": {
@@ -354,7 +349,7 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                             "fixed_om_cost": 41943,
                             "variable_om_cost": 72
                         },
-                        "feedstock_edge": {
+                        "steelscrap_edge": {
                             "start_vertex": "steelscrap_source"
                         },
                         "elec_edge": {
@@ -363,21 +358,18 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                         "naturalgas_edge": {
                             "start_vertex": "natgas_MIDAT"
                         },
-                        "metcoal_edge": {
+                        "carbonsource_edge": {
                             "start_vertex": "metcoal_source"
-                        },
-                        "co2_edge": {
-                            "start_vertex": "co2_source"
                         }
                     }
                 },
                 {
                     "id": "NE_scrap_eaf",
                     "transforms": {
-                        "feedstock_consumption": 1.14,
+                        "steelscrap_consumption": 1.14,
                         "electricity_consumption": 0.63,
                         "naturalgas_consumption": 0.41,
-                        "metcoal_consumption": 0.02,
+                        "carbonsource_consumption": 0.02,
                         "emission_rate": 0.16
                     },
                     "edges": {
@@ -388,7 +380,7 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                             "fixed_om_cost": 41943,
                             "variable_om_cost": 72
                         },
-                        "feedstock_edge": {
+                        "steelscrap_edge": {
                             "start_vertex": "steelscrap_source"
                         },
                         "elec_edge": {
@@ -397,11 +389,8 @@ This example illustrates a basic DrEaf configuration in JSON format, featuring s
                         "naturalgas_edge": {
                             "start_vertex": "natgas_NE"
                         },
-                        "metcoal_edge": {
+                        "carbonsource_edge": {
                             "start_vertex": "metcoal_source"
-                        },
-                        "co2_edge": {
-                            "start_vertex": "co2_source"
                         }
                     }
                 }

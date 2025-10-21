@@ -2,9 +2,9 @@ struct DirectReductionElectricArcFurnace{T1 <: Commodity,T2 <: Commodity} <: Abs
     id::AssetId
     dreaf_transform::Transformation
     crudesteel_edge::Edge{CrudeSteel}
-    reductant_edge::Edge{T1}
+    reductant_edge::Edge{T1} # natural gas or hydrogen
     elec_edge::Edge{Electricity}
-    carbonsource_edge::Edge{T2}
+    carbonsource_edge::Edge{T2} # coal, biomass or charcoal
     ironore_edge::Edge{<:IronOre}
     co2_edge::Edge{CO2}
 end
@@ -315,7 +315,7 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         ),
         :emissions => Dict(
             crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0,
+            co2_edge.id => -1.0, 
         ),
     )
 
