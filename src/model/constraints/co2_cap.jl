@@ -65,5 +65,4 @@ function add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, model::Model)
         n.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
     )
 
-
 end

@@ -1,5 +1,5 @@
 constraint_value(c::AbstractTypeConstraint) = c.constraint_value;
-constraint_dual(c::AbstractTypeConstraint) = c.constraint_dual;
+constraint_dual(c::AbstractTypeConstraint) = c.lagrangian_multiplier;
 constraint_ref(c::AbstractTypeConstraint) = c.constraint_ref;
 
 function add_constraints_by_type!(system::System, model::Model, constraint_type::DataType)

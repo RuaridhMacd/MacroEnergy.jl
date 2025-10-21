@@ -28,3 +28,33 @@ function add_model_constraint!(ct::BalanceConstraint, v::AbstractVertex, model::
 
     return nothing
 end
+
+"""
+    set_constraint_dual!(constraint::BalanceConstraint, node::Node)
+
+Extract and store dual values from a BalanceConstraint on the :demand balance equation 
+for a given node.
+
+# Arguments
+- `constraint::BalanceConstraint`: The balance constraint to set the dual values for
+- `node::Node`: The node containing the balance constraint
+
+# Returns
+- `nothing`. The dual values are stored in the `lagrangian_multiplier` field of the constraint.
+
+This function extracts dual values from the constraint reference and stores them in a 
+vector in the `lagrangian_multiplier` field.
+"""
+function set_constraint_dual!(
+    constraint::BalanceConstraint,
+    node::Node,
+)
+    # Check if constraint has a reference
+    if ismissing(constraint.constraint_ref)
+        error("BalanceConstraint on node $(id(node)) has no constraint reference")
+    end
+
+    constraint.lagrangian_multiplier = dual.(constraint.constraint_ref[:demand,:].data)
+
+    return nothing
+end

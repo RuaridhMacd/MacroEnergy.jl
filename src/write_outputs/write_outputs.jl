@@ -74,6 +74,11 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
         write_costs(joinpath(results_dir, "costs.csv"), period, costs)
         write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
+
+        # Write dual values (if enabled)
+        if period.settings.DualExportsEnabled 
+            write_duals(results_dir, period)
+        end
     end
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
@@ -93,6 +98,12 @@ function write_outputs(results_dir::AbstractString, system::System, model::Model
 
     # Flow results
     write_flow(joinpath(results_dir, "flows.csv"), system)
+
+    # Write dual values (if enabled)
+    if system.settings.DualExportsEnabled
+        ensure_duals_available!(model)        
+        write_duals(results_dir, system)
+    end
 
     return nothing
 end
