@@ -6,19 +6,19 @@
 
 ## [Overview](@id "eaf_overview")
 
-In Macro, EAF represents standalone electric arc furnace steelmaking facilities. In these plants, steel scrap is processed into crude steel in electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as scrap_eaf.json or scrap_eaf.csv.
+In Macro, Electric Arc Furnace (EAF) refers to standalone steelmaking facilities where steel scrap is melted and refined into crude steel using electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as standalone_scrap_electric_arc_furnace.json or standalone_scrap_electric_arc_furnace.csv.
 
 ## [Asset Structure](@id "eaf_asset_structure")
 
 An EAF plant is made of the following components:
-- 1 `Transformation` component, representing the DR-EAF (with and without CCS).
+- 1 `Transformation` component, representing the EAF.
 - 6 `Edge` components:
-    - 1 **incoming** `SteelScrap Edge`, representing the supply of steel scrap. 
-    - 1 **incoming** `Electricity Edge`, representing the supply of electricity.
-    - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas.
-    - 1 **incoming** `CarbonSource Edge`, representing the supply of carbon source. **(minimal amount added to adjust the carbon content of the steel, the carbon source can be metallurgical coal, charcoal, etc.)**.
-    - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
-    - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
+    - 1 **incoming** `SteelScrap Edge`, representing the steel scrap supply. 
+    - 1 **incoming** `Electricity Edge`, representing the electricity supply.
+    - 1 **incoming** `NaturalGas Edge`, representing the natural gas supply.**(used in natural gas burners that pre-heat scrap and reduce electricity consumption)**
+    - 1 **incoming** `CarbonSource Edge`, representing the carbon source supply. **(minimal amount added to adjust the carbon content of the steel, reduce iron oxide losses, and add chemical energy. The carbon source can be metallurgical coal, charcoal, etc.)**.
+    - 1 **outgoing** `CrudeSteel Edge`, representing  crude steel production.
+    - 1 **outgoing** `CO2 Edge`, representing CO2 emitted into the atmosphere.
       
 Here is a graphical representation of a scrap-fed EAF asset:
 
@@ -31,7 +31,7 @@ flowchart BT
     A2(("**Electricity**")) e2@-->B{{"**scrap-EAF**"}}
     A3(("**NaturalGas**")) e3@-->B{{"**scrap-EAF**"}}
     A4(("**CarbonSource**")) e4@-->B{{"**scrap-EAF**"}}
-    B{{"**scrap-EAF**"}} e5@-->C1(("**Crude Steel**"))
+    B{{"**scrap-EAF**"}} e5@-->C1(("**CrudeSteel**"))
     B{{"**scrap-EAF**"}} e6@-->C2(("**CO2**"))
 
     e1@{ animate: true }
@@ -41,29 +41,30 @@ flowchart BT
     e5@{ animate: true }
     e6@{ animate: true }
  end
-    style A1 font-size:15px,r:45px,fill:#008080,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A2 font-size:15px,r:45px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A3 font-size:15px,r:45px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A4 font-size:15px,r:45px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A1 font-size:15px,r:50px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:50px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:15px,r:50px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A4 font-size:15px,r:50px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
 
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:15px,r:45px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C2 font-size:15px,r:45px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:15px,r:50px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:15px,r:50px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
-    linkStyle 0,1 stroke:#008080, stroke-width: 2px;
-    linkStyle 1,2 stroke:#FFD700, stroke-width: 2px;
-    linkStyle 2,3 stroke:#005F6A, stroke-width: 2px;
-    linkStyle 3,4 stroke:#8B4513, stroke-width: 2px;
-    linkStyle 4,5 stroke:#696969, stroke-width: 2px;
+    linkStyle 0 stroke:#2874A6, stroke-width: 2px;
+    linkStyle 1 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 2 stroke:#005F6A, stroke-width: 2px;
+    linkStyle 3 stroke:#8B4513, stroke-width: 2px;
+    linkStyle 4 stroke:#566573, stroke-width: 2px;
+    linkStyle 5 stroke:lightgray, stroke-width: 2px
 
 ```
-## [Flow Equations](@id "dreaf_flow_equations")
+## [Flow Equations](@id "eaf_flow_equations")
 
-The EAF asset follows these stoichiometric relationships:
+The ElectricArcFurnace asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
-\phi_{feedstock} &= \phi_{crudesteel} \cdot \epsilon_{feedstock\_consumption} \\
+\phi_{steelscrap} &= \phi_{crudesteel} \cdot \epsilon_{steelscrap\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{elec\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{natgas\_consumption} \\
 \phi_{elec} &= \phi_{crudesteel} \cdot \epsilon_{carbonsource\_consumption} \\
@@ -76,12 +77,12 @@ Where:
 
 ## [Input File (Standard Format)](@id "eaf_input_file")
 
-The easiest way to include an integrated DR-EAF asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include a standalone scrap-EAF asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
 ├── assets/
-│   ├── scrap_eaf.json    # or scrap_eaf.csv
+│   ├── sstandalone_scrap_electric_arc_furnace.json    # or standalone_scrap_electric_arc_furnace.csv
 │   ├── other_assets.json
 │   └── ...
 ├── system/
@@ -91,25 +92,25 @@ your_case/
 
 This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref "eaf_examples") section.
 
-The following tables outline the attributes that can be set for a DrEaf.
+The following tables outline the attributes that can be set for an Electric Arc Furnace asset.
 
 ### Transform Attributes
 #### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "Eaf" |
+| `Type` | String | Asset type identifier: "ElectricArcFurnace" |
 | `id` | String | Unique identifier for the asset instance |
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |
 
-#### [Conversion Process Parameters](@id "dreaf_conversion_process_parameters")
+#### [Conversion Process Parameters](@id "eaf_conversion_process_parameters")
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
 | `steelscrap_consumption` | Float64 | steel scrap consumption per ton of crude steel output | $t_{steelscrap}/t_{crudesteel}$ | 0.0 |
 | `electricity_consumption` | Float64 | electricity consumption per ton of crude steel output | $MWh_{elec}/t_{crudesteel}$ | 0.0 |
 | `natgas_consumption` | Float64 | natural gas consumption per ton of crude steel output | $MWh/t_{crudesteel}$ | 0.0 |
-| `carbonsource_consumption` | Float64 | carbon source (i.e. metallurgical coal, charcoal, biomass, etc.) consumption per ton of crude steel output | $t/t_{crudesteel}$ | 0.0 |
+| `carbonsource_consumption` | Float64 | carbon source (i.e., metallurgical coal, charcoal, etc.) consumption per ton of crude steel output | $t/t_{crudesteel}$ | 0.0 |
 | `emission_rate` | Float64 | CO2 emissions  per ton of crude steel output | $t_{CO2}/t_{crudesteel}$ | 0.0 |
 
 ### Edges
@@ -123,7 +124,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `type` | `String` | Any Macro commodity type matching the commodity of the edge | Required | Commodity of the edge. E.g. "Electricity". |
 | `start_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the starting vertex of the edge. The node must be present in the `nodes.json` file. E.g. "elec\_node\_1". |
 | `end_vertex` | `String` | Any node id present in the system matching the commodity of the edge | Required | ID of the ending vertex of the edge. The node must be present in the `nodes.json` file. E.g. "crudesteel\_node\_1". |
-| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "Eaf"}}`.|
+| `availability` | `Dict` | Availability file path and header | Empty | Path to the availability file and column name for the availability time series to link to the edge. E.g. `{"timeseries": {"path": "assets/availability.csv", "header": "ElectricArcFurnace"}}`.|
 | `has_capacity` | `Bool` | `Bool` | `false` | Whether capacity variables are created for the edge. |
 | `integer_decisions` | `Bool` | `Bool` | `false` | Whether capacity variables are integers. |
 | `unidirectional` | `Bool` | `Bool` | `false` | Whether the edge is unidirectional. |
@@ -148,9 +149,9 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `fixed_om_cost` | Float64 | Fixed O&M costs | \$/tCrudeSteel/hr | 0.0 |
 | `variable_om_cost` | Float64 | Variable O&M costs | \$/tCrudeSteel | 0.0 |
 
-### [Constraints Configuration](@id "dreaf_constraints")
+### [Constraints Configuration](@id "eaf_constraints")
 
-ElectricArcFurnance assets can have different constraints applied to them, and the user can configure them using the following fields:
+ElectricArcFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -173,14 +174,13 @@ For example, if the user wants to apply the [`BalanceConstraint`](@ref "balance_
 }
 ```
 
-Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a DrEaf asset.
+Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of an ElectricArcFurnace asset.
 
 #### Default constraints
-To simplify the input file and the asset configuration, the following constraints are applied to the DrEaf asset by default:
+To simplify the input file and the asset configuration, the following constraints are applied to the ElectricArcFurnace asset by default:
 
 - [Balance constraint](@ref "balance_constraint_ref") (applied to the transformation component)
 - [Capacity constraint](@ref "capacity_constraint_ref") (applied to the output crude steel edge)
-- [MustRun constraint](@ref "mustrun_constraint_ref") (applied to the output crude steel edge)
 
 ## [Types - Asset Structure](@id "eaf_type_definition")
 
@@ -217,15 +217,15 @@ make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,Any}, syste
 ```julia
 eaf_transform.balance_data = Dict(
     :electricity_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :electricity_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0,
     ),
     :steelscrap_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
         steelscrap_edge.id => 1.0
     ),
     :naturalgas_consumption => Dict(
-        crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 1.0),
+        crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 0.0),
         naturalgas_edge.id => 1.0,
     ),
     :carbonsource_consumption => Dict(
