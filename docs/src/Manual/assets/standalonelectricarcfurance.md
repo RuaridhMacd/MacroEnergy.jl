@@ -54,7 +54,7 @@ flowchart BT
     linkStyle 1,2 stroke:#FFD700, stroke-width: 2px;
     linkStyle 2,3 stroke:#005F6A, stroke-width: 2px;
     linkStyle 3,4 stroke:#8B4513, stroke-width: 2px;
-    linkStyle 4,5 stroke:#696969, stroke-width: 2px;
+    linkStyle 4,5 stroke:#2874A6, stroke-width: 2px;
 
 ```
 ## [Flow Equations](@id "dreaf_flow_equations")
