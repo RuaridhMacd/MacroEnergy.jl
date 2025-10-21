@@ -28,9 +28,9 @@ Here is a graphical representation of the Blast Furnace Basic Oxygen Furnace ass
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart BT
-  subgraph Blast Furnace Basic Oxygen Furnace
+  subgraph BF-BOF
   direction BT
-    A1(("**Iron Ore**")) e1@-->B{{"**BF-BOF**"}}
+    A1(("**IronOre**")) e1@-->B{{"**BF-BOF**"}}
     A2(("**MetCoal**")) e2@-->B{{"**BF-BOF**"}}
     A3(("**ThermalCoal**")) e3@-->B{{"**BF-BOF**"}}
     A4(("**SteelScrap**")) e4@-->B{{"**BF-BOF**"}}
@@ -48,15 +48,15 @@ flowchart BT
     e7@{ animate: true }
     e8@{ animate: true }
  end
-    style A1 font-size:10px,r:35px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A2 font-size:10px,r:35px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A3 font-size:10px,r:35px,fill:#A0522D,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A4 font-size:10px,r:35px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A5 font-size:10px,r:35px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A1 font-size:12px,r:35px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:12px,r:35px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:12px,r:35px,fill:#A0522D,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A4 font-size:12px,r:35px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A5 font-size:12px,r:35px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:10px,r:35px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C2 font-size:10px,r:35px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C3 font-size:10px,r:35px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:12px,r:35px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:12px,r:35px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C3 font-size:12px,r:35px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
     linkStyle 0 stroke:#FFD700D, stroke-width: 2px;
     linkStyle 1 stroke:#8B4513, stroke-width: 2px;
     linkStyle 2 stroke:#A0522D, stroke-width: 2px;
