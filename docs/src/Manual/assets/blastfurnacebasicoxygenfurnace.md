@@ -127,7 +127,7 @@ The following tables outline the attributes that can be set for a BfBof.
 | `electricity_production` | Float64 | electricity production per ton of crude steel output | $MWh_{elec}/t_{crudesteel}$ | 0.0 |
 | `natgas_consumption` | Float64 | natural gas consumption per ton of crude steel output | $MWh_{natgas}/t_{crudesteel}$ | 0.0 |
 | `emission_rate` | Float64 | CO2 emissions  per ton of crude steel output | $t_{CO2}/t_{crudesteel}$ | 0.0 |
-| `capture_rate` | Float64 | captured CO2 emissions  per ton of crude steel output | $t_{CO2}/t_{crudesteel}$ | 0.0 |
+| `capture_rate` | Float64 | captured CO2 emissions  per ton of crude steel output,  only relevant for CCS variant. | $t_{CO2}/t_{crudesteel}$ | 0.0 |
 
 ### Edges
 
