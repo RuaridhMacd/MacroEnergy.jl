@@ -47,7 +47,7 @@ flowchart BT
     style A4 font-size:15px,r:50px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
 
     style B fill:white,stroke:black,color:black;
-    style C1 font-size:15px,r:50px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C1 font-size:15px,r:50px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
     style C2 font-size:15px,r:50px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
     linkStyle 0,1 stroke:#008080, stroke-width: 2px;
