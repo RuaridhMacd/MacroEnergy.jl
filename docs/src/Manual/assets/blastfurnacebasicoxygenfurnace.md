@@ -1,4 +1,4 @@
-# Blast Furnace Basic Oxygen Furnace (with and without CCS)
+# Integrated Blast Furnace Basic Oxygen Furnace (with and without CCS)
 
 ## Contents
 
