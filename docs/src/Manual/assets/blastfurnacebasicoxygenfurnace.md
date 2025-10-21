@@ -28,7 +28,7 @@ Here is a graphical representation of the Blast Furnace Basic Oxygen Furnace ass
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart BT
-  subgraph BF-BOF
+  subgraph Blast Furnace Basic Oxygen Furnace
   direction BT
     A1(("**Iron Ore**")) e1@-->B{{"**BF-BOF**"}}
     A2(("**MetCoal**")) e2@-->B{{"**BF-BOF**"}}
