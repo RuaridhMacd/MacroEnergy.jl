@@ -6,7 +6,8 @@
 
 ## [Overview](@id "bfbof_overview")
 
-In Macro, Blast Furnace Basic Oxygen Furnace (BF-BOF) represents coal-based integrated blast furnace-basic oxygen furnace facilities that produce crude steel. These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `integrated_blast_furnace_basic_oxygen_furnace.json` or `integrated_blast_furnace_basic_oxygen_furnace.csv`.
+In Macro, the Blast Furnace–Basic Oxygen Furnace (BF-BOF) pathway represents coal-based integrated steelmaking facilities that produce crude steel. In this configuration, iron ore is first reduced in the blast furnace using coke derived on-site from metallurgical coal to produce pig iron, which is then converted into crude steel in the basic oxygen furnace. 
+These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `integrated_blast_furnace_basic_oxygen_furnace.json` or `integrated_blast_furnace_basic_oxygen_furnace_ccs.csv`.
 
 ## [Asset Structure](@id "bfbof_asset_structure")
 
