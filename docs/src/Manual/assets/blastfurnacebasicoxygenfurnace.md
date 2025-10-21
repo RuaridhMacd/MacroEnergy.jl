@@ -1,4 +1,4 @@
-# BfBof (with and without CCS)
+# Blast Furnace Basic Oxygen Furnace (with and without CCS)
 
 ## Contents
 
@@ -6,38 +6,38 @@
 
 ## [Overview](@id "bfbof_overview")
 
-BfBof in Macro represents integrated blast furnace-basic oxygen furnace facilities that produce crude steel. These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `bfbof.json` or `bfbof.csv`.
+In Macro, Blast Furnace Basic Oxygen Furnace (BF-BOF) represents coal-based integrated blast furnace-basic oxygen furnace facilities that produce crude steel. These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `integrated_blast_furnace_basic_oxygen_furnace.json` or `integrated_blast_furnace_basic_oxygen_furnace.csv`.
 
 ## [Asset Structure](@id "bfbof_asset_structure")
 
-A BfBof plant (with and without CCS) is made of the following components:
+A BF-BOF plant (with and without CCS) is made of the following components:
 - 1 `Transformation` component, representing the BF-BOF (with and without CCS).
 - 9 `Edge` components:
-    - 1 **incoming** `IronOre Edge`, representing the supply of iron ore of a suitable grade for BfBof, represented by the IronOreBF commodity. 
-    - 1 **incoming** `MetCoal Edge`, representing the supply of metallurgical coal. 
-    - 1 **incoming** `ThermalCoal Edge`, representing the supply of thermal coal.
-    - 1 **incoming** `SteelScrap Edge`, representing the supply of merchant steel scrap.
-    - 1 **incoming** `NaturalGas Edge`, representing the supply of natural gas. 
-    - 1 **outgoing** `CrudeSteel Edge`, representing the crude steel production.
+    - 1 **incoming** `IronOre Edge`, representing the iron ore supply, represented by the IronOreBF subcommodity.  **(Macro distinguishes between two iron ore sub-commodities: IronOreBF, a blast-furnace-grade ore with approximately 65% iron content, and IronOreDR, a higher-purity ore (above ~67% iron) suitable for use in direct-reduction furnaces.)**
+    - 1 **incoming** `MetCoal Edge`, representing metallurgical coal supply. 
+    - 1 **incoming** `ThermalCoal Edge`, representing thermal coal supply.
+    - 1 **incoming** `SteelScrap Edge`, representing merchant steel scrap supply **(Scrap that is externally sourced, in contrast to home scrap, which is generated within the facility.)**..
+    - 1 **incoming** `NaturalGas Edge`, representing natural gas supply. 
+    - 1 **outgoing** `CrudeSteel Edge`, representing crude steel production.
     - 1 **outgoing** `Electricity Edge`, representing excess electricity production. **(if CCS is present, the BF-BOF-CCS facility is a net importer and the electricity edge is an incoming edge.)**.
     - 1 **outgoing** `CO2 Edge`, representing the CO2 that is emitted.
     - 1 **outgoing** `CO2Captured Edge`, representing the CO2 that is captured **(only if CCS is present)**.
       
-Here is a graphical representation of the BfBof asset without CCS:
+Here is a graphical representation of the Blast Furnace Basic Oxygen Furnace asset without CCS:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart BT
-  subgraph BfBof
+  subgraph BF-BOF
   direction BT
-    A1(("**Iron Ore**")) e1@-->B{{"**BfBof**"}}
-    A2(("**MetCoal**")) e2@-->B{{"**BfBof**"}}
-    A3(("**ThermalCoal**")) e3@-->B{{"**BfBof**"}}
-    A4(("**SteelScrap**")) e4@-->B{{"**BfBof**"}}
-    A5(("**NaturalGas**")) e5@-->B{{"**BfBof**"}}
-    B{{"**BfBof**"}} e6@-->C1(("**Electricity**"))
-    B{{"**BfBof**"}} e7@-->C2(("**CrudeSteel**"))
-    B{{"**BfBof**"}} e8@-->C3(("**CO2**"))
+    A1(("**Iron Ore**")) e1@-->B{{"**BF-BOF**"}}
+    A2(("**MetCoal**")) e2@-->B{{"**BF-BOF**"}}
+    A3(("**ThermalCoal**")) e3@-->B{{"**BF-BOF**"}}
+    A4(("**SteelScrap**")) e4@-->B{{"**BF-BOF**"}}
+    A5(("**NaturalGas**")) e5@-->B{{"**BF-BOF**"}}
+    B{{"**BF-BOF**"}} e6@-->C1(("**Electricity**"))
+    B{{"**BF-BOF**"}} e7@-->C2(("**CrudeSteel**"))
+    B{{"**BF-BOF**"}} e8@-->C3(("**CO2**"))
 
     e1@{ animate: true }
     e2@{ animate: true }
@@ -51,19 +51,21 @@ flowchart BT
     style A1 font-size:10px,r:30px,fill:#FFD700D,stroke:black,color:black,stroke-dasharray: 3,5;
     style A2 font-size:10px,r:30px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
     style A3 font-size:10px,r:30px,fill:#A0522D,stroke:black,color:black,stroke-dasharray: 3,5;
-    style A4 font-size:10px,r:30px,fill:#008080,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A4 font-size:10px,r:30px,fill:#2874A6,stroke:black,color:black,stroke-dasharray: 3,5;
     style A5 font-size:10px,r:30px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
     style B fill:white,stroke:black,color:black;
     style C1 font-size:10px,r:30px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C2 font-size:10px,r:30px,fill:#696969,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:10px,r:30px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
     style C3 font-size:10px,r:30px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
-    linkStyle 0,1 stroke:#FFD700D, stroke-width: 2px;
-    linkStyle 1,2 stroke:#8B4513, stroke-width: 2px;
-    linkStyle 2,3 stroke:#A0522D, stroke-width: 2px;
-    linkStyle 3,4 stroke:#008080, stroke-width: 2px;
-    linkStyle 4,5 stroke:#005F6A, stroke-width: 2px;
-    linkStyle 5,6 stroke:#FFD700, stroke-width: 2px;
-    linkStyle 6,7 stroke:#696969, stroke-width: 2px;
+    linkStyle 0 stroke:#FFD700D, stroke-width: 2px;
+    linkStyle 1 stroke:#8B4513, stroke-width: 2px;
+    linkStyle 2 stroke:#A0522D, stroke-width: 2px;
+    linkStyle 3 stroke:#008080, stroke-width: 2px;
+    linkStyle 4 stroke:#2874A6, stroke-width: 2px;
+    linkStyle 5 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 6 stroke:#566573, stroke-width: 2px;
+    linkStyle 7 stroke:lightgray, stroke-width: 2px;
+
 
 ```
 ## [Flow Equations](@id "bfbof_flow_equations")
