@@ -713,7 +713,11 @@ function update_balance_end!(e::AbstractEdge, model::Model)
     end
 
     for i in balance_ids(v)
-        add_to_expression!.(get_balance(v, i),  balance_data(e, v, i) * effective_flow)
+        if i == :demand_flow
+            v.operation_expr[i] = effective_flow
+        else
+            add_to_expression!.(get_balance(v, i),  balance_data(e, v, i) * effective_flow)
+        end
     end
     
 end

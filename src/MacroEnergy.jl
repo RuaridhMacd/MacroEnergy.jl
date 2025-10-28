@@ -20,6 +20,7 @@ using GitHub
 using Markdown
 using Logging
 using LoggingExtras
+using Infiltrator
 
 import MacroEnergyScaling: scale_constraints!
 import JuMP: set_optimizer, set_optimizer_attributes
@@ -192,6 +193,7 @@ include_all_in_folder("write_outputs/")
 export AbstractAsset,
     AbstractTypeConstraint,
     AgeBasedRetirementConstraint,
+    AggregatedDemandConstraint,
     Alumina,
     Aluminum,
     AluminumScrap,
