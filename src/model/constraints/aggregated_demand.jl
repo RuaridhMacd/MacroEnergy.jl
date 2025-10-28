@@ -7,21 +7,17 @@ end
 @doc raw"""
     add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, model::Model)
 
-Constraint the CO2 emissions of CO2 on a CO2 node `n` to be less than or equal to the value of the `rhs_policy` for the `CO2CapConstraint` constraint type.
-If the `price_unmet_policy` is also specified, then a slack variable is added to the constraint to allow for the CO2 emissions to exceed the value of the `rhs_policy`, incurring in a penalty cost specified in the `price_unmet_policy` for the `CO2CapConstraint` constraint type.
-Please check the example case in the [MacroEnergyExamples.jl repository](https://github.com/macroenergy/MacroEnergyExamples.jl), or the [Macro Input Data](@ref) section of the documentation for more information on how to specify the `rhs_policy` and `price_unmet_policy` for the `CO2CapConstraint` constraint type.
+Constraint for the total commodity flow into `n` to be greater than or equal to the value of the `rhs_policy` for the `AggregatedDemand` constraint type.
 
-Therefore, the functional form of the constraint is:
+The functional form of the constraint is:
 
 ```math
 \begin{aligned}
-    \sum_{t \in \text{time\_interval(n)}} \text{emissions(n, t)} - \text{slack(n)} \leq \text{rhs\_policy(n)}
+    \sum_{t \in \text{time\_interval(n)}} \text{demand_flow(n, t)} \geq \text{rhs\_policy(n)}
 \end{aligned}
 ```
-"Emissions" in the above equation is the net balance of CO2 flows into and out of the CO2 node `n`.
+"Demand Flow" in the above equation is the net balance commodity flow into the demand node `n`.
 
-!!! note "Enabling CO2 emissions for an asset"
-    **For modelers**: To allow for an asset to contribute to the CO2 emissions of a CO2 node, the asset must have an "emissions" key in its `balance_data` dictionary. The value of this key should be the `emission_rate` of the asset.
 """
 
 
@@ -42,7 +38,7 @@ function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model
     ct.constraint_ref = @constraint(
         model,
         [w in subperiod_indices(n)],
-        subperiod_balance[w] <=
+        subperiod_balance[w] >=
         n.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
     )
 
