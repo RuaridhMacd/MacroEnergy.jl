@@ -1,6 +1,6 @@
 Base.@kwdef mutable struct BalanceConstraint <: OperationConstraint
     value::Union{Missing,Vector{Float64}} = missing
-    lagrangian_multiplier::Union{Missing,Vector{Float64}} = missing
+    constraint_dual::Union{Missing,Vector{Float64}} = missing
     constraint_ref::Union{Missing,JuMPConstraint} = missing
 end
 
@@ -40,10 +40,10 @@ for a given node.
 - `node::Node`: The node containing the balance constraint
 
 # Returns
-- `nothing`. The dual values are stored in the `lagrangian_multiplier` field of the constraint.
+- `nothing`. The dual values are stored in the `constraint_dual` field of the constraint.
 
 This function extracts dual values from the constraint reference and stores them in a 
-vector in the `lagrangian_multiplier` field.
+vector in the `constraint_dual` field.
 """
 function set_constraint_dual!(
     constraint::BalanceConstraint,
@@ -54,7 +54,7 @@ function set_constraint_dual!(
         error("BalanceConstraint on node $(id(node)) has no constraint reference")
     end
 
-    constraint.lagrangian_multiplier = dual.(constraint.constraint_ref[:demand,:].data)
+    constraint.constraint_dual = dual.(constraint.constraint_ref[:demand,:].data)
 
     return nothing
 end
