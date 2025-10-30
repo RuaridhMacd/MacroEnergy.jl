@@ -1,6 +1,6 @@
 Base.@kwdef mutable struct BalanceConstraint <: OperationConstraint
     value::Union{Missing,Vector{Float64}} = missing
-    constraint_dual::Union{Missing,Vector{Float64}} = missing
+    constraint_dual::Union{Missing,Dict{Symbol,Vector{Float64}}} = missing
     constraint_ref::Union{Missing,JuMPConstraint} = missing
 end
 
@@ -32,18 +32,20 @@ end
 """
     set_constraint_dual!(constraint::BalanceConstraint, node::Node)
 
-Extract and store dual values from a BalanceConstraint on the :demand balance equation 
-for a given node.
+Extract and store dual values from a BalanceConstraint for all balance equations 
+on a given node.
 
 # Arguments
 - `constraint::BalanceConstraint`: The balance constraint to set the dual values for
 - `node::Node`: The node containing the balance constraint
 
 # Returns
-- `nothing`. The dual values are stored in the `constraint_dual` field of the constraint.
+- `nothing`. The dual values are stored in the `constraint_dual` field of the constraint
+  as a Dict mapping balance equation IDs (Symbol) to vectors of dual values (Vector{Float64}).
 
-This function extracts dual values from the constraint reference and stores them in a 
-vector in the `constraint_dual` field.
+This function extracts dual values from the constraint reference for all balance equations
+defined on the node (e.g., :demand, :emissions, :co2_storage, etc.) and stores them in a 
+dictionary in the `constraint_dual` field.
 """
 function set_constraint_dual!(
     constraint::BalanceConstraint,
@@ -54,7 +56,11 @@ function set_constraint_dual!(
         error("BalanceConstraint on node $(id(node)) has no constraint reference")
     end
 
-    constraint.constraint_dual = dual.(constraint.constraint_ref[:demand,:].data)
+    # Extract dual values for all balance IDs
+    constraint.constraint_dual = Dict{Symbol, Vector{Float64}}()
+    for balance_id in balance_ids(node)
+        constraint.constraint_dual[balance_id] = dual.(constraint.constraint_ref[balance_id, :].data)
+    end
 
     return nothing
 end

@@ -47,15 +47,18 @@ end
 
 Write balance constraint dual values (marginal prices) to CSV file.
 
-Extracts dual values from balance constraints on all nodes and exports them to 
+Extracts dual values from the `:demand` balance equation on all nodes and exports them to 
 `balance_duals.csv`. The dual values are automatically rescaled by subperiod weights
 to provide proper marginal values per unit of energy/commodity.
+
+Note: Only nodes with a `:demand` balance equation will be included in the output. Nodes 
+with other balance equations (e.g., `:emissions`, `:co2_storage`) are skipped.
 
 # Output Format
 Wide-format CSV with:
 - Rows: Time steps
 - Columns: Node IDs
-- Values: Rescaled dual values (shadow prices)
+- Values: Rescaled dual values (shadow prices) for the `:demand` balance equation
 
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV file will be written
@@ -89,6 +92,12 @@ function write_balance_duals(
             set_constraint_dual!(constraint, node)
         end
         
+        # Get the dictornary of dual values for all balance equations
+        duals_dict = constraint_dual(constraint)
+        
+        # Export only the :demand balance duals (skip if not present)
+        !haskey(duals_dict, :demand) && continue
+        
         # Add node ID
         push!(node_ids, id(node))
 
@@ -96,7 +105,7 @@ function write_balance_duals(
         weights = Float64[subperiod_weight(node, current_subperiod(node, t)) for t in time_interval(node)]
         
         # Rescale dual values by subperiod weights
-        push!(balance_duals, constraint_dual(constraint) ./ weights)
+        push!(balance_duals, duals_dict[:demand] ./ weights)
     end
 
     df = DataFrame(balance_duals, node_ids, copycols=false)
