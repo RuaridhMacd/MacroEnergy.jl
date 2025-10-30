@@ -34,6 +34,11 @@ MacroEnergy.balance_data
 MacroEnergy.create_output_path
 ```
 
+## `ensure_duals_available!`
+```@docs
+MacroEnergy.ensure_duals_available!
+```
+
 ## `get_asset_by_id`
 ```@docs
 MacroEnergy.get_asset_by_id
@@ -157,6 +162,11 @@ MacroEnergy.search_commodities
 ## `set_value`
 ```@docs
 MacroEnergy.set_value
+```
+
+## `set_constraint_dual!`
+```@docs
+MacroEnergy.set_constraint_dual!
 ```
 
 ## `struct_info`
