@@ -76,8 +76,10 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
 
         # Write dual values (if enabled)
-        if period.settings.DualExportsEnabled 
-            write_duals(results_dir, period)
+        if period.settings.DualExportsEnabled
+            # Scaling factor to account for discounting in multi-period models
+            discount_scaling = compute_period_discount_scaling(period_idx, settings)
+            write_duals(results_dir, period, discount_scaling)
         end
     end
     write_settings(case, joinpath(case_path, "settings.json"))
@@ -87,7 +89,11 @@ end
 """
     Fallback function to write outputs for a single period.
 """
-function write_outputs(results_dir::AbstractString, system::System, model::Model)
+function write_outputs(results_dir::AbstractString, 
+    system::System, 
+    model::Model, 
+    scaling::Float64=1.0
+)
     
     # Capacity results
     write_capacity(joinpath(results_dir, "capacity.csv"), system)
@@ -102,7 +108,7 @@ function write_outputs(results_dir::AbstractString, system::System, model::Model
     # Write dual values (if enabled)
     if system.settings.DualExportsEnabled
         ensure_duals_available!(model)        
-        write_duals(results_dir, system)
+        write_duals(results_dir, system, scaling)
     end
 
     return nothing

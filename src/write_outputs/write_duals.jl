@@ -3,7 +3,7 @@
 # ============================================================================
 
 """
-    write_duals(results_dir::AbstractString, system::System)
+    write_duals(results_dir::AbstractString, system::System, scaling::Float64=1.0)
 
 Write dual values for all supported constraint types to separate CSV files.
 
@@ -14,6 +14,7 @@ Currently, this function exports dual values for:
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV files will be written
 - `system::System`: The system containing solved constraints with dual values
+- `scaling::Float64`: Scaling factor for the dual values (e.g. to account for discounting in multi-period models)
 
 # Examples
 ```julia
@@ -31,19 +32,20 @@ write_duals("results/", system)
 """
 function write_duals(
     results_dir::AbstractString,
-    system::System
+    system::System,
+    scaling::Float64=1.0
 )
     @info "Writing constraint dual values to $results_dir"
     
     # Export each constraint type to its own file
-    write_balance_duals(results_dir, system)
-    write_co2_cap_duals(results_dir, system)
+    write_balance_duals(results_dir, system, scaling)
+    write_co2_cap_duals(results_dir, system, scaling)
     
     return nothing
 end
 
 """
-    write_balance_duals(results_dir::AbstractString, system::System)
+    write_balance_duals(results_dir::AbstractString, system::System, scaling::Float64=1.0)
 
 Write balance constraint dual values (marginal prices) to CSV file.
 
@@ -63,6 +65,7 @@ Wide-format CSV with:
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV file will be written
 - `system::System`: The system containing solved balance constraints
+- `scaling::Float64`: Scaling factor for the dual values (e.g. to account for discounting in multi-period models)
 
 # Examples
 ```julia
@@ -72,7 +75,8 @@ write_balance_duals("results/", system)
 """
 function write_balance_duals(
     results_dir::AbstractString,
-    system::System
+    system::System,
+    scaling::Float64=1.0
 )
     @info "Writing balance constraint dual values to $results_dir"
 
@@ -105,7 +109,7 @@ function write_balance_duals(
         weights = Float64[subperiod_weight(node, current_subperiod(node, t)) for t in time_interval(node)]
         
         # Rescale dual values by subperiod weights
-        push!(balance_duals, duals_dict[:demand] ./ weights)
+        push!(balance_duals, duals_dict[:demand] ./ (weights .* scaling))
     end
 
     df = DataFrame(balance_duals, node_ids, copycols=false)
@@ -116,7 +120,7 @@ function write_balance_duals(
 end
 
 """
-    write_co2_cap_duals(results_dir::AbstractString, system::System)
+    write_co2_cap_duals(results_dir::AbstractString, system::System, scaling::Float64=1.0)
 
 Write CO2 cap constraint dual values (carbon prices) and penalty costs to CSV file.
 
@@ -132,6 +136,7 @@ Long-format CSV with columns:
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV file will be written
 - `system::System`: The system containing solved CO2 cap constraints
+- `scaling::Float64`: Scaling factor for the dual values (e.g. to account for discounting in multi-period models)
 
 # Examples
 ```julia
@@ -141,7 +146,8 @@ write_co2_cap_duals("results/", system)
 """
 function write_co2_cap_duals(
     results_dir::AbstractString,
-    system::System
+    system::System,
+    scaling::Float64=1.0
 )
     @info "Writing CO2 cap constraint dual values to $results_dir"
 
@@ -153,7 +159,7 @@ function write_co2_cap_duals(
 
     node_ids = Vector{Symbol}()
     co2_shadow_prices = Vector{Float64}()
-    co2_penalty_costs = Vector{Float64}()
+    co2_slack_vars = Vector{Float64}()
 
     for node in filter(n -> n isa Node, system.locations)
         # Skip nodes without CO2 cap policy budget constraint
@@ -166,7 +172,7 @@ function write_co2_cap_duals(
         push!(node_ids, id(node))
 
         # Get CO2 shadow prices
-        co2_shadow_price = -dual(constraint)
+        co2_shadow_price = -dual(constraint) / scaling
         push!(co2_shadow_prices, co2_shadow_price)
 
         # Calculate penalty cost if slack variables exist
@@ -175,14 +181,13 @@ function write_co2_cap_duals(
             # Get slack variables and penalty price
             slack_var_key = Symbol(string(ct_type) * "_Slack")
             slack_vars = value.(policy_slack_vars(node)[slack_var_key])
-            penalty_price = price_unmet_policy(node, ct_type)
 
             # Total penalty cost across all subperiods
-            penalty_cost = sum(subperiod_indices(node)) do w
-                subperiod_weight(node, w) * penalty_price * slack_vars[w]
+            co2_slack_sum = sum(subperiod_indices(node)) do w
+                subperiod_weight(node, w) * slack_vars[w]
             end
 
-            push!(co2_penalty_costs, penalty_cost)
+            push!(co2_slack_vars, co2_slack_sum)
         end
     end
     
@@ -193,10 +198,10 @@ function write_co2_cap_duals(
     end
     
     # Build DataFrame with appropriate columns
-    df = DataFrame(node = node_ids, co2_shadow_price = co2_shadow_prices)
+    df = DataFrame(Node = node_ids, CO2_Shadow_Price = co2_shadow_prices)
     
-    if !isempty(co2_penalty_costs)
-        df[!, :co2_penalty_cost] = co2_penalty_costs
+    if !isempty(co2_slack_vars)
+        df[!, :CO2_Slack] = co2_slack_vars
     end
 
     write_dataframe(file_path, df)
