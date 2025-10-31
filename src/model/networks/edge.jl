@@ -27,7 +27,6 @@ macro AbstractEdgeBaseAttributes()
         max_new_capacity::Float64 = $edge_defaults[:max_new_capacity]
         min_capacity::Float64 = $edge_defaults[:min_capacity]
         min_retired_capacity::Float64 = $edge_defaults[:min_retired_capacity]
-        min_retired_capacity_track::Dict{Int64,Float64} = Dict(1 => 0.0)
         min_flow_fraction::Float64 = $edge_defaults[:min_flow_fraction]
         new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
         new_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
@@ -227,8 +226,6 @@ max_capacity(e::AbstractEdge) = e.max_capacity;
 max_new_capacity(e::AbstractEdge) = e.max_new_capacity;
 min_capacity(e::AbstractEdge) = e.min_capacity;
 min_retired_capacity(e::AbstractEdge) = e.min_retired_capacity;
-min_retired_capacity_track(e::AbstractEdge) = e.min_retired_capacity_track;
-min_retired_capacity_track(e::AbstractEdge,s::Int64) =  (haskey(min_retired_capacity_track(e),s) == false) ? 0.0 : e.min_retired_capacity_track[s];
 min_flow_fraction(e::AbstractEdge) = e.min_flow_fraction;
 new_capacity(e::AbstractEdge) = e.new_capacity;
 new_capacity_track(e::AbstractEdge) = e.new_capacity_track;
