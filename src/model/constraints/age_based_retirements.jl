@@ -16,7 +16,7 @@ function add_model_constraint!(ct::AgeBasedRetirementConstraint, y::Union{Abstra
         #### All new capacity built up to the retirement period must retire in the current period
         ct.constraint_ref = @constraint(
             model, 
-            sum(new_capacity_track(y,k) for k=1:ret_period) <= sum(retired_capacity_track(y,k) for k=1:curr_period)
+            sum(new_capacity_track(y,k) for k=1:ret_period) + sum(min_capacity_retirement_track(y,k) for k=1:curr_period) <= sum(retired_capacity_track(y,k) for k=1:curr_period)
         )
         
     end
