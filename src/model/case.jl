@@ -57,7 +57,7 @@ function prepare_case!(systems::Vector{System}, settings::NamedTuple)
         @info(" -- Computing retirement case for period $(system_id)")
         compute_retirement_period!(system, settings[:PeriodLengths])
         if system_id==1
-            initialize_minimum_retired_capacity_track!(system)
+            initialize_min_retired_capacity_track!(system)
         else
             track_min_retired_capacity!(system,systems[system_id-1])
         end
@@ -66,7 +66,7 @@ function prepare_case!(systems::Vector{System}, settings::NamedTuple)
 
 end
 
-function track_minimum_retired_capacity!(system::System, system_prev::System)
+function track_min_retired_capacity!(system::System, system_prev::System)
     
     for a in system.assets
         a_prev_index = findfirst(id.(system_prev.assets).==id(a))
@@ -95,7 +95,7 @@ function track_min_retired_capacity!(a::AbstractAsset, a_prev::AbstractAsset)
 
 end
 
-function initialize_minimum_retired_capacity_track!(a::AbstractAsset)
+function initialize_min_retired_capacity_track!(a::AbstractAsset)
 
     for t in fieldnames(typeof(a))
         y = getfield(a, t)
@@ -107,10 +107,10 @@ function initialize_minimum_retired_capacity_track!(a::AbstractAsset)
     return nothing
 end
 
-function initialize_minimum_retired_capacity_track!(system::System)
+function initialize_min_retired_capacity_track!(system::System)
     
     for a in system.assets
-        initialize_minimum_retired_capacity_track!(a)
+        initialize_min_retired_capacity_track!(a)
     end
 
     return nothing
