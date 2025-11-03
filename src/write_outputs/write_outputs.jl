@@ -51,6 +51,10 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
     # get the policy slack variables from the operational subproblems
     slack_vars = collect_distributed_policy_slack_vars(bd_results)
 
+    # get the constraint duals from the operational subproblems
+    # for now, only balance constraints are exported
+    balance_duals = collect_distributed_constraint_duals(bd_results, BalanceConstraint)
+
     for (period_idx, period) in enumerate(periods)
         @info("Writing results for period $period_idx")
         ## Create results directory to store the results
@@ -80,7 +84,20 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
         # Write dual values (if enabled)
         if period.settings.DualExportsEnabled
-            prepare_duals_benders!(period, slack_vars[period_idx])
+            # Move slack variables from subproblems to planning problem
+            if haskey(slack_vars, period_idx)
+                prepare_duals_benders!(period, slack_vars[period_idx])
+            else
+                @debug "No slack variables found for period $period_idx"
+            end
+            
+            # Calculate and store constraint duals from subproblems to planning problem
+            if haskey(balance_duals, period_idx)
+                prepare_constraint_duals_benders!(period, balance_duals[period_idx], BalanceConstraint)
+            else
+                @debug "No balance constraint duals found for period $period_idx"
+            end
+            
             # Scaling factor to account for discounting in multi-period models
             discount_scaling = compute_period_discount_scaling(period_idx, settings)
             write_duals(results_dir, period, discount_scaling)

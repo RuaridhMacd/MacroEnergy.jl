@@ -182,3 +182,198 @@ function get_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
     end
     return slack_vars
 end
+
+"""
+    collect_distributed_constraint_duals(
+        bd_results::BendersResults,
+        ::Type{<:AbstractTypeConstraint}
+    )
+
+# Arguments
+- `bd_results::BendersResults`: Benders decomposition results containing subproblems
+- `::Type{BalanceConstraint}`: The constraint type to collect duals for
+
+# Returns
+- `Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}`: A nested dictionary structure containing the constraint duals
+
+The returned dictionary has the following structure:
+- period_index => node_id => balance_id => {time_idx => dual_value}
+"""
+function collect_distributed_constraint_duals(bd_results::BendersResults, ::Type{BalanceConstraint})
+    p_id = workers()
+    np_id = length(p_id)
+    constraint_duals = Vector{Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}}(undef, np_id)
+    @sync for i in 1:np_id
+        @async constraint_duals[i] = @fetchfrom p_id[i] get_local_constraint_duals(
+            DistributedArrays.localpart(bd_results.op_subproblem),
+            BalanceConstraint
+        )
+    end
+    
+    # Merge dictionaries by period_index
+    # Structure: period_index => node_id => balance_id => {time_idx => dual_value}
+    merged_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
+    for worker_dict in constraint_duals
+        for (period_idx, period_dict) in worker_dict
+            if !haskey(merged_duals, period_idx)
+                merged_duals[period_idx] = Dict{Symbol, Dict{Symbol, Dict}}()
+            end
+            # Merge inner dictionaries for this period
+            for (node_id, balance_dict) in period_dict
+                if !haskey(merged_duals[period_idx], node_id)
+                    merged_duals[period_idx][node_id] = Dict{Symbol, Dict}()
+                end
+                # Merge balance equation dictionaries
+                for (balance_id, time_dict) in balance_dict
+                    if haskey(merged_duals[period_idx][node_id], balance_id)
+                        # Merge time index dictionaries from different workers
+                        merge!(merged_duals[period_idx][node_id][balance_id], time_dict)
+                    else
+                        merged_duals[period_idx][node_id][balance_id] = copy(time_dict)
+                    end
+                end
+            end
+        end
+    end
+    
+    return merged_duals
+end
+
+"""
+    collect_local_constraint_duals(
+        subproblems_local::Vector{Dict{Any,Any}},
+        constraint_type::Type{<:AbstractTypeConstraint}
+    )
+
+# Arguments
+- `subproblems_local::Vector{Dict{Any,Any}}`: Local subproblems on this worker
+- `constraint_type::Type{<:AbstractTypeConstraint}`: The constraint type to collect duals for
+
+# Returns
+- `nothing`
+
+Fallback function to throw an error if the constraint type is not supported.
+"""
+function collect_local_constraint_duals(
+    subproblems_local::Vector{Dict{Any,Any}},
+    constraint_type::Type{<:AbstractTypeConstraint}
+)
+    throw(MethodError(collect_local_constraint_duals, 
+        (typeof(subproblems_local), typeof(constraint_type)),
+        "Constraint type $(typeof(constraint_type)) not supported for local constraint dual collection."
+    ))
+end
+
+"""
+    get_local_constraint_duals(
+        subproblems_local::Vector{Dict{Any,Any}},
+        ::Type{BalanceConstraint}
+    )
+
+Extract BalanceConstraint duals from local subproblems on this worker.
+
+# Arguments
+- `subproblems_local::Vector{Dict{Any,Any}}`: Local subproblems on this worker
+- `::Type{BalanceConstraint}`: The constraint type to collect duals for
+
+
+Returns structure: period_index => node_id => balance_id => {time_idx => dual_value}
+"""
+function get_local_constraint_duals(
+    subproblems_local::Vector{Dict{Any,Any}},
+    ::Type{BalanceConstraint}
+)
+    constraint_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
+    
+    for i in eachindex(subproblems_local)
+        system = subproblems_local[i][:system_local]
+        period_index = system.time_data[:Electricity].period_index
+        
+        for node in filter(n -> n isa Node, system.locations)
+            # Find BalanceConstraint on this node
+            constraint = get_constraint_by_type(node, BalanceConstraint)
+            isnothing(constraint) && continue
+            ismissing(constraint.constraint_ref) && continue
+            
+            # Extract dual values if not already extracted
+            if ismissing(constraint_dual(constraint))
+                set_constraint_dual!(constraint, node)
+            end
+            
+            # Get the dictionary of dual values for all balance equations
+            duals_dict = constraint_dual(constraint)
+            ismissing(duals_dict) && continue
+            
+            # Ensure period and node dicts exist
+            if !haskey(constraint_duals, period_index)
+                constraint_duals[period_index] = Dict{Symbol, Dict{Symbol, Dict}}()
+            end
+            if !haskey(constraint_duals[period_index], node.id)
+                constraint_duals[period_index][node.id] = Dict{Symbol, Dict}()
+            end
+            
+            # For each balance equation, store duals as time_idx => value
+            for (balance_id, dual_values) in duals_dict
+                # Convert vector to dict mapping time indices to values
+                time_indices = collect(time_interval(node))
+                dual_dict = Dict(time_indices[i] => dual_values[i] for i in eachindex(time_indices))
+                
+                # Merge time dictionaries (different subproblems have different time indices)
+                if haskey(constraint_duals[period_index][node.id], balance_id)
+                    merge!(constraint_duals[period_index][node.id][balance_id], dual_dict)
+                else
+                    constraint_duals[period_index][node.id][balance_id] = dual_dict
+                end
+            end
+        end
+    end
+    
+    return constraint_duals
+end
+
+"""
+    prepare_constraint_duals_benders!(
+        period::System,
+        constraint_duals::Dict{Symbol, Dict{Symbol, Dict}},
+        ::Type{<:AbstractTypeConstraint}
+    )
+
+# Arguments
+- `period::System`: The planning problem
+- `constraint_duals::Dict{Symbol, Dict{Symbol, Dict}}`: The collected constraint duals
+- `::Type{<:AbstractTypeConstraint}`: The constraint type to prepare duals for
+
+# Returns
+- `nothing`
+
+Moves constraint duals from collected data back into the planning problem..
+"""
+function prepare_constraint_duals_benders!(period::System, constraint_duals::Dict{Symbol, Dict{Symbol, Dict}}, ::Type{<:AbstractTypeConstraint})
+    for (node_id, balance_dict) in constraint_duals
+        node = find_node(period, node_id)
+        @assert !isnothing(node) "Node $node_id not found in planning problem"
+        
+        # Find the BalanceConstraint
+        constraint = get_constraint_by_type(node, BalanceConstraint)
+        isnothing(constraint) && continue
+        
+        # Initialize constraint_dual dict if missing
+        if ismissing(constraint.constraint_dual)
+            constraint.constraint_dual = Dict{Symbol, Vector{Float64}}()
+        end
+        
+        # For each balance equation, convert time_dict back to vector
+        for (balance_id, time_dict) in balance_dict
+            time_indices = sort(collect(keys(time_dict)))
+            dual_values = [time_dict[t] for t in time_indices]
+            constraint.constraint_dual[balance_id] = dual_values
+        end
+    end
+    
+    # verify the constraint duals have all time indices
+    for (balance_id, dual_values) in constraint.constraint_dual
+        @assert length(dual_values) == length(time_interval(node))
+    end
+    
+    return nothing
+end

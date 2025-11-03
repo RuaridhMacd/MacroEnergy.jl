@@ -89,7 +89,10 @@ function write_balance_duals(
     for node in filter(n -> n isa Node, system.locations)
         constraint = get_constraint_by_type(node, BalanceConstraint)
         isnothing(constraint) && continue
-        ismissing(constraint.constraint_ref) && continue
+        # Skip if constraint has no reference or dual values
+        if ismissing(constraint.constraint_ref) && ismissing(constraint.constraint_dual)
+            continue
+        end
         
         # Extract dual values if not already extracted
         if ismissing(constraint_dual(constraint))
