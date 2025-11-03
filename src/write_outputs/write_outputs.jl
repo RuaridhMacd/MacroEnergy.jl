@@ -47,6 +47,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
     # get the flow results from the operational subproblems
     flow_df = collect_flow_results(case, bd_results)
+    
+    # get the policy slack variables from the operational subproblems
+    slack_vars = collect_distributed_policy_slack_vars(bd_results)
 
     for (period_idx, period) in enumerate(periods)
         @info("Writing results for period $period_idx")
@@ -77,6 +80,7 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
         # Write dual values (if enabled)
         if period.settings.DualExportsEnabled
+            prepare_duals_benders!(period, slack_vars[period_idx])
             # Scaling factor to account for discounting in multi-period models
             discount_scaling = compute_period_discount_scaling(period_idx, settings)
             write_duals(results_dir, period, discount_scaling)
