@@ -6,7 +6,7 @@ using HiGHS
 using MacroEnergy
 
 import MacroEnergy: densearray_to_dict, dict_to_densearray
-import MacroEnergy: get_local_slack_vars, get_local_constraint_duals
+import MacroEnergy: collect_local_slack_vars, collect_local_constraint_duals
 import MacroEnergy: populate_slack_vars_from_subproblems!, populate_constraint_duals_from_subproblems!
 import MacroEnergy: merge_distributed_slack_vars_dicts, merge_distributed_balance_duals
 import MacroEnergy: BalanceConstraint
@@ -346,8 +346,8 @@ function test_benders_output_utilities()
             subproblems_local_2 = [Dict{Any, Any}(:system_local => mock_system_2)]
             
             # Test collection
-            result_1 = get_local_slack_vars(subproblems_local_1)
-            result_2 = get_local_slack_vars(subproblems_local_2)
+            result_1 = collect_local_slack_vars(subproblems_local_1)
+            result_2 = collect_local_slack_vars(subproblems_local_2)
             
             @test isa(result_1, Dict)
             @test haskey(result_1, 1)  # period_index = 1
@@ -448,7 +448,7 @@ function test_benders_output_utilities()
             
             subproblems_local = [Dict{Any,Any}(:system_local => mock_system)]
             
-            result = get_local_slack_vars(subproblems_local)
+            result = collect_local_slack_vars(subproblems_local)
             
             @test haskey(result[1], (:node1, :co2_slack))
             @test haskey(result[1], (:node2, :co2_slack))
@@ -484,7 +484,7 @@ function test_benders_output_utilities()
             
             subproblems_local = [Dict{Any,Any}(:system_local => mock_system)]
             
-            result = get_local_slack_vars(subproblems_local)
+            result = collect_local_slack_vars(subproblems_local)
             
             # Should return empty dict for this period
             @test isa(result, Dict)
@@ -538,7 +538,7 @@ function test_benders_output_utilities()
             subproblems_local = [Dict(:system_local => mock_system)]
             
             # Test collection
-            result = get_local_constraint_duals(subproblems_local, BalanceConstraint)
+            result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
             
             @test isa(result, Dict)
             @test haskey(result, 1)  # period_index
@@ -591,7 +591,7 @@ function test_benders_output_utilities()
             
             subproblems_local = [Dict(:system_local => mock_system)]
             
-            result = get_local_constraint_duals(subproblems_local, BalanceConstraint)
+            result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
             
             @test haskey(result[1][:multi_node], :demand)
             @test haskey(result[1][:multi_node], :emissions)
@@ -621,7 +621,7 @@ function test_benders_output_utilities()
             
             subproblems_local = [Dict(:system_local => mock_system)]
             
-            result = get_local_constraint_duals(subproblems_local, BalanceConstraint)
+            result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
             
             # Should return empty or not include this node
             @test isa(result, Dict) && isempty(result)
@@ -790,7 +790,7 @@ function test_benders_output_utilities()
                 Dict{Any, Any}(:system_local => sub_system_1),
                 Dict{Any, Any}(:system_local => sub_system_2)
             ]
-            collected = get_local_slack_vars(subproblems_local)
+            collected = collect_local_slack_vars(subproblems_local)
             
             # Planning node
             timedata_planning = TimeData{Electricity}(;
