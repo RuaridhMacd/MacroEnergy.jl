@@ -64,6 +64,7 @@ function collect_local_flows(bd_results::BendersResults)
     end
     return flow_df
 end
+
 """
 Convert DenseAxisArray to Dict, preserving axis information.
 """
@@ -83,7 +84,7 @@ end
 """
 Convert Dict back to DenseAxisArray.
 """
-function dict_to_densearray(dict::Dict)
+function dict_to_densearray(dict::AbstractDict)
     first_key = first(keys(dict))
     
     if first_key isa Tuple
@@ -112,7 +113,7 @@ function dict_to_densearray(dict::Dict)
     end
 end
 
-function prepare_duals_benders!(period::System, slack_vars::Dict{Tuple{Symbol,Symbol}, Dict})
+function prepare_duals_benders!(period::System, slack_vars::Dict{Tuple{Symbol,Symbol}, <:AbstractDict})
     for (node_id, slack_vars_key) in keys(slack_vars)
         node = find_node(period, node_id)
         @assert !isnothing(node)
@@ -126,36 +127,60 @@ end
 function collect_distributed_policy_slack_vars(bd_results::BendersResults)
     p_id = workers()
     np_id = length(p_id)
-    slack_vars = Vector{Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict}}}(undef, np_id)
+    slack_vars = Vector{Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict{Int64, Float64}}}}(undef, np_id)
     @sync for i in 1:np_id
         @async slack_vars[i] = @fetchfrom p_id[i] get_local_slack_vars(DistributedArrays.localpart(bd_results.op_subproblem))
     end
     
     # Merge dictionaries by period_index
     # Structure: period_index => (node_id, slack_vars_key) => {axis_idx => value}
-    merged_slack_vars = Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict}}()
-    for worker_dict in slack_vars
+    return merge_distributed_slack_vars_dicts(slack_vars)
+end
+
+
+"""
+    merge_distributed_slack_vars_dicts(
+        worker_results::Vector{Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict}}}
+    )
+
+Helper function that combines results from multiple workers where each worker
+returns a nested dictionary structure: period_idx => (node_id, slack_vars_key) => data_dict.
+
+# Arguments
+- `worker_results::Vector{Dict{Int64, Dict{K, Dict}}}`: Vector of dictionaries from each worker
+
+# Returns
+- Merged dictionary with structure: period_idx => (node_id, slack_vars_key) => merged_data_dict
+"""
+function merge_distributed_slack_vars_dicts(
+    worker_results::Vector{<:AbstractDict{Int64, <:AbstractDict{Tuple{Symbol,Symbol}, <:AbstractDict}}}
+)
+    merged = Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict}}()
+    
+    for worker_dict in worker_results
         for (period_idx, period_dict) in worker_dict
-            if !haskey(merged_slack_vars, period_idx)
-                merged_slack_vars[period_idx] = Dict{Tuple{Symbol,Symbol}, Dict}()
+            # Ensure period exists in merged dict
+            if !haskey(merged, period_idx)
+                merged[period_idx] = Dict{Tuple{Symbol,Symbol}, Dict}()
             end
+            
             # Merge inner dictionaries for this period
-            for (key, axis_dict) in period_dict
-                if haskey(merged_slack_vars[period_idx], key)
+            for (key, data_dict) in period_dict
+                if haskey(merged[period_idx], key)
                     # If same (node_id, slack_vars_key) exists, merge the axis dictionaries
-                    merge!(merged_slack_vars[period_idx][key], axis_dict)
+                    merge!(merged[period_idx][key], data_dict)
                 else
-                    merged_slack_vars[period_idx][key] = copy(axis_dict)
+                    merged[period_idx][key] = copy(data_dict)
                 end
             end
         end
     end
     
-    return merged_slack_vars
+    return merged
 end
 
 function get_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
-    slack_vars = Dict{Int64, Dict{Tuple{Symbol, Symbol}, Dict}}()
+    slack_vars = Dict{Int64, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}}()
     for i in eachindex(subproblems_local)
         system = subproblems_local[i][:system_local]
         for node in filter(n -> n isa Node, system.locations)
@@ -169,7 +194,7 @@ function get_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
                 axis_dict = densearray_to_dict(slack_array)
                 
                 # Ensure period_index dict exists
-                period_dict = get!(slack_vars, period_index, Dict{Tuple{Symbol, Symbol}, Dict}())
+                period_dict = get!(slack_vars, period_index, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}())
                 
                 # Merge axis dictionaries (different subproblems have different time indices)
                 if haskey(period_dict, key)
@@ -210,19 +235,43 @@ function collect_distributed_constraint_duals(bd_results::BendersResults, ::Type
         )
     end
     
-    # Merge dictionaries by period_index
-    # Structure: period_index => node_id => balance_id => {time_idx => dual_value}
+    # Merge dictionaries
+    # Structure: period_idx => node_id => balance_id => {time_idx => dual_value}
+    return merge_distributed_balance_duals(constraint_duals)
+end
+
+"""
+    merge_distributed_balance_duals(
+        worker_results::Vector{<:AbstractDict{Int64, <:AbstractDict{Symbol, <:AbstractDict{Symbol, <:AbstractDict}}}}
+    )
+
+Helper function that combines results from multiple workers where each worker
+returns a nested dictionary structure: period_idx => node_id => balance_id => time_dict.
+
+# Arguments
+- `worker_results::Vector{<:AbstractDict{Int64, <:AbstractDict{Symbol, <:AbstractDict{Symbol, <:AbstractDict}}}}`: Vector of dictionaries from each worker
+
+# Returns
+- Merged dictionary with structure: period_idx => node_id => balance_id => {time_idx => dual_value}
+"""
+function merge_distributed_balance_duals(
+    worker_results::Vector{<:AbstractDict{Int64, <:AbstractDict{Symbol, <:AbstractDict{Symbol, <:AbstractDict}}}}
+)
     merged_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
-    for worker_dict in constraint_duals
+    
+    for worker_dict in worker_results
         for (period_idx, period_dict) in worker_dict
+            # Make sure period exists
             if !haskey(merged_duals, period_idx)
                 merged_duals[period_idx] = Dict{Symbol, Dict{Symbol, Dict}}()
             end
+            
             # Merge inner dictionaries for this period
             for (node_id, balance_dict) in period_dict
                 if !haskey(merged_duals[period_idx], node_id)
                     merged_duals[period_idx][node_id] = Dict{Symbol, Dict}()
                 end
+                
                 # Merge balance equation dictionaries
                 for (balance_id, time_dict) in balance_dict
                     if haskey(merged_duals[period_idx][node_id], balance_id)
@@ -266,7 +315,7 @@ end
 
 """
     get_local_constraint_duals(
-        subproblems_local::Vector{Dict{Any,Any}},
+        subproblems_local::Vector{<: AbstractDict{Any,Any}},
         ::Type{BalanceConstraint}
     )
 
@@ -280,7 +329,7 @@ Extract BalanceConstraint duals from local subproblems on this worker.
 Returns structure: period_index => node_id => balance_id => {time_idx => dual_value}
 """
 function get_local_constraint_duals(
-    subproblems_local::Vector{Dict{Any,Any}},
+    subproblems_local::Vector{ <: AbstractDict},
     ::Type{BalanceConstraint}
 )
     constraint_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
@@ -334,7 +383,7 @@ end
 """
     prepare_constraint_duals_benders!(
         period::System,
-        constraint_duals::Dict{Symbol, Dict{Symbol, Dict}},
+        constraint_duals::Dict{Symbol, Dict{Symbol, <: AbstractDict}},
         ::Type{<:AbstractTypeConstraint}
     )
 
@@ -348,7 +397,7 @@ end
 
 Moves constraint duals from collected data back into the planning problem..
 """
-function prepare_constraint_duals_benders!(period::System, constraint_duals::Dict{Symbol, Dict{Symbol, Dict}}, ::Type{<:AbstractTypeConstraint})
+function prepare_constraint_duals_benders!(period::System, constraint_duals::Dict{Symbol, <: AbstractDict{Symbol, <: AbstractDict}}, ::Type{<:AbstractTypeConstraint})
     for (node_id, balance_dict) in constraint_duals
         node = find_node(period, node_id)
         @assert !isnothing(node) "Node $node_id not found in planning problem"
@@ -368,12 +417,12 @@ function prepare_constraint_duals_benders!(period::System, constraint_duals::Dic
             dual_values = [time_dict[t] for t in time_indices]
             constraint.constraint_dual[balance_id] = dual_values
         end
+        # verify the constraint duals have all time indices
+        for dual_values in values(constraint.constraint_dual)
+            @assert length(dual_values) == length(time_interval(node))
+        end
     end
     
-    # verify the constraint duals have all time indices
-    for (balance_id, dual_values) in constraint.constraint_dual
-        @assert length(dual_values) == length(time_interval(node))
-    end
     
     return nothing
 end
