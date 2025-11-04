@@ -7,7 +7,7 @@ using MacroEnergy
 
 import MacroEnergy: densearray_to_dict, dict_to_densearray
 import MacroEnergy: get_local_slack_vars, get_local_constraint_duals
-import MacroEnergy: prepare_duals_benders!, prepare_constraint_duals_benders!
+import MacroEnergy: populate_slack_vars_from_subproblems!, populate_constraint_duals_from_subproblems!
 import MacroEnergy: merge_distributed_slack_vars_dicts, merge_distributed_balance_duals
 import MacroEnergy: BalanceConstraint
 import MacroEnergy: empty_system
@@ -656,7 +656,7 @@ function test_benders_output_utilities()
             )
             
             # Move
-            prepare_duals_benders!(planning_system, slack_vars_dict)
+            populate_slack_vars_from_subproblems!(planning_system, slack_vars_dict)
             
             # Check move
             @test haskey(planning_node.policy_slack_vars, :co2_slack)
@@ -696,7 +696,7 @@ function test_benders_output_utilities()
             )
             
             # Restore
-            prepare_constraint_duals_benders!(
+            populate_constraint_duals_from_subproblems!(
                 planning_system, 
                 constraint_duals_dict, 
                 BalanceConstraint
@@ -722,7 +722,7 @@ function test_benders_output_utilities()
             )
             
             # Should throw error because node does not exist in the system
-            @test_throws ErrorException prepare_duals_benders!(planning_system, slack_vars_dict)
+            @test_throws ErrorException populate_slack_vars_from_subproblems!(planning_system, slack_vars_dict)
         end
     end
     
@@ -813,7 +813,7 @@ function test_benders_output_utilities()
             plan_system.locations = [plan_node]
             
             # Move
-            prepare_duals_benders!(plan_system, collected[1])
+            populate_slack_vars_from_subproblems!(plan_system, collected[1])
             
             # Verify
             @test haskey(plan_node.policy_slack_vars, :test_slack)

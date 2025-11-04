@@ -113,7 +113,7 @@ function dict_to_densearray(dict::AbstractDict)
     end
 end
 
-function prepare_duals_benders!(period::System, slack_vars::Dict{Tuple{Symbol,Symbol}, <:AbstractDict})
+function populate_slack_vars_from_subproblems!(period::System, slack_vars::Dict{Tuple{Symbol,Symbol}, <:AbstractDict})
     for (node_id, slack_vars_key) in keys(slack_vars)
         node = find_node(period, node_id)
         @assert !isnothing(node)
@@ -381,7 +381,7 @@ function get_local_constraint_duals(
 end
 
 """
-    prepare_constraint_duals_benders!(
+    populate_constraint_duals_from_subproblems!(
         period::System,
         constraint_duals::Dict{Symbol, Dict{Symbol, <: AbstractDict}},
         ::Type{<:AbstractTypeConstraint}
@@ -397,7 +397,7 @@ end
 
 Moves constraint duals from collected data back into the planning problem..
 """
-function prepare_constraint_duals_benders!(period::System, constraint_duals::Dict{Symbol, <: AbstractDict{Symbol, <: AbstractDict}}, ::Type{<:AbstractTypeConstraint})
+function populate_constraint_duals_from_subproblems!(period::System, constraint_duals::Dict{Symbol, <: AbstractDict{Symbol, <: AbstractDict}}, ::Type{<:AbstractTypeConstraint})
     for (node_id, balance_dict) in constraint_duals
         node = find_node(period, node_id)
         @assert !isnothing(node) "Node $node_id not found in planning problem"

@@ -86,14 +86,14 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         if period.settings.DualExportsEnabled
             # Move slack variables from subproblems to planning problem
             if haskey(slack_vars, period_idx)
-                prepare_duals_benders!(period, slack_vars[period_idx])
+                populate_slack_vars_from_subproblems!(period, slack_vars[period_idx])
             else
                 @debug "No slack variables found for period $period_idx"
             end
             
             # Calculate and store constraint duals from subproblems to planning problem
             if haskey(balance_duals, period_idx)
-                prepare_constraint_duals_benders!(period, balance_duals[period_idx], BalanceConstraint)
+                populate_constraint_duals_from_subproblems!(period, balance_duals[period_idx], BalanceConstraint)
             else
                 @debug "No balance constraint duals found for period $period_idx"
             end
