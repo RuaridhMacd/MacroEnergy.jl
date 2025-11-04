@@ -220,20 +220,20 @@ function test_write_co2_cap_duals(case, model)
                 
                 # Test duals are consistent with the "true results"
                 co2_cap_duals_true = CSV.read(joinpath(test_path, "results", "co2_cap_duals_true.csv"), DataFrame)
-                @test df.node == co2_cap_duals_true.node
-                @test isapprox(df[:, Not(:node)], co2_cap_duals_true[:, Not(:node)], atol=1e-10)
+                @test df.Node == co2_cap_duals_true.Node
+                @test isapprox(df[:, Not(:Node)], co2_cap_duals_true[:, Not(:Node)], atol=1e-10)
 
-                @test "node" in names(df)
-                @test "co2_shadow_price" in names(df)
+                @test "Node" in names(df)
+                @test "CO2_Shadow_Price" in names(df)
                 
-                @test df.node isa Vector{Symbol} || df.node isa Vector{String} || df.node isa Vector{String15}
-                @test eltype(df.co2_shadow_price) <: Real
+                @test df.Node isa Vector{Symbol} || df.Node isa Vector{String} || df.Node isa Vector{String15}
+                @test eltype(df.CO2_Shadow_Price) <: Real
                 
-                if "co2_penalty_cost" in names(df)
-                    @test eltype(df.co2_penalty_cost) <: Real
+                if "CO2_Slack" in names(df)
+                    @test eltype(df.CO2_Slack) <: Real
                 end
                 
-                @test all(isfinite, df.co2_shadow_price)
+                @test all(isfinite, df.CO2_Shadow_Price)
             else
                 @error "No CO2 cap constraints found in test case, skipping CO2 duals validation"
             end
@@ -273,8 +273,8 @@ function test_write_duals(case, model)
             co2_file = joinpath(temp_dir, "co2_cap_duals.csv")
             df_co2 = CSV.read(co2_file, DataFrame)
             @test nrow(df_co2) > 0
-            @test "node" in names(df_co2)
-            @test "co2_shadow_price" in names(df_co2)
+            @test "Node" in names(df_co2)
+            @test "CO2_Shadow_Price" in names(df_co2)
         finally
             # Cleanup
             rm(temp_dir, recursive=true)
