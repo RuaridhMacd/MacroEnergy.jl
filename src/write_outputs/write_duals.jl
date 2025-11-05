@@ -213,4 +213,16 @@ function write_co2_cap_duals(
     return nothing
 end
 
-
+function compute_variable_cost_discount_scaling(period_idx::Int, settings::NamedTuple)
+    discount_rate = settings.DiscountRate
+    period_lengths = settings.PeriodLengths
+    
+    cum_years = sum(@view(period_lengths[1:period_idx-1]); init=0)
+    
+    discount_factor = 1 / ((1 + discount_rate)^cum_years)
+    
+    period_length = period_lengths[period_idx]
+    opexmult = sum(1 / (1 + discount_rate)^i for i in 1:period_length)
+    
+    return discount_factor * opexmult
+end
