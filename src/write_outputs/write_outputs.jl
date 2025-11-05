@@ -20,7 +20,11 @@ function write_outputs(case_path::AbstractString, case::Case, model::Model)
             results_dir = joinpath(case_path, "results")
         end
         mkpath(results_dir)
-        write_outputs(results_dir, period, model)
+
+        # Scaling factor for variable cost portion of objective function
+        discount_scaling = compute_period_discount_scaling(period_idx, get_settings(case))
+
+        write_outputs(results_dir, period, model, discount_scaling)
     end
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
