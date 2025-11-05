@@ -1,0 +1,63 @@
+{
+    "TradCementPlant": [
+        {
+            "type": "CementPlant",
+            "global_data": {
+                "fuel_commodity": "NaturalGas",
+                "nodes": {},
+                "transforms": {
+                    "id": "traditional_cement",
+                    "timedata": "Cement",
+                    "fuel_consumption_rate": 0.9311,
+                    "elec_consumption_rate": 0.07,
+                    "fuel_emission_rate": 0.296,
+                    "process_emission_rate": 0.536,
+                    "emission_capture_rate": 0,
+                    "constraints": {
+                        "BalanceConstraint": true
+                    }
+                },
+                "edges":{
+                    "elec_edge":{
+                        "type": "Electricity"
+                    },
+                    "cement_edge":{
+                        "type": "Cement",
+                        "has_capacity": true,
+                        "can_retire": true,
+                        "can_expand": true,
+                        "capacity_size": 125,
+                        "investment_cost": 220939,
+                        "fixed_om_cost": 38,
+                        "variable_om_cost": 0,
+                        "can_retrofit": true
+                    },
+                    "fuel_edge": {
+                        "type": "NaturalGas",
+                        "start_vertex": "natgas_NE"
+                    },
+                    "co2_emissions_edge": {
+                        "type": "CO2",
+                        "end_vertex": "cement_co2_sink"
+                    },
+                    "co2_captured_edge": {
+                        "type": "CO2Captured",
+                        "end_vertex": "co2_captured_sink"
+                    }
+                }
+            },
+            "instance_data": [
+                {
+                    "id": "traditional_cement",
+                    "location": "NE",
+                    "edges": {
+                        "cement_edge":{
+                            "existing_capacity": 100,
+                            "end_vertex": "cement_NE"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
