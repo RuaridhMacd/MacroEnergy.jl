@@ -22,7 +22,7 @@ function write_outputs(case_path::AbstractString, case::Case, model::Model)
         mkpath(results_dir)
 
         # Scaling factor for variable cost portion of objective function
-        discount_scaling = compute_period_discount_scaling(period_idx, get_settings(case))
+        discount_scaling = compute_variable_cost_discount_scaling(period_idx, get_settings(case))
 
         write_outputs(results_dir, period, model, discount_scaling)
     end
@@ -103,7 +103,7 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
             end
             
             # Scaling factor to account for discounting in multi-period models
-            discount_scaling = compute_period_discount_scaling(period_idx, settings)
+            discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)
             write_duals(results_dir, period, discount_scaling)
         end
     end

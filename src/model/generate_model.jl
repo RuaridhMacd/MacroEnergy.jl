@@ -406,7 +406,7 @@ function add_costs_not_seen_by_myopic!(n::Node,settings::NamedTuple)
     return nothing
 end
 
-function compute_period_discount_scaling(period_idx::Int, settings::NamedTuple)
+function compute_variable_cost_discount_scaling(period_idx::Int, settings::NamedTuple)
     discount_rate = settings.DiscountRate
     period_lengths = settings.PeriodLengths
     
