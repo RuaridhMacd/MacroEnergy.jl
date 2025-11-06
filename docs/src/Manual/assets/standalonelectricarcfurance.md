@@ -2,7 +2,7 @@
 
 ## Contents
 
-[Overview](@ref "eaf_overview") | [Asset Structure](@ref "eaf_asset_structure") | [Flow Equations](@ref "eaf_flow_equations") | [Input File (Standard Format)](@ref "eaf_input_file") | [Types - Asset Structure](@ref "eaf_type_definition") | [Constructors](@ref "eaf_constructors") | [Examples](@ref "eaf_examples")
+[Overview](@ref eaf_overview) | [Asset Structure](@ref eaf_asset_structure) | [Flow Equations](@ref eaf_flow_equations) | [Input File (Standard Format)](@ref eaf_input_file) | [Types - Asset Structure](@ref eaf_type_definition) | [Constructors](@ref eaf_constructors) | [Examples](@ref eaf_examples)
 
 ## [Overview](@id "eaf_overview")
 
@@ -73,7 +73,7 @@ The ElectricArcFurnace asset follows these stoichiometric relationships:
 ```
 Where:
 - $\phi$ represents the flow of each commodity.
-- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref "eaf_conversion_process_parameters") section.
+- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref eaf_conversion_process_parameters) section.
 
 ## [Input File (Standard Format)](@id "eaf_input_file")
 
@@ -90,7 +90,7 @@ your_case/
 └── ...
 ```
 
-This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref "eaf_examples") section.
+This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref eaf_examples) section.
 
 The following tables outline the attributes that can be set for an Electric Arc Furnace asset.
 
@@ -115,7 +115,7 @@ The following tables outline the attributes that can be set for an Electric Arc 
 
 ### Edges
 
-The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
+The definition of the `Edge` object can be found here [Edges](@ref).
 
 #### General Attributes
 
@@ -158,7 +158,7 @@ ElectricArcFurnace assets can have different constraints applied to them, and th
 | `transform_constraints` | Dict{String,Bool} | List of constraints applied to the transformation component. |
 | `output_constraints` | Dict{String,Bool} | List of constraints applied to the output edge component. |
 
-For example, if the user wants to apply the [`BalanceConstraint`](@ref "balance_constraint_ref") to the transformation component and the [`MaxCapacityConstraint`](@ref "max_capacity_constraint_ref") to the output edge, the constraints fields should be set as follows:
+For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_constraint_ref) to the transformation component and the [`MaxCapacityConstraint`](@ref max_capacity_constraint_ref) to the output edge, the constraints fields should be set as follows:
 
 ```json
 {
@@ -179,8 +179,8 @@ Users can refer to the [Adding Asset Constraints to a System](@ref) section of t
 #### Default constraints
 To simplify the input file and the asset configuration, the following constraints are applied to the ElectricArcFurnace asset by default:
 
-- [Balance constraint](@ref "balance_constraint_ref") (applied to the transformation component)
-- [Capacity constraint](@ref "capacity_constraint_ref") (applied to the output crude steel edge)
+- [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
+- [Capacity constraint](@ref capacity_constraint_ref) (applied to the output crude steel edge)
 
 ## [Types - Asset Structure](@id "eaf_type_definition")
 
@@ -243,7 +243,7 @@ eaf_transform.balance_data = Dict(
     These keys **must exactly match** the corresponding field names in your input asset `.json` or `.csv` files. Mismatched key names between the constructor file and the asset input will result in missing or incorrect parameter values (defaulting to `0.0`).
     
 
-## [Examples](@ref "eaf_examples")
+## [Examples](@id eaf_examples)
 
 This example illustrates a basic standalone electric arc furnace configuration in JSON format, featuring standard parameters in a three-zone case. In the example below, the carbon source is assumed to be metallurgical coal.
 
