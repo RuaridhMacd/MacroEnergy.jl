@@ -197,7 +197,7 @@ To simplify the input file and the asset configuration, the following constraint
 
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the output crude steel edge)
-- [MustRun constraint](@ref mustrun_constraint_ref) (applied to the output crude steel edge)
+- [MustRun constraint](@ref must_run_constraint_ref) (applied to the output crude steel edge)
 
 ## [Types - Asset Structure](@id bfbof_type_definition)
 
