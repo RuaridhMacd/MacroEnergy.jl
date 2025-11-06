@@ -2,14 +2,14 @@
 
 ## Contents
 
-[Overview](@ref "bfbof_overview") | [Asset Structure](@ref "bfbof_asset_structure") | [Flow Equations](@ref "bfbof_flow_equations") | [Input File (Standard Format)](@ref "bfbof_input_file") | [Types - Asset Structure](@ref "bfbof_type_definition") | [Constructors](@ref "bfbof_constructors") | [Examples](@ref "bfbof_examples")
+[Overview](@ref bfbof_overview) | [Asset Structure](@ref bfbof_asset_structure) | [Flow Equations](@ref bfbof_flow_equations) | [Input File (Standard Format)](@ref bfbof_input_file) | [Types - Asset Structure](@ref bfbof_type_definition) | [Constructors](@ref bfbof_constructors) | [Examples](@ref bfbof_examples)
 
-## [Overview](@id "bfbof_overview")
+## [Overview](@id bfbof_overview)
 
 In Macro, the Blast Furnace–Basic Oxygen Furnace (BF-BOF) pathway represents coal-based integrated steelmaking facilities that produce crude steel. In this configuration, iron ore is first reduced in the blast furnace using coke derived on-site from metallurgical coal to produce pig iron, which is then converted into crude steel in the basic oxygen furnace. 
 These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `integrated_blast_furnace_basic_oxygen_furnace.json` or `integrated_blast_furnace_basic_oxygen_furnace_ccs.csv`.
 
-## [Asset Structure](@id "bfbof_asset_structure")
+## [Asset Structure](@id bfbof_asset_structure)
 
 A BF-BOF plant (with and without CCS) is made of the following components:
 - 1 `Transformation` component, representing the BF-BOF (with and without CCS).
@@ -69,7 +69,7 @@ flowchart BT
 
 
 ```
-## [Flow Equations](@id "bfbof_flow_equations")
+## [Flow Equations](@id bfbof_flow_equations)
 
 The BlastFurnaceBasicOxygenFurnace asset follows these stoichiometric relationships:
 
@@ -87,9 +87,9 @@ The BlastFurnaceBasicOxygenFurnace asset follows these stoichiometric relationsh
 ```
 Where:
 - $\phi$ represents the flow of each commodity
-- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref "bfbof_conversion_process_parameters") section.
+- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref bfbof_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id "bfbof_input_file")
+## [Input File (Standard Format)](@id bfbof_input_file)
 
 The easiest way to include an integrated BlastFurnaceBasicOxygenFurnace asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
@@ -104,7 +104,7 @@ your_case/
 └── ...
 ```
 
-This file can either be created manually, or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref "bfbof_examples") section.
+This file can either be created manually, or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref bfbof_examples) section.
 
 The following tables outline the attributes that can be set for a BfBof.
 
@@ -117,7 +117,7 @@ The following tables outline the attributes that can be set for a BfBof.
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |
 
-#### [Conversion Process Parameters](@id "bfbof_conversion_process_parameters")
+#### [Conversion Process Parameters](@id bfbof_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
@@ -131,7 +131,7 @@ The following tables outline the attributes that can be set for a BfBof.
 
 ### Edges
 
-The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
+The definition of the `Edge` object can be found here [Edges](@ref).
 
 #### General Attributes
 
@@ -165,7 +165,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `fixed_om_cost` | Float64 | Fixed O&M costs | \$/tCrudeSteel/hr | 0.0 |
 | `variable_om_cost` | Float64 | Variable O&M costs | \$/tCrudeSteel | 0.0 |
 
-### [Constraints Configuration](@id "bfbof_constraints")
+### [Constraints Configuration](@id bfbof_constraints)
 
 BlastFurnaceBasicOxygenFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
@@ -174,7 +174,7 @@ BlastFurnaceBasicOxygenFurnace assets can have different constraints applied to 
 | `transform_constraints` | Dict{String,Bool} | List of constraints applied to the transformation component. |
 | `output_constraints` | Dict{String,Bool} | List of constraints applied to the output edge component. |
 
-For example, if the user wants to apply the [`BalanceConstraint`](@ref "balance_constraint_ref") to the transformation component and the [`MaxCapacityConstraint`](@ref "max_capacity_constraint_ref") to the output edge, the constraints fields should be set as follows:
+For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_constraint_ref) to the transformation component and the [`MaxCapacityConstraint`](@ref max_capacity_constraint_ref) to the output edge, the constraints fields should be set as follows:
 
 ```json
 {
@@ -195,11 +195,11 @@ Users can refer to the [Adding Asset Constraints to a System](@ref) section of t
 #### Default constraints
 To simplify the input file and the asset configuration, the following constraints are applied to the BlastFurnaceBasicOxygenFurnace asset by default:
 
-- [Balance constraint](@ref "balance_constraint_ref") (applied to the transformation component)
-- [Capacity constraint](@ref "capacity_constraint_ref") (applied to the output crude steel edge)
-- [MustRun constraint](@ref "mustrun_constraint_ref") (applied to the output crude steel edge)
+- [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
+- [Capacity constraint](@ref capacity_constraint_ref) (applied to the output crude steel edge)
+- [MustRun constraint](@ref mustrun_constraint_ref) (applied to the output crude steel edge)
 
-## [Types - Asset Structure](@id "bfbof_type_definition")
+## [Types - Asset Structure](@id bfbof_type_definition)
 
 The BlastFurnaceBasicOxygenFurnace asset is defined as follows:
 
@@ -218,7 +218,7 @@ struct BlastFurnaceBasicOxygenFurnace <: AbstractAsset
 end
 ```
 
-## [Constructors](@id "bfbof_constructors")
+## [Constructors](@id bfbof_constructors)
 
 ### Factory constructor
 ```julia
@@ -270,7 +270,7 @@ bfbof_transform.balance_data = Dict(
     These keys **must exactly match** the corresponding field names in your input asset `.json` or `.csv` files. Mismatched key names between the constructor file and the asset input will result in missing or incorrect parameter values (defaulting to `0.0`).
 
 
-## [Examples](@ref "bfbof_examples")
+## [Examples](@id bfbof_examples)
 
 This example illustrates a basic BlastFurnaceBasicOxygenFurnace configuration in JSON format, featuring standard parameters in a three-zone case.
 
