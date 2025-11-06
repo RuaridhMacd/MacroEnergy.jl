@@ -45,6 +45,9 @@ abstract type AluminumScrap <: Commodity end ## tonnes
 abstract type Alumina <: Commodity end ## tonnes
 abstract type Graphite <: Commodity end ## tonnes
 abstract type Bauxite <: Commodity end ## tonnes
+abstract type IronOre <: Commodity end ## tonnes
+abstract type SteelScrap <: Commodity end ## tonnes
+abstract type CrudeSteel <: Commodity end ## tonnes
 
 ## Time data types
 abstract type AbstractTimeData{T<:Commodity} end
@@ -182,6 +185,11 @@ include("model/assets/cementplant.jl")
 include("model/assets/aluminumrefining.jl")
 include("model/assets/aluminumsmelting.jl")
 include("model/assets/aluminaplant.jl")
+include("model/assets/integratedblastfurnacebasicoxygenfurnace.jl")
+include("model/assets/integratedblastfurnacebasicoxygenfurnaceccs.jl")
+include("model/assets/integrateddirectreductionelectricarcfurnace.jl")
+include("model/assets/integrateddirectreductionelectricarcfurnaceccs.jl")
+include("model/assets/standaloneelectricarcfurnace.jl")
 
 include("config/configure_settings.jl")
 include("config/case_settings.jl")
@@ -204,11 +212,14 @@ export AbstractAsset,
     Biomass,
     Coal,
     Cement,
+    CrudeSteel,
     BECCSElectricity,
     BECCSHydrogen,
     BECCSGasoline,
     BECCSLiquidFuels,
     BECCSNaturalGas,
+    BlastFurnaceBasicOxygenFurnace,
+    BlastFurnaceBasicOxygenFurnaceCCS,
     CO2,
     CO2CapConstraint,
     CO2Captured,
@@ -217,11 +228,14 @@ export AbstractAsset,
     CapacityConstraint,
     collect_results,
     Commodity,
+    DirectReductionElectricArcFurnace,
+    DirectReductionElectricArcFurnaceCCS,
     Edge,
     EdgeWithUC,
     Electricity,
     Electrolyzer,
     ElectricDAC,
+    ElectricArcFurnace,
     FossilFuelsUpstream,
     FuelCell,
     FuelsEndUse,
@@ -234,6 +248,7 @@ export AbstractAsset,
     get_optimal_retired_capacity,
     HydroRes,
     Hydrogen,
+    IronOre,
     LongDurationStorage,
     LongDurationStorageImplicitMinMaxConstraint,
     LongDurationStorageChangeConstraint,
@@ -261,6 +276,7 @@ export AbstractAsset,
     PolicyConstraint,
     RampingLimitConstraint,
     run_case,
+    SteelScrap,
     Storage,
     StorageCapacityConstraint,
     StorageChargeDischargeRatioConstraint,
