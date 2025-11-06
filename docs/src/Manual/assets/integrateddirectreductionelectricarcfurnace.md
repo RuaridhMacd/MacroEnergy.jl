@@ -2,14 +2,14 @@
 
 ## Contents
 
-[Overview](@ref "dreaf_overview") | [Asset Structure](@ref "dreaf_asset_structure") | [Flow Equations](@ref "dreaf_flow_equations") | [Input File (Standard Format)](@ref "dreaf_input_file") | [Types - Asset Structure](@ref "dreaf_type_definition") | [Constructors](@ref "dreaf_constructors") | [Examples](@ref "dreaf_examples")
+[Overview](@ref dreaf_overview) | [Asset Structure](@ref dreaf_asset_structure) | [Flow Equations](@ref dreaf_flow_equations) | [Input File (Standard Format)](@ref dreaf_input_file) | [Types - Asset Structure](@ref dreaf_type_definition) | [Constructors](@ref dreaf_constructors) | [Examples](@ref dreaf_examples)
 
-## [Overview](@id "dreaf_overview")
+## [Overview](@id dreaf_overview)
 
 In Macro, the Integrated Direct Reduction–Electric Arc Furnace (DR-EAF) pathway represents integrated steelmaking facilities that combine direct reduction units with electric arc furnaces. In this configuration, iron ore is first reduced in a direct reduction reactor using natural gas or hydrogen as the reductant to produce hot direct reduced iron (hDRI), which is then melted in electric arc furnaces to produce crude steel.
 These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as integrated_hydrogen_direct_reduction_electric_arc_furnace.json or integrated_naturalgas_direct_reduction_electric_arc_furnace_ccs.csv.
 
-## [Asset Structure](@id "dreaf_asset_structure")
+## [Asset Structure](@id dreaf_asset_structure)
 
 A DR-EAF plant (with and without CCS) is made of the following components:
 - 1 `Transformation` component, representing the DR-EAF (with and without CCS).
@@ -55,7 +55,7 @@ flowchart BT
     linkStyle 3 stroke:#696969, color:lightgray, stroke-width: 2px;
 
 ```
-## [Flow Equations](@id "dreaf_flow_equations")
+## [Flow Equations](@id dreaf_flow_equations)
 
 The integrated DR-EAF asset follows these stoichiometric relationships:
 
@@ -71,9 +71,9 @@ The integrated DR-EAF asset follows these stoichiometric relationships:
 ```
 Where:
 - $\phi$ represents the flow of each commodity.
-- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref "dreaf_conversion_process_parameters") section.
+- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref dreaf_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id "dreaf_input_file")
+## [Input File (Standard Format)](@id dreaf_input_file)
 
 The easiest way to include an integrated DirectReductionElectricArcFurnace asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
@@ -88,7 +88,7 @@ your_case/
 └── ...
 ```
 
-This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref "dreaf_examples") section.
+This file can either be created manually or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. An example of an input JSON file is shown in the [Examples](@ref dreaf_examples) section.
 
 The following tables outline the attributes that can be set for a DirectReductionElectricArcFurnace.
 
@@ -101,7 +101,7 @@ The following tables outline the attributes that can be set for a DirectReductio
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |
 
-#### [Conversion Process Parameters](@id "dreaf_conversion_process_parameters")
+#### [Conversion Process Parameters](@id dreaf_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
@@ -114,7 +114,7 @@ The following tables outline the attributes that can be set for a DirectReductio
 
 ### Edges
 
-The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
+The definition of the `Edge` object can be found here [Edges](@ref).
 
 #### General Attributes
 
@@ -148,7 +148,7 @@ The definition of the `Edge` object can be found here [MacroEnergy.Edge](@ref).
 | `fixed_om_cost` | Float64 | Fixed O&M costs | \$/tCrudeSteel/hr | 0.0 |
 | `variable_om_cost` | Float64 | Variable O&M costs | \$/tCrudeSteel | 0.0 |
 
-### [Constraints Configuration](@id "dreaf_constraints")
+### [Constraints Configuration](@id dreaf_constraints)
 
 DirectReductionElectricArcFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
@@ -157,7 +157,7 @@ DirectReductionElectricArcFurnace assets can have different constraints applied 
 | `transform_constraints` | Dict{String,Bool} | List of constraints applied to the transformation component. |
 | `output_constraints` | Dict{String,Bool} | List of constraints applied to the output edge component. |
 
-For example, if the user wants to apply the [`BalanceConstraint`](@ref "balance_constraint_ref") to the transformation component and the [`MaxCapacityConstraint`](@ref "max_capacity_constraint_ref") to the output edge, the constraints fields should be set as follows:
+For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_constraint_ref) to the transformation component and the [`MaxCapacityConstraint`](@ref max_capacity_constraint_ref) to the output edge, the constraints fields should be set as follows:
 
 ```json
 {
@@ -178,11 +178,11 @@ Users can refer to the [Adding Asset Constraints to a System](@ref) section of t
 #### Default constraints
 To simplify the input file and the asset configuration, the following constraints are applied to the DrEaf asset by default:
 
-- [Balance constraint](@ref "balance_constraint_ref") (applied to the transformation component)
-- [Capacity constraint](@ref "capacity_constraint_ref") (applied to the output crude steel edge)
-- [MustRun constraint](@ref "mustrun_constraint_ref") (applied to the output crude steel edge)
+- [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
+- [Capacity constraint](@ref capacity_constraint_ref) (applied to the output crude steel edge)
+- [MustRun constraint](@ref mustrun_constraint_ref) (applied to the output crude steel edge)
 
-## [Types - Asset Structure](@id "dreaf_type_definition")
+## [Types - Asset Structure](@id dreaf_type_definition)
 
 The DirectReductionElectricArcFurnace asset is defined as follows:
 
@@ -200,7 +200,7 @@ end
 ```
 Here, two of the asset edges are parameterized. T1 denotes the reductant, which may be either natural gas or hydrogen, while T2 denotes the carbon source, which may be coal, charcoal, or other carbon materials.
 
-## [Constructors](@id "dreaf_constructors")
+## [Constructors](@id dreaf_constructors)
 
 ### Factory constructor
 ```julia
@@ -243,7 +243,7 @@ dreaf_transform.balance_data = Dict(
     These keys **must exactly match** the corresponding field names in your input asset `.json` or `.csv` files. Mismatched key names between the constructor file and the asset input will result in missing or incorrect parameter values (defaulting to `0.0`).
     
 
-## [Examples](@ref "dreaf_examples")
+## [Examples](@id dreaf_examples)
 
 This example illustrates a basic DirectReductionElectricArcFurnace configuration using natural gas as a reductant and metallurgical coal as a carbon source in JSON format, featuring standard parameters in a three-zone case.
 
