@@ -86,8 +86,8 @@ The BlastFurnaceBasicOxygenFurnace asset follows these stoichiometric relationsh
 \end{aligned}
 ```
 Where:
-- $\phi$ represents the flow of each commodity
-- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref bfbof_conversion_process_parameters) section.
+- ``\phi`` represents the flow of each commodity
+- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref bfbof_conversion_process_parameters) section.
 
 ## [Input File (Standard Format)](@id bfbof_input_file)
 

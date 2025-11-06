@@ -7,7 +7,7 @@
 ## [Overview](@id dreaf_overview)
 
 In Macro, the Integrated Direct Reduction–Electric Arc Furnace (DR-EAF) pathway represents integrated steelmaking facilities that combine direct reduction units with electric arc furnaces. In this configuration, iron ore is first reduced in a direct reduction reactor using natural gas or hydrogen as the reductant to produce hot direct reduced iron (hDRI), which is then melted in electric arc furnaces to produce crude steel.
-These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as integrated_hydrogen_direct_reduction_electric_arc_furnace.json or integrated_naturalgas_direct_reduction_electric_arc_furnace_ccs.csv.
+These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as `integrated_hydrogen_direct_reduction_electric_arc_furnace.json` or `integrated_naturalgas_direct_reduction_electric_arc_furnace_ccs.csv`.
 
 ## [Asset Structure](@id dreaf_asset_structure)
 
@@ -70,8 +70,8 @@ The integrated DR-EAF asset follows these stoichiometric relationships:
 \end{aligned}
 ```
 Where:
-- $\phi$ represents the flow of each commodity.
-- $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref dreaf_conversion_process_parameters) section.
+- ``\phi`` represents the flow of each commodity.
+- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref dreaf_conversion_process_parameters) section.
 
 ## [Input File (Standard Format)](@id dreaf_input_file)
 
