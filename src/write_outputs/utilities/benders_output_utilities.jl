@@ -299,7 +299,7 @@ end
 """
     collect_distributed_constraint_duals(
         bd_results::BendersResults,
-        ::Type{<:AbstractTypeConstraint}
+        ::Type{BalanceConstraint}
     )
 
 # Arguments
