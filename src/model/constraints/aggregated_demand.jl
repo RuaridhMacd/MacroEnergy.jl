@@ -5,7 +5,7 @@ Base.@kwdef mutable struct AggregatedDemandConstraint <: PolicyConstraint
 end
 
 @doc raw"""
-    add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, model::Model)
+    add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model::Model) where {T}
 
 Constraint for the total commodity flow into `n` to be greater than or equal to the value of the `rhs_policy` for the `AggregatedDemand` constraint type.
 
