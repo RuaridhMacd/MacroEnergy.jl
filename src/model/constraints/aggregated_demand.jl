@@ -17,7 +17,6 @@ The functional form of the constraint is:
 \end{aligned}
 ```
 "Demand Flow" in the above equation is the net balance commodity flow into the demand node `n`.
-
 """
 function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model::Model) where {T}
     ct_type = typeof(ct)
