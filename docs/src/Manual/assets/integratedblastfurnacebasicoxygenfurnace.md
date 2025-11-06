@@ -129,10 +129,6 @@ The following tables outline the attributes that can be set for a BfBof.
 | `emission_rate` | Float64 | CO2 emissions  per ton of crude steel output | $t_{CO2}/t_{crudesteel}$ | 0.0 |
 | `capture_rate` | Float64 | captured CO2 emissions  per ton of crude steel output,  only relevant for CCS variant. | $t_{CO2}/t_{crudesteel}$ | 0.0 |
 
-### Edges
-
-The definition of the `Edge` object can be found here [Edges](@ref).
-
 #### General Attributes
 
 | Field | Type | Values | Default | Description |
@@ -457,3 +453,14 @@ This example illustrates a basic BlastFurnaceBasicOxygenFurnace configuration in
     ]
 }
 ```
+
+## See Also
+
+- [Edges](@ref) - Components that connect Vertices and carry flows
+- [Transformations](@ref) - Processes that transform flows of several Commodities
+- [Nodes](@ref) - Network nodes that allow for import and export of commodities
+- [Vertices](@ref) - Network nodes that edges connect
+- [Assets](@ref "Assets") - Higher-level components made from edges, nodes, storage, and transformations
+- [Commodities](@ref) - Types of resources stored by Commodities
+- [Time Data](@ref) - Temporal modeling framework
+- [Constraints](@ref) - Additional constraints for Storage and other components
