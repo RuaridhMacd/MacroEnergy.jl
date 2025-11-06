@@ -4,11 +4,11 @@
 
 [Overview](@ref eaf_overview) | [Asset Structure](@ref eaf_asset_structure) | [Flow Equations](@ref eaf_flow_equations) | [Input File (Standard Format)](@ref eaf_input_file) | [Types - Asset Structure](@ref eaf_type_definition) | [Constructors](@ref eaf_constructors) | [Examples](@ref eaf_examples)
 
-## [Overview](@id "eaf_overview")
+## [Overview](@id eaf_overview)
 
 In Macro, Electric Arc Furnace (EAF) refers to standalone steelmaking facilities where steel scrap is melted and refined into crude steel using electric arc furnaces. These assets are specified via input files in JSON or CSV format, located in the assets directory, and are typically named with descriptive identifiers such as standalone_scrap_electric_arc_furnace.json or standalone_scrap_electric_arc_furnace.csv.
 
-## [Asset Structure](@id "eaf_asset_structure")
+## [Asset Structure](@id eaf_asset_structure)
 
 An EAF plant is made of the following components:
 - 1 `Transformation` component, representing the EAF.
@@ -58,7 +58,7 @@ flowchart BT
     linkStyle 5 stroke:lightgray, stroke-width: 2px
 
 ```
-## [Flow Equations](@id "eaf_flow_equations")
+## [Flow Equations](@id eaf_flow_equations)
 
 The ElectricArcFurnace asset follows these stoichiometric relationships:
 
@@ -75,7 +75,7 @@ Where:
 - $\phi$ represents the flow of each commodity.
 - $\epsilon$ represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref eaf_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id "eaf_input_file")
+## [Input File (Standard Format)](@id eaf_input_file)
 
 The easiest way to include a standalone scrap-EAF asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
@@ -103,7 +103,7 @@ The following tables outline the attributes that can be set for an Electric Arc 
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |
 
-#### [Conversion Process Parameters](@id "eaf_conversion_process_parameters")
+#### [Conversion Process Parameters](@id eaf_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `ironore_consumption` | Float64 | iron ore consumption per ton of crude steel output | $t_{ironore}/t_{crudesteel}$ | 0.0 |
@@ -149,7 +149,7 @@ The definition of the `Edge` object can be found here [Edges](@ref).
 | `fixed_om_cost` | Float64 | Fixed O&M costs | \$/tCrudeSteel/hr | 0.0 |
 | `variable_om_cost` | Float64 | Variable O&M costs | \$/tCrudeSteel | 0.0 |
 
-### [Constraints Configuration](@id "eaf_constraints")
+### [Constraints Configuration](@id eaf_constraints)
 
 ElectricArcFurnace assets can have different constraints applied to them, and the user can configure them using the following fields:
 
@@ -182,7 +182,7 @@ To simplify the input file and the asset configuration, the following constraint
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the output crude steel edge)
 
-## [Types - Asset Structure](@id "eaf_type_definition")
+## [Types - Asset Structure](@id eaf_type_definition)
 
 The ElectricArcFurnace asset is defined as follows:
 
@@ -200,7 +200,7 @@ end
 ```
 Here, T denotes the carbon source, which may be metallurgical coal, charcoal, etc.
 
-## [Constructors](@id "eaf_constructors")
+## [Constructors](@id eaf_constructors)
 
 ### Factory constructor
 ```julia
