@@ -48,6 +48,8 @@ abstract type Bauxite <: Commodity end ## tonnes
 abstract type IronOre <: Commodity end ## tonnes
 abstract type SteelScrap <: Commodity end ## tonnes
 abstract type CrudeSteel <: Commodity end ## tonnes
+abstract type Heat <: Commodity end ## MWh
+abstract type Steam <: Commodity end ## MWh
 
 ## Time data types
 abstract type AbstractTimeData{T<:Commodity} end
@@ -190,6 +192,10 @@ include("model/assets/integratedblastfurnacebasicoxygenfurnaceccs.jl")
 include("model/assets/integrateddirectreductionelectricarcfurnace.jl")
 include("model/assets/integrateddirectreductionelectricarcfurnaceccs.jl")
 include("model/assets/standaloneelectricarcfurnace.jl")
+include("model/assets/fuelheating.jl")
+include("model/assets/electricheating.jl")
+include("model/assets/fuelsteam.jl")
+include("model/assets/electricsteam.jl")
 
 include("config/configure_settings.jl")
 include("config/case_settings.jl")
@@ -236,9 +242,13 @@ export AbstractAsset,
     Electrolyzer,
     ElectricDAC,
     ElectricArcFurnace,
+    ElectricityHeating,
+    ElectricitySteam,
     FossilFuelsUpstream,
     FuelCell,
     FuelsEndUse,
+    FuelHeating,
+    FuelSteam,
     GasStorage,
     Graphite,
     get_optimal_capacity, 
@@ -246,6 +256,7 @@ export AbstractAsset,
     get_optimal_flow,
     get_optimal_new_capacity,
     get_optimal_retired_capacity,
+    Heat,
     HydroRes,
     Hydrogen,
     IronOre,
@@ -276,6 +287,7 @@ export AbstractAsset,
     PolicyConstraint,
     RampingLimitConstraint,
     run_case,
+    Steam,
     SteelScrap,
     Storage,
     StorageCapacityConstraint,

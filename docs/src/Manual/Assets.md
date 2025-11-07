@@ -474,3 +474,98 @@ flowchart LR
     linkStyle 0 stroke:#FFD700, stroke-width: 2px;
     linkStyle 1 stroke:#FFD700, stroke-width: 2px;
 ```
+
+### [Fuel Heating](@ref)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart LR
+  subgraph FuelHeating
+  direction BT
+  A((Fuel)) e1@ --> B{{..}}
+  B e2@ --> C((Heat))
+  B e3@ --> D((CO₂ Emitted))
+  e1@{animate: true}
+  e2@{animate: true}
+  e3@{animate: true}
+ end
+    style A r:55px,fill:#005F6A,stroke:black,color:white,stroke-dasharray: 3,5;
+    style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+    style D font-size:17px,r:55px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+
+  linkStyle 0 stroke:#005F6A, stroke-width: 2px;
+  linkStyle 1 stroke:#FFA500, stroke-width: 2px;
+  linkStyle 2 stroke:lightgray, stroke-width: 2px;
+```
+
+### [Electricity Heating](@ref)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
+flowchart LR
+  subgraph ElectricityHeating
+  direction BT
+  A((Electricity)) e1@ --> B{{..}}
+  B e2@ --> C((Heat))
+  e1@{animate: true}
+  e2@{animate: true}
+ end
+    style A r:55px,fill:#0055A4,stroke:black,color:white,stroke-dasharray: 3,5;
+    style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+
+  linkStyle 0 stroke:#0055A4, stroke-width: 2px;
+  linkStyle 1 stroke:#FFA500, stroke-width: 2px;
+
+```
+
+### [Fuel Steam](@ref)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart LR
+  subgraph FuelSteam
+  direction BT
+  A((Fuel)) e1@ --> B{{..}}
+  B e2@ --> C((Steam))
+  B e3@ --> D((Electricity))
+  B e4@ --> E((CO₂ Emitted))
+  e1@{animate: true}
+  e2@{animate: true}
+  e3@{animate: true}
+  e4@{animate: true}
+ end
+    style A r:55px,fill:#005F6A,stroke:black,color:white,stroke-dasharray: 3,5;
+    style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+    style D font-size:19px,r:55px,fill:#8EC7FF,stroke:black,color:black,stroke-dasharray: 3,5;
+    style E font-size:17px,r:55px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+
+  linkStyle 0 stroke:#005F6A, stroke-width: 2px;
+  linkStyle 1 stroke:#FFA500, stroke-width: 2px;
+  linkStyle 2 stroke:#8EC7FF, stroke-width: 2px;
+  linkStyle 3 stroke:lightgray, stroke-width: 2px;
+
+```
+
+### [Electricity Steam](@ref)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
+flowchart LR
+  subgraph ElectricitySteam
+  direction BT
+  A((Electricity)) e1@ --> B{{..}}
+  B e2@ --> C((Steam))
+  e1@{animate: true}
+  e2@{animate: true}
+ end
+    style A r:55px,fill:#0055A4,stroke:black,color:white,stroke-dasharray: 3,5;
+    style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+
+  linkStyle 0 stroke:#0055A4, stroke-width: 2px;
+  linkStyle 1 stroke:#FFA500, stroke-width: 2px;
+
+```
