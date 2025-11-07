@@ -303,7 +303,7 @@ function combine_constants!(constant_terms::Vector{<:NamedTuple{(:id, :var, :coe
 end
 
 """
-    @add_balance(component, balance_id, equation)
+    @add_balance_data(component, balance_id, equation)
 
 A macro to add balance equation data to a component in a structured format.
 
@@ -314,11 +314,11 @@ A macro to add balance equation data to a component in a structured format.
 
 # Examples
 ```julia
-@add_balance(node, :energy, flow(:power) == 0.5 * flow(:hydrogen))
-@add_balance(node, :mass, flow(:input) <= 2.0 * flow(:output))
+@add_balance_data(node, :energy, flow(:power) == 0.5 * flow(:hydrogen))
+@add_balance_data(node, :mass, flow(:input) <= 2.0 * flow(:output))
 ```
 """
-macro add_balance(component, balance_id, equation)
+macro add_balance_data(component, balance_id, equation)
     # Step 1: Parse the equation and identify the operator
     if !isa(equation, Expr) || equation.head != :call
         error("Expected an equation expression, got: $equation")

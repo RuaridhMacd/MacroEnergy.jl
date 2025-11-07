@@ -304,32 +304,32 @@ function make(asset_type::Type{SyntheticLiquidFuels}, data::AbstractDict{Symbol,
         co2_emission_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :gasoline_production,
         flow(gasoline_edge) + get(transform_data, :gasoline_production, 0.0) * flow(co2_captured_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :jetfuel_production,
         flow(jetfuel_edge) + get(transform_data, :jetfuel_production, 0.0) * flow(co2_captured_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :diesel_production,
         flow(diesel_edge) + get(transform_data, :diesel_production, 0.0) * flow(co2_captured_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :elec_consumption,
         get(transform_data, :electricity_consumption, 0.0) * flow(co2_captured_edge) == flow(elec_edge)
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :h2_consumption,
         get(transform_data, :h2_consumption, 0.0) * flow(co2_captured_edge) == flow(h2_edge)
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_liquid_fuels_transform,
         :emissions,
         get(transform_data, :emission_rate, 1.0) * flow(co2_captured_edge) + flow(co2_emission_edge) == 0.0

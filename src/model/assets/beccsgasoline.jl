@@ -264,27 +264,27 @@ function make(asset_type::Type{BECCSGasoline}, data::AbstractDict{Symbol,Any}, s
         co2_captured_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         beccs_transform,
         :gasoline_production,
         flow(gasoline_edge) + get(transform_data, :gasoline_production, 0.0) * flow(biomass_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         beccs_transform,
         :elec_consumption,
         get(transform_data, :electricity_consumption, 0.0) * flow(biomass_edge) == flow(elec_edge)
     )
-    @add_balance(
+    @add_balance_data(
         beccs_transform,
         :negative_emissions,
         get(transform_data, :co2_content, 0.0) * flow(biomass_edge) == flow(co2_edge)
     )
-    @add_balance(
+    @add_balance_data(
         beccs_transform,
         :emissions,
         get(transform_data, :emission_rate, 1.0) * flow(biomass_edge) + flow(co2_emission_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         beccs_transform,
         :capture,
         get(transform_data, :capture_rate, 1.0) * flow(biomass_edge) + flow(co2_captured_edge) == 0.0

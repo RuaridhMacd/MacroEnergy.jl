@@ -327,22 +327,22 @@ function make(asset_type::Type{ThermalHydrogenCCS}, data::AbstractDict{Symbol,An
         co2_captured_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         thermalhydrogenccs_transform,
         :energy,
         flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(h2_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermalhydrogenccs_transform,
         :electricity,
         flow(elec_edge) + get(transform_data, :electricity_consumption, 0.0) * flow(h2_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermalhydrogenccs_transform,
         :emissions,
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermalhydrogenccs_transform,
         :capture,
         get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) + flow(co2_captured_edge) == 0.0

@@ -207,7 +207,7 @@ function make(asset_type::Type{HydroRes}, data::AbstractDict{Symbol,Any}, system
             (inflow_edge_data, :inflow_efficiency),
             (inflow_edge_data, :efficiency)
         ], 1.0)
-    @add_balance(
+    @add_balance_data(
         hydrostor,
         :storage,
         flow(discharge_edge) / discharge_efficiency + inflow_efficiency * flow(inflow_edge) + flow(spill_edge) == 0.0

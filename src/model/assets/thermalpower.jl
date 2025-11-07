@@ -215,12 +215,12 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         thermal_transform,
         :energy,
         flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermal_transform,
         :emissions,
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
