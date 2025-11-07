@@ -231,22 +231,22 @@ function make(asset_type::Type{SyntheticNaturalGas}, data::AbstractDict{Symbol,A
         co2_emission_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         synthetic_natural_gas_transform,
         :natgas_production,
         flow(natgas_edge) + get(transform_data, :natgas_production, 0.0) * flow(co2_captured_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_natural_gas_transform,
         :elec_consumption,
         get(transform_data, :electricity_consumption, 0.0) * flow(co2_captured_edge) == flow(elec_edge)
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_natural_gas_transform,
         :h2_consumption,
         get(transform_data, :h2_consumption, 0.0) * flow(co2_captured_edge) == flow(h2_edge)
     )
-    @add_balance(
+    @add_balance_data(
         synthetic_natural_gas_transform,
         :emissions,
         get(transform_data, :emission_rate, 1.0) * flow(co2_captured_edge) + flow(co2_emission_edge) == 0.0

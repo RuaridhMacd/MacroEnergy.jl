@@ -252,24 +252,24 @@ function make(asset_type::Type{CementPlant}, data::AbstractDict{Symbol,Any}, sys
     )
 
     # Balance Constraint Values
-    @add_balance(
+    @add_balance_data(
         cement_transform,
         :elec_to_cement,
         flow(elec_edge) + get(transform_data, :elec_consumption_rate, 1.0) * flow(cement_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         cement_transform,
         :fuel_to_cement,
         flow(fuel_edge) + get(transform_data, :fuel_consumption_rate, 1.0) * flow(cement_edge) == 0.0
     )
     cement_emiss_coeff = (1 - get(transform_data, :co2_capture_rate, 1.0)) * (get(transform_data, :fuel_emission_rate, 1.0) + get(transform_data, :process_emission_rate, 1.0))
-    @add_balance(
+    @add_balance_data(
         cement_transform,
         :co2_emissions,
         cement_emiss_coeff * flow(cement_edge) == flow(co2_emissions_edge)
     )
     cement_captured_emiss_coeff = get(transform_data, :co2_capture_rate, 1.0) * (get(transform_data, :fuel_emission_rate, 1.0) + get(transform_data, :process_emission_rate, 1.0))
-    @add_balance(
+    @add_balance_data(
         cement_transform,
         :co2_captured,
         cement_captured_emiss_coeff * flow(cement_edge) == flow(co2_captured_edge)

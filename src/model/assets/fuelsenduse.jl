@@ -178,12 +178,12 @@ function make(asset_type::Type{FuelsEndUse}, data::AbstractDict{Symbol,Any}, sys
         co2_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         fuelsenduse_transform,
         :fuel_demand,
         flow(fuel_edge) + flow(fuel_demand_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         fuelsenduse_transform,
         :emissions,
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0

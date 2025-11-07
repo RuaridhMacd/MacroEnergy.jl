@@ -277,22 +277,22 @@ function make(asset_type::Type{AluminumSmelting}, data::AbstractDict{Symbol,Any}
     )
 
     # Balance Constraint Values
-    @add_balance(
+    @add_balance_data(
         aluminumsmelting_transform,
         :elec_to_aluminum,
         flow(elec_edge) + get(transform_data, :elec_aluminum_rate, 100) * flow(aluminum_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminumsmelting_transform,
         :alumina_to_aluminum,
         flow(alumina_edge) + get(transform_data, :alumina_aluminum_rate, 0.0) * flow(aluminum_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminumsmelting_transform,
         :graphite_to_aluminum,
         flow(graphite_edge) + get(transform_data, :graphite_aluminum_rate, 0.0) * flow(aluminum_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminumsmelting_transform,
         :emissions,
         get(transform_data, :graphite_emissions_rate, 0.0) * flow(graphite_edge) + flow(co2_edge) == 0.0

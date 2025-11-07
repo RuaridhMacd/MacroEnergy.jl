@@ -289,17 +289,17 @@ function make(asset_type::Type{ThermalHydrogen}, data::AbstractDict{Symbol,Any},
         co2_end_node,
     )
 
-    @add_balance(
+    @add_balance_data(
         thermalhydrogen_transform,
         :energy,
         flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(h2_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermalhydrogen_transform,
         :electricity,
         flow(elec_edge) + get(transform_data, :electricity_consumption, 0.0) * flow(h2_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         thermalhydrogen_transform,
         :emissions,
         flow(co2_edge) + get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == 0.0

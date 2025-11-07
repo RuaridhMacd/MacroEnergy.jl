@@ -249,22 +249,22 @@ function make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, sy
     )
 
     # Balance Constraint Values
-    @add_balance(
+    @add_balance_data(
         aluminaplant_transform,
         :elec_to_alumina,
         flow(elec_edge) + get(transform_data, :elec_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminaplant_transform,
         :bauxite_to_alumina,
         flow(bauxite_edge) + get(transform_data, :bauxite_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminaplant_transform,
         :fuel_to_alumina,
         flow(fuel_edge) + get(transform_data, :fuel_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
     )
-    @add_balance(
+    @add_balance_data(
         aluminaplant_transform,
         :emissions,
         get(transform_data, :fuel_emissions_rate, 1.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
