@@ -261,9 +261,9 @@ make(asset_type::Type{electricitysteam}, data::AbstractDict{Symbol,Any}, system:
 ## [Examples](@id electricitysteam_examples)
 This section contains examples of how to use the electricity steam asset in a Macro model.
 
-### Electricity Steam
+### Example of electric steam plant
 
-This example shows a electricity steam plant. The asset has no capacity and can be expanded. The asset has an availability time series loaded from a CSV file.
+This example shows a electric steam plant. The asset has no capacity and can be expanded. The asset has an availability time series loaded from a CSV file.
 
 **JSON Format:**
 

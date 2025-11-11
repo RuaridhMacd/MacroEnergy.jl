@@ -261,9 +261,9 @@ make(asset_type::Type{electricityheating}, data::AbstractDict{Symbol,Any}, syste
 ## [Examples](@id electricityheating_examples)
 This section contains examples of how to use the electricity heating asset in a Macro model.
 
-### Electricity Heat Pump
+### Example of electric heat pump
 
-This example shows a electricity heat pump. The asset has no capacity and can be expanded. The asset has an availability time series loaded from a CSV file.
+This example shows an electric heat pump. The asset has no capacity and can be expanded. The asset has an availability time series loaded from a CSV file.
 
 
 **JSON Format:**
