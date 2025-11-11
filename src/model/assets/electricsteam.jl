@@ -152,7 +152,7 @@ function make(asset_type::Type{ElectricitySteam}, data::AbstractDict{Symbol,Any}
     elec_edge = Edge(
         Symbol(id, "_", elec_edge_key),
         elec_edge_data,
-        system.time_data[commodity_symbol],
+        system.time_data[:Electricity],
         Electricity,
         elec_start_node,
         elec_end_node,
