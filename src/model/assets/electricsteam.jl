@@ -141,12 +141,11 @@ function make(asset_type::Type{ElectricitySteam}, data::AbstractDict{Symbol,Any}
             (data, Symbol("elec_", key)),
         ]
     )
-    commodity_symbol = Symbol(elec_edge_data[:commodity])
-    commodity = commodity_types()[commodity_symbol]
+
     @start_vertex(
         elec_start_node,
         elec_edge_data,
-        commodity,
+        Electricity,
         [(elec_edge_data, :start_vertex), (data, :location)],
     )
     elec_end_node = steam_transform
@@ -154,7 +153,7 @@ function make(asset_type::Type{ElectricitySteam}, data::AbstractDict{Symbol,Any}
         Symbol(id, "_", elec_edge_key),
         elec_edge_data,
         system.time_data[commodity_symbol],
-        commodity,
+        Electricity,
         elec_start_node,
         elec_end_node,
     )
