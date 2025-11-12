@@ -469,10 +469,8 @@ macro add_balance(component, balance_id, equation, base_term)
         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
         # Otherwise, create a @add_balance_data entry
-        # This will use @add_balance_data(component, new_balance_id, base_term + term / base_coeff == 0)
         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-        println("Creating balance data, $new_balance_id: $balance_equation")
-
+        # println("Creating balance data, $new_balance_id: $balance_equation")
         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
         push!(balance_calls, balance_call)
     end
@@ -494,15 +492,11 @@ macro add_balance(component, balance_id, equation, base_term)
         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
         # Otherwise, create a @add_balance_data entry
-        # This will use @add_balance_data(component, new_balance_id, base_term + term / base_coeff == 0)
         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-        println("Creating balance data, $new_balance_id: $balance_equation")
-
+        # println("Creating balance data, $new_balance_id: $balance_equation")
         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
         push!(balance_calls, balance_call)
     end
-
-    println(balance_calls)
 
     # Return all the balance calls as a block expression
     return esc(quote
