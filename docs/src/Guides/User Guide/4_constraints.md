@@ -19,7 +19,7 @@ MacroEnergy.add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, model::Mod
 ## [Aggregated demand constraint](@id aggregated_demand_constraint_ref)
 The aggregated demand constraint sets the level of demand that must be met at a node over the entire optimization period.
 ```@docs
-function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model::Model)
+MacroEnergy.add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model::Model) where {T}
 ```
 
 ## [Long-duration storage constraints](@id long_duration_storage_constraints_ref)
