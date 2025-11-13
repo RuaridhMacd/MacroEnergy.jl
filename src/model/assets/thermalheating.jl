@@ -1,4 +1,4 @@
-struct FuelHeating{T} <: AbstractAsset
+struct ThermalHeating{T} <: AbstractAsset
     id::AssetId
     heating_transform::Transformation
     heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}
@@ -6,10 +6,10 @@ struct FuelHeating{T} <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-FuelHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    FuelHeating{T}(id, heating_transform, heat_edge, fuel_edge, co2_edge)
+ThermalHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    ThermalHeating{T}(id, heating_transform, heat_edge, fuel_edge, co2_edge)
 
-function default_data(t::Type{FuelHeating}, id=missing, style="full")
+function default_data(t::Type{ThermalHeating}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -17,7 +17,7 @@ function default_data(t::Type{FuelHeating}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{FuelHeating}, id=missing)
+function full_default_data(::Type{ThermalHeating}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -51,7 +51,7 @@ function full_default_data(::Type{FuelHeating}, id=missing)
     )
 end
 
-function simple_default_data(::Type{FuelHeating}, id=missing)
+function simple_default_data(::Type{ThermalHeating}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -77,7 +77,7 @@ function simple_default_data(::Type{FuelHeating}, id=missing)
     )
 end
 
-function set_commodity!(::Type{FuelHeating}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+function set_commodity!(::Type{ThermalHeating}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
     edge_keys = [:fuel_edge]
     if haskey(data, :fuel_commodity)
         data[:fuel_commodity] = string(commodity)
@@ -94,10 +94,10 @@ function set_commodity!(::Type{FuelHeating}, commodity::Type{<:Commodity}, data:
 end
 
 """
-    make(::Type{FuelHeating}, data::AbstractDict{Symbol, Any}, system::System) -> FuelHeating
+    make(::Type{ThermalHeating}, data::AbstractDict{Symbol, Any}, system::System) -> ThermalHeating
 """
 
-function make(asset_type::Type{FuelHeating}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ThermalHeating}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
     @setup_data(asset_type, data, id)
@@ -227,5 +227,5 @@ function make(asset_type::Type{FuelHeating}, data::AbstractDict{Symbol,Any}, sys
     )
 
 
-    return FuelHeating(id, heating_transform, heat_edge, fuel_edge, co2_edge)
+    return ThermalHeating(id, heating_transform, heat_edge, fuel_edge, co2_edge)
 end

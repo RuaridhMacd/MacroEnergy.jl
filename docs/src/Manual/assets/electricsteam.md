@@ -1,29 +1,29 @@
-# Electricity Steam
+# Electric Steam
 
 ## Contents
 
-[Overview](@ref electricitysteam_overview) | [Asset Structure](@ref electricitysteam_asset_structure) | [Flow Equations](@ref electricitysteam_flow_equations) | [Input File (Standard Format)](@ref electricitysteam_input_file) | [Types - Asset Structure](@ref electricitysteam_type_definition) | [Constructors](@ref electricitysteam_constructors) | [Examples](@ref electricitysteam_examples) | [Best Practices](@ref electricitysteam_best_practices) | [Input File (Advanced Format)](@ref electricitysteam_advanced_json_csv_input_format)
+[Overview](@ref electricsteam_overview) | [Asset Structure](@ref electricsteam_asset_structure) | [Flow Equations](@ref electricsteam_flow_equations) | [Input File (Standard Format)](@ref electricsteam_input_file) | [Types - Asset Structure](@ref electricsteam_type_definition) | [Constructors](@ref electricsteam_constructors) | [Examples](@ref electricsteam_examples) | [Best Practices](@ref electricsteam_best_practices) | [Input File (Advanced Format)](@ref electricsteam_advanced_json_csv_input_format)
 
-## [Overview](@id electricitysteam_overview)
+## [Overview](@id electricsteam_overview)
 
-Electricity steam assets in MacroEnergy.jl represent resistive or steam production–based systems that convert electricity into steam for district or building steam applications.
+Electric Steam assets in MacroEnergy.jl represent resistive or steam production–based systems that convert electricity into steam for district or building steam applications.
 These assets can represent electric boilers, steam production, or other electrical steam devices supplying district or building steam networks. 
 They are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `electric_steam.json`.
 
-## [Asset Structure](@id electricitysteam_asset_structure)
+## [Asset Structure](@id electricsteam_asset_structure)
 
-An electricity steam asset consists of three main components:
+An electric steam asset consists of three main components:
 
 1. **Transformation Component**: Balances the electricity and steam flows
 2. **Electricity Edge**: Represents the electricity supply to the steam unit
 3. **Steam Edge**: Represents the steam production (can have unit commitment operations)
 
-Here is a graphical representation of the electricity steam asset:
+Here is a graphical representation of the electric steam asset:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
 flowchart LR
-  subgraph ElectricitySteam
+  subgraph ElectricSteam
   direction BT
   A((Electricity)) e1@ --> B{{..}}
   B e2@ --> C((Steam))
@@ -39,8 +39,8 @@ flowchart LR
 
 ```
 
-## [Flow Equations](@id electricitysteam_flow_equations)
-The electricity steam asset follows these stoichiometric relationships:
+## [Flow Equations](@id electricsteam_flow_equations)
+The electric steam asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
@@ -50,14 +50,14 @@ The electricity steam asset follows these stoichiometric relationships:
 
 Where:
 - ``\phi`` represents the flow of each commodity
-- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref electricitysteam_conversion_process_parameters) section.
+- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref electricsteam_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id electricitysteam_input_file)
+## [Input File (Standard Format)](@id electricsteam_input_file)
 
 !!! note "Techno-Economic Analysis"
     Techno-economic analysis background is recommended for updating or adding conversion process parameters. For users not familiar with TEA, they can refer to [this guide](@ref tea). 
 
-The easiest way to include a electricity steam asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include a electric steam asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
@@ -72,12 +72,12 @@ your_case/
 
 This file can either be created manually, or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. 
 
-The following is an example of a electricity steam asset input file:
+The following is an example of a electric steam asset input file:
 ```json
 {
     "ElectricSteam": [
         {
-            "type": "ElectricitySteam",
+            "type": "ElectricSteam",
             "instance_data": [
                 {
                     "id": "SE_electric_boiler_1",
@@ -99,14 +99,14 @@ The following is an example of a electricity steam asset input file:
 ```
 
 !!! tip "Global Data vs Instance Data"
-    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "electricitysteam_examples") section below for an example.
+    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "electricsteam_examples") section below for an example.
 
-The following tables outline the attributes that can be set for a electricity steam asset.
+The following tables outline the attributes that can be set for a electric steam asset.
 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"electricitysteam"` |
+| `Type` | String | Asset type identifier: `"electricsteam"` |
 | `id` | String | Unique identifier for the steam unit instance |
 | `location` | String | Geographic location/node identifier |
 | `elec_commodity` | String | Electricity commodity identifier |
@@ -114,15 +114,15 @@ The following tables outline the attributes that can be set for a electricity st
 | `timedata` | String | Time resolution for time series data (default: `"Steam"`) |
 | `elec_start_vertex` | String | Electricity start vertex identifier. This is **not required** if the elec commodity is present in the location. |
 
-### [Conversion Process Parameters](@id electricitysteam_conversion_process_parameters)
-The following set of parameters control the conversion process and stoichiometry of the electricity steam asset (see [Flow Equations](@ref electricitysteam_flow_equations) for more details).
+### [Conversion Process Parameters](@id electricsteam_conversion_process_parameters)
+The following set of parameters control the conversion process and stoichiometry of the electric steam asset (see [Flow Equations](@ref electricsteam_flow_equations) for more details).
 
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `elec_consumption` | Float64 | Electricity consumption rate | $MWh_{electricity}/MWh_{steam}$ | 1.0 |
 
-### [Constraints Configuration](@id "electricitysteam_constraints")
-Electricity steam assets can have different constraints applied to them, and the user can configure them using the following fields:
+### [Constraints Configuration](@id "electricsteam_constraints")
+Electric Steam assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -143,10 +143,10 @@ For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_c
 }
 ```
 
-Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a electricity steam asset.
+Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a electric steam asset.
 
 #### Default constraints
-To simplify the input file and the asset configuration, the following constraints are applied to the electricity steam asset by default:
+To simplify the input file and the asset configuration, the following constraints are applied to the electric steam asset by default:
 
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the steam edge)
@@ -226,12 +226,12 @@ If [`MinUpTimeConstraint`](@ref min_up_and_down_time_constraint_ref) or [`MinDow
 | `min_up_time` | Int64 | Minimum time the plant must remain committed | hours | 0 |
 | `min_down_time` | Int64 | Minimum time the plant must remain shutdown | hours | 0 |
 
-## [Types - Asset Structure](@id electricitysteam_type_definition)
+## [Types - Asset Structure](@id electricsteam_type_definition)
 
-The `electricitysteam` asset is defined as follows:
+The `electricsteam` asset is defined as follows:
 
 ```julia
-struct electricitysteam{T} <: AbstractAsset
+struct electricsteam{T} <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
     steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}
@@ -239,27 +239,27 @@ struct electricitysteam{T} <: AbstractAsset
 end
 ```
 
-## [Constructors](@id electricitysteam_constructors)
+## [Constructors](@id electricsteam_constructors)
 
 ### Default constructor
 
 ```julia
-electricitysteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}, elec_edge::Edge{<:Electricity})
+electricsteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}, elec_edge::Edge{<:Electricity})
 ```
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{electricitysteam}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{electricsteam}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{electricitysteam}` | Macro type of the asset |
+| `asset_type` | `Type{electricsteam}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-## [Examples](@id electricitysteam_examples)
-This section contains examples of how to use the electricity steam asset in a Macro model.
+## [Examples](@id electricsteam_examples)
+This section contains examples of how to use the electric steam asset in a Macro model.
 
 ### Example of electric steam plant
 
@@ -273,7 +273,7 @@ Note that the `global_data` field is used to set the fields and constraints that
 {
     "ElectricSteam": [
         {
-            "type": "ElectricitySteam",
+            "type": "ElectricSteam",
             "instance_data": [
                 {
                     "id": "SE_electric_steam_1",
@@ -300,11 +300,11 @@ Note that the `global_data` field is used to set the fields and constraints that
 
 | Type | id | location | time\_data | electricity\_commodity | electricity\_start\_vertex | can\_retire | can\_expand | existing\_capacity | capacity\_size | steam\_constraints--MinFlowConstraint | electricity\_consumption | fixed\_om\_cost | variable\_om\_cost |
 |------|----|-----------|------------|----------------|---------------------|-------------|-------------|--------------------|----------------|-------------------------------------|------------------|----------------|------------------|
-| ElectricitySteam | SE\_electric\_steam\_1 | SE | Electricity | Electricity | elec\_source | true | true | 0.0 | 50.0 | true | 1.2 | 6000 | 5.0 |
+| ElectricSteam | SE\_electric\_steam\_1 | SE | Electricity | Electricity | elec\_source | true | true | 0.0 | 50.0 | true | 1.2 | 6000 | 5.0 |
 
-### Multiple Electricity Steam Units in Different Zones
+### Multiple Electric Steam Units in Different Zones
 
-This example shows three electricity steam units. Each asset has no capacity and can be expanded. The assets are configured without unit commitment variables.
+This example shows three electric steam units. Each asset has no capacity and can be expanded. The assets are configured without unit commitment variables.
 
 **JSON Format:**
 
@@ -312,7 +312,7 @@ This example shows three electricity steam units. Each asset has no capacity and
 {
     "ElectricSteam": [
         {
-            "type": "ElectricitySteam",
+            "type": "ElectricSteam",
             "global_data": {
                 "timedata": "Electricity",
                 "elec_commodity": "Electricity",
@@ -367,11 +367,11 @@ This example shows three electricity steam units. Each asset has no capacity and
 
 | Type | id | location | time\_data | electricity\_commodity | can\_retire | can\_expand | existing\_capacity | capacity\_size | steam\_constraints--MinFlowConstraint | electricity\_consumption | fixed\_om\_cost | variable\_om\_cost |
 |------|----|-----------|------------|----------------|-------------|-------------|--------------------|----------------|-------------------------------------|------------------|----------------|------------------|
-| ElectricitySteam | MIDAT\_electric\_steam\_1 | MIDAT | Electricity | Electricity | true | true | 0 | 100.0 | true | 1.85 | 8000 | 4.5 |
-| ElectricitySteam | NE\_electric\_steam\_1 | NE | Electricity | Electricity | true | true | 0 | 120.0 | true | 1.90 | 8200 | 4.7 |
-| ElectricitySteam | SE\_electric\_steam\_1 | SE | Electricity | Electricity | true | true | 0 | 500.0 | true | 1.75 | 7000 | 3.9 |
+| ElectricSteam | MIDAT\_electric\_steam\_1 | MIDAT | Electricity | Electricity | true | true | 0 | 100.0 | true | 1.85 | 8000 | 4.5 |
+| ElectricSteam | NE\_electric\_steam\_1 | NE | Electricity | Electricity | true | true | 0 | 120.0 | true | 1.90 | 8200 | 4.7 |
+| ElectricSteam | SE\_electric\_steam\_1 | SE | Electricity | Electricity | true | true | 0 | 500.0 | true | 1.75 | 7000 | 3.9 |
 
-## [Best Practices](@id electricitysteam_best_practices)
+## [Best Practices](@id electricsteam_best_practices)
 
 1. **Use global data for common parameters**: Use the `global_data` field to set the fields and constraints that are common to all instances of the same asset type.
 2. **Set realistic efficiency parameters**: Ensure electricity consumption are accurate for the technology being modeled
@@ -382,13 +382,13 @@ This example shows three electricity steam units. Each asset has no capacity and
 7. **Test configurations**: Start with simple configurations and gradually add complexity
 8. **Set appropriate ramp rates**: Consider the actual operational characteristics of the technology
 
-## [Input File (Advanced Format)](@id electricitysteam_advanced_json_csv_input_format)
+## [Input File (Advanced Format)](@id electricsteam_advanced_json_csv_input_format)
 
-Macro provides an advanced format for defining electricity steam assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
+Macro provides an advanced format for defining electric steam assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
 
-To understand the advanced format, consider the [graph representation](@ref electricitysteam_asset_structure) and the [type definition](@ref electricitysteam_type_definition) of a electricity steam asset. The input file mirrors this hierarchical structure.
+To understand the advanced format, consider the [graph representation](@ref electricsteam_asset_structure) and the [type definition](@ref electricsteam_type_definition) of a electric steam asset. The input file mirrors this hierarchical structure.
 
-A electricity steam asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (electricity, steam), each represented by an `Edge` object. The input file for a electricity steam asset is therefore organized as follows:
+A electric steam asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (electricity, steam), each represented by an `Edge` object. The input file for a electric steam asset is therefore organized as follows:
 
 ```json
 {
@@ -408,13 +408,13 @@ A electricity steam asset in Macro is composed of a transformation component, re
 
 Each top-level key (e.g., "transforms" or "edges") denotes a component type. The second-level keys either specify the attributes of the component (when there is a single instance) or identify the instances of the component when there are multiple instances.
 
-Below is an example of an input file for a electricity steam asset that sets up multiple electricity steam plants across different regions:
+Below is an example of an input file for a electric steam asset that sets up multiple electric steam plants across different regions:
 
 ```json
 {
-    "ElectricitySteam": [
+    "ElectricSteam": [
         {
-            "type": "electricitysteam",
+            "type": "electricsteam",
             "global_data": {
                 "transforms": {
                     "timedata": "Electricity",
@@ -522,8 +522,8 @@ Below is an example of an input file for a electricity steam asset that sets up 
     The `has_capacity` attribute is a flag that indicates whether a specific edge of an asset has a capacity variable, allowing it to be expanded or retired. Typically, users do not need to manually adjust this flag, as the asset creators in Macro have already configured it correctly for each edge. However, advanced users can use this flag to override the default settings for each edge if needed.
 
 !!! tip "Prefixes"
-    Users can apply prefixes to adjust parameters for the components of a electricity steam asset, even when using the standard format. For instance, `elec_can_retire` will adjust the `can_retire` parameter for the electricity edge, and `elec_existing_capacity` will adjust the `existing_capacity` parameter for the electricity edge.
-    Below are the prefixes available for modifying parameters for the components of a electricity steam asset:
+    Users can apply prefixes to adjust parameters for the components of a electric steam asset, even when using the standard format. For instance, `elec_can_retire` will adjust the `can_retire` parameter for the electricity edge, and `elec_existing_capacity` will adjust the `existing_capacity` parameter for the electricity edge.
+    Below are the prefixes available for modifying parameters for the components of a electric steam asset:
     - `transform_` for the transformation component
     - `steam_` for the steam edge
     - `elec_` for the electricity edge

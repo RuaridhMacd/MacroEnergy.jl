@@ -192,9 +192,9 @@ include("model/assets/integratedblastfurnacebasicoxygenfurnaceccs.jl")
 include("model/assets/integrateddirectreductionelectricarcfurnace.jl")
 include("model/assets/integrateddirectreductionelectricarcfurnaceccs.jl")
 include("model/assets/standaloneelectricarcfurnace.jl")
-include("model/assets/fuelheating.jl")
+include("model/assets/thermalheating.jl")
 include("model/assets/electricheating.jl")
-include("model/assets/fuelsteam.jl")
+include("model/assets/thermalsteam.jl")
 include("model/assets/electricsteam.jl")
 
 include("config/configure_settings.jl")
@@ -242,13 +242,13 @@ export AbstractAsset,
     Electrolyzer,
     ElectricDAC,
     ElectricArcFurnace,
-    ElectricityHeating,
-    ElectricitySteam,
+    ElectricHeating,
+    ElectricSteam,
     FossilFuelsUpstream,
     FuelCell,
     FuelsEndUse,
-    FuelHeating,
-    FuelSteam,
+    ThermalHeating,
+    ThermalSteam,
     GasStorage,
     Graphite,
     get_optimal_capacity, 

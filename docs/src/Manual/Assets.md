@@ -475,12 +475,12 @@ flowchart LR
     linkStyle 1 stroke:#FFD700, stroke-width: 2px;
 ```
 
-### [Fuel Heating](@ref)
+### [Thermal Heating](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph FuelHeating
+  subgraph ThermalHeating
   direction BT
   A((Fuel)) e1@ --> B{{..}}
   B e2@ --> C((Heat))
@@ -499,12 +499,12 @@ flowchart LR
   linkStyle 2 stroke:lightgray, stroke-width: 2px;
 ```
 
-### [Electricity Heating](@ref)
+### [Electric Heating](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
 flowchart LR
-  subgraph ElectricityHeating
+  subgraph ElectricHeating
   direction BT
   A((Electricity)) e1@ --> B{{..}}
   B e2@ --> C((Heat))
@@ -520,12 +520,12 @@ flowchart LR
 
 ```
 
-### [Fuel Steam](@ref)
+### [Thermal Steam](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph FuelSteam
+  subgraph ThermalSteam
   direction BT
   A((Fuel)) e1@ --> B{{..}}
   B e2@ --> C((Steam))
@@ -549,12 +549,12 @@ flowchart LR
 
 ```
 
-### [Electricity Steam](@ref)
+### [Electric Steam](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
 flowchart LR
-  subgraph ElectricitySteam
+  subgraph ElectricSteam
   direction BT
   A((Electricity)) e1@ --> B{{..}}
   B e2@ --> C((Steam))

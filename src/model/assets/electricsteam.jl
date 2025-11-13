@@ -1,11 +1,11 @@
-struct ElectricitySteam <: AbstractAsset
+struct ElectricSteam <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
     steam_edge::Edge{<:Steam}
     elec_edge::Edge{<:Electricity}
 end
 
-function default_data(t::Type{ElectricitySteam}, id=missing, style="full")
+function default_data(t::Type{ElectricSteam}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -13,7 +13,7 @@ function default_data(t::Type{ElectricitySteam}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{ElectricitySteam}, id=missing)
+function full_default_data(::Type{ElectricSteam}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -42,7 +42,7 @@ function full_default_data(::Type{ElectricitySteam}, id=missing)
     )
 end
 
-function simple_default_data(::Type{ElectricitySteam}, id=missing)
+function simple_default_data(::Type{ElectricSteam}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -60,7 +60,7 @@ function simple_default_data(::Type{ElectricitySteam}, id=missing)
     )
 end
 
-function set_commodity!(::Type{ElectricitySteam}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+function set_commodity!(::Type{ElectricSteam}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
     edge_keys = [:elec_edge]
     if haskey(data, :elec_commodity)
         data[:elec_commodity] = string(commodity)
@@ -77,10 +77,10 @@ function set_commodity!(::Type{ElectricitySteam}, commodity::Type{<:Commodity}, 
 end
 
 """
-    make(::Type{ElectricitySteam}, data::AbstractDict{Symbol, Any}, system::System) -> ElectricitySteam
+    make(::Type{ElectricSteam}, data::AbstractDict{Symbol, Any}, system::System) -> ElectricSteam
 """
 
-function make(asset_type::Type{ElectricitySteam}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ElectricSteam}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
     @setup_data(asset_type, data, id)
@@ -165,5 +165,5 @@ function make(asset_type::Type{ElectricitySteam}, data::AbstractDict{Symbol,Any}
         ),
     )
 
-    return ElectricitySteam(id, steam_transform, steam_edge, elec_edge)
+    return ElectricSteam(id, steam_transform, steam_edge, elec_edge)
 end

@@ -1,4 +1,4 @@
-struct FuelSteam{T} <: AbstractAsset
+struct ThermalSteam{T} <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
     steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}
@@ -7,10 +7,10 @@ struct FuelSteam{T} <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-FuelSteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}, fuel_edge::Edge{T}, elec_edge::Edge{<:Electricity}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    FuelSteam{T}(id, steam_transform, steam_edge, fuel_edge, elec_edge, co2_edge)
+ThermalSteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}, fuel_edge::Edge{T}, elec_edge::Edge{<:Electricity}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    ThermalSteam{T}(id, steam_transform, steam_edge, fuel_edge, elec_edge, co2_edge)
 
-function default_data(t::Type{FuelSteam}, id=missing, style="full")
+function default_data(t::Type{ThermalSteam}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -18,7 +18,7 @@ function default_data(t::Type{FuelSteam}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{FuelSteam}, id=missing)
+function full_default_data(::Type{ThermalSteam}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -57,7 +57,7 @@ function full_default_data(::Type{FuelSteam}, id=missing)
     )
 end
 
-function simple_default_data(::Type{FuelSteam}, id=missing)
+function simple_default_data(::Type{ThermalSteam}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -84,7 +84,7 @@ function simple_default_data(::Type{FuelSteam}, id=missing)
     )
 end
 
-function set_commodity!(::Type{FuelSteam}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+function set_commodity!(::Type{ThermalSteam}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
     edge_keys = [:fuel_edge]
     if haskey(data, :fuel_commodity)
         data[:fuel_commodity] = string(commodity)
@@ -101,10 +101,10 @@ function set_commodity!(::Type{FuelSteam}, commodity::Type{<:Commodity}, data::A
 end
 
 """
-    make(::Type{FuelSteam}, data::AbstractDict{Symbol, Any}, system::System) -> FuelSteam
+    make(::Type{ThermalSteam}, data::AbstractDict{Symbol, Any}, system::System) -> ThermalSteam
 """
 
-function make(asset_type::Type{FuelSteam}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ThermalSteam}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
     @setup_data(asset_type, data, id)
@@ -268,5 +268,5 @@ function make(asset_type::Type{FuelSteam}, data::AbstractDict{Symbol,Any}, syste
     )
 
 
-    return FuelSteam(id, steam_transform, steam_edge, fuel_edge, elec_edge, co2_edge)
+    return ThermalSteam(id, steam_transform, steam_edge, fuel_edge, elec_edge, co2_edge)
 end

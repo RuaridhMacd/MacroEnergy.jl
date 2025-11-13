@@ -1,11 +1,11 @@
-struct ElectricityHeating <: AbstractAsset
+struct ElectricHeating <: AbstractAsset
     id::AssetId
     heating_transform::Transformation
     heat_edge::Edge{<:Heat}
     elec_edge::Edge{<:Electricity}
 end
 
-function default_data(t::Type{ElectricityHeating}, id=missing, style="full")
+function default_data(t::Type{ElectricHeating}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -13,7 +13,7 @@ function default_data(t::Type{ElectricityHeating}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{ElectricityHeating}, id=missing)
+function full_default_data(::Type{ElectricHeating}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -42,7 +42,7 @@ function full_default_data(::Type{ElectricityHeating}, id=missing)
     )
 end
 
-function simple_default_data(::Type{ElectricityHeating}, id=missing)
+function simple_default_data(::Type{ElectricHeating}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -60,7 +60,7 @@ function simple_default_data(::Type{ElectricityHeating}, id=missing)
     )
 end
 
-function set_commodity!(::Type{ElectricityHeating}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+function set_commodity!(::Type{ElectricHeating}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
     edge_keys = [:elec_edge]
     if haskey(data, :elec_commodity)
         data[:elec_commodity] = string(commodity)
@@ -77,10 +77,10 @@ function set_commodity!(::Type{ElectricityHeating}, commodity::Type{<:Commodity}
 end
 
 """
-    make(::Type{ElectricityHeating}, data::AbstractDict{Symbol, Any}, system::System) -> ElectricityHeating
+    make(::Type{ElectricHeating}, data::AbstractDict{Symbol, Any}, system::System) -> ElectricHeating
 """
 
-function make(asset_type::Type{ElectricityHeating}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ElectricHeating}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
     @setup_data(asset_type, data, id)
@@ -165,5 +165,5 @@ function make(asset_type::Type{ElectricityHeating}, data::AbstractDict{Symbol,An
         ),
     )
 
-    return ElectricityHeating(id, heating_transform, heat_edge, elec_edge)
+    return ElectricHeating(id, heating_transform, heat_edge, elec_edge)
 end

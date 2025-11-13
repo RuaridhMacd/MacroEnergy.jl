@@ -1,18 +1,18 @@
-# Fuel Steam
+# Thermal Steam
 
 ## Contents
 
-[Overview](@ref fuelsteam_overview) | [Asset Structure](@ref fuelsteam_asset_structure) | [Flow Equations](@ref fuelsteam_flow_equations) | [Input File (Standard Format)](@ref fuelsteam_input_file) | [Types - Asset Structure](@ref fuelsteam_type_definition) | [Constructors](@ref fuelsteam_constructors) | [Examples](@ref fuelsteam_examples) | [Best Practices](@ref fuelsteam_best_practices) | [Input File (Advanced Format)](@ref fuelsteam_advanced_json_csv_input_format)
+[Overview](@ref thermalsteam_overview) | [Asset Structure](@ref thermalsteam_asset_structure) | [Flow Equations](@ref thermalsteam_flow_equations) | [Input File (Standard Format)](@ref thermalsteam_input_file) | [Types - Asset Structure](@ref thermalsteam_type_definition) | [Constructors](@ref thermalsteam_constructors) | [Examples](@ref thermalsteam_examples) | [Best Practices](@ref thermalsteam_best_practices) | [Input File (Advanced Format)](@ref thermalsteam_advanced_json_csv_input_format)
 
-## [Overview](@id fuelsteam_overview)
+## [Overview](@id thermalsteam_overview)
 
-Fuel steam assets in MacroEnergy.jl represent **combined steam and power** or **co-generation** systems that convert a primary fuel (such as natural gas) into **steam** and **electricity** simultaneously. These assets are typically used in industrial plants or district energy systems where waste steam recovery is desirable. 
+Thermal Steam assets in MacroEnergy.jl represent **combined steam and power** or **co-generation** systems that convert a primary fuel (such as natural gas) into **steam** and **electricity** simultaneously. These assets are typically used in industrial plants or district energy systems where waste steam recovery is desirable. 
 
 They are defined using JSON or CSV input files placed in the `assets` directory, usually named with descriptive identifiers such as `gas_cogen.json`, `fuel_steam.json`, or `gas_steam.json`.
 
-## [Asset Structure](@id fuelsteam_asset_structure)
+## [Asset Structure](@id thermalsteam_asset_structure)
 
-A fuel steam asset consists of five main components:
+A thermal steam asset consists of five main components:
 
 1. **Transformation Component**: Balances the energy conversion process among fuel, steam, electricity, and CO₂ flows  
 2. **Fuel Edge**: Represents the primary fuel input to the co-generation unit  
@@ -20,12 +20,12 @@ A fuel steam asset consists of five main components:
 4. **Electricity Edge**: Represents the co-generated electricity output  
 5. **CO₂ Edge**: Represents the emissions produced by the combustion process
 
-Below is a schematic representation of the fuel steam asset:
+Below is a schematic representation of the thermal steam asset:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph FuelSteam
+  subgraph ThermalSteam
   direction BT
   A((Fuel)) e1@ --> B{{..}}
   B e2@ --> C((Steam))
@@ -49,9 +49,9 @@ flowchart LR
   
 ```
 
-## [Flow Equations](@id fuelsteam_flow_equations)
+## [Flow Equations](@id thermalsteam_flow_equations)
 
-The fuel steam asset follows the following stoichiometric and co-generation relationships:
+The thermal steam asset follows the following stoichiometric and co-generation relationships:
 
 ```math
 \begin{aligned}
@@ -63,14 +63,14 @@ The fuel steam asset follows the following stoichiometric and co-generation rela
 
 Where:
 - ``\phi`` represents the flow of each commodity
-- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref fuelsteam_conversion_process_parameters) section.
+- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref thermalsteam_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id fuelsteam_input_file)
+## [Input File (Standard Format)](@id thermalsteam_input_file)
 
 !!! note "Techno-Economic Analysis"
     Techno-economic analysis background is recommended for updating or adding conversion process parameters. For users not familiar with TEA, they can refer to [this guide](@ref tea). 
 
-The easiest way to include a fuel steam asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include a thermal steam asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
@@ -85,12 +85,12 @@ your_case/
 
 This file can either be created manually, or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model. 
 
-The following is an example of a natural gas co-generation (fuel steam) asset input file:
+The following is an example of a natural gas co-generation (thermal steam) asset input file:
 ```json
 {
     "NaturalGasSteam": [
         {
-            "type": "FuelSteam",
+            "type": "ThermalSteam",
             "instance_data": [
                 {
                     "id": "SE_natgas_cogen_steam_1",
@@ -116,14 +116,14 @@ The following is an example of a natural gas co-generation (fuel steam) asset in
 ```
 
 !!! tip "Global Data vs Instance Data"
-    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "fuelsteam_examples") section below for an example.
+    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "thermalsteam_examples") section below for an example.
 
-The following tables outline the attributes that can be set for a fuel steam (co-generation) asset.
+The following tables outline the attributes that can be set for a thermal steam (co-generation) asset.
 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"FuelSteam"` |
+| `Type` | String | Asset type identifier: `"ThermalSteam"` |
 | `id` | String | Unique identifier for the co-generation unit instance |
 | `location` | String | Geographic location or node identifier |
 | `fuel_commodity` | String | Primary fuel commodity identifier |
@@ -132,9 +132,9 @@ The following tables outline the attributes that can be set for a fuel steam (co
 | `co2_sink` | String | CO₂ sink identifier |
 | `fuel_start_vertex` | String | Fuel start vertex identifier. This is **not required** if the fuel commodity is present in the location. |
 
-### [Conversion Process Parameters](@id fuelsteam_conversion_process_parameters)
+### [Conversion Process Parameters](@id thermalsteam_conversion_process_parameters)
 
-The following parameters control the conversion process and stoichiometric relationships of the fuel steam asset (see [Flow Equations](@ref fuelsteam_flow_equations) for more details).
+The following parameters control the conversion process and stoichiometric relationships of the thermal steam asset (see [Flow Equations](@ref thermalsteam_flow_equations) for more details).
 
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
@@ -142,9 +142,9 @@ The following parameters control the conversion process and stoichiometric relat
 | `elec_cogen_rate` | Float64 | Electricity co-generation rate per unit of fuel input | $MWh_{elec}/MWh_{fuel}$ | 0.0 |
 | `emission_rate` | Float64 | CO₂ emission rate per unit of fuel input | $t_{CO₂}/MWh_{fuel}$ | 0.0 |
 
-### [Constraints Configuration](@id "fuelsteam_constraints")
+### [Constraints Configuration](@id "thermalsteam_constraints")
 
-Fuel steam assets can have different constraints applied to their transformation and edges. Users can configure these using the following fields:
+Thermal Steam assets can have different constraints applied to their transformation and edges. Users can configure these using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -167,10 +167,10 @@ For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_c
 }
 ```
 
-Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a fuel steam asset.
+Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a thermal steam asset.
 
 #### Default constraints
-To simplify the input file and configuration, the following constraints are applied to the fuel steam (co-generation) asset by default:
+To simplify the input file and configuration, the following constraints are applied to the thermal steam (co-generation) asset by default:
 
 - [Balance constraint](@ref balance_constraint_ref) — applied to the transformation component  
 - [Capacity constraint](@ref capacity_constraint_ref) — applied to the steam edge  
@@ -250,12 +250,12 @@ If [`MinUpTimeConstraint`](@ref min_up_and_down_time_constraint_ref) or [`MinDow
 | `min_up_time` | Int64 | Minimum time the co-generation unit must remain operational once started | hours | 0 |
 | `min_down_time` | Int64 | Minimum time the co-generation unit must remain offline once shut down | hours | 0 |
 
-## [Types - Asset Structure](@id fuelsteam_type_definition)
+## [Types - Asset Structure](@id thermalsteam_type_definition)
 
-The `FuelSteam` asset is defined as follows:
+The `ThermalSteam` asset is defined as follows:
 
 ```julia
-struct FuelSteam{T} <: AbstractAsset
+struct ThermalSteam{T} <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
     steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}
@@ -265,12 +265,12 @@ struct FuelSteam{T} <: AbstractAsset
 end
 ```
 
-## [Constructors](@id fuelsteam_constructors)
+## [Constructors](@id thermalsteam_constructors)
 
 ### Default constructor
 
 ```julia
-FuelSteam(
+ThermalSteam(
     id::AssetId,
     steam_transform::Transformation,
     steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}},
@@ -282,17 +282,17 @@ FuelSteam(
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{FuelSteam}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{ThermalSteam}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{Fuelsteam}` | Macro type of the asset |
+| `asset_type` | `Type{Thermalsteam}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-## [Examples](@id fuelsteam_examples)
-This section contains examples of how to use the **fuel steam (co-generation)** asset in a Macro model.
+## [Examples](@id thermalsteam_examples)
+This section contains examples of how to use the **thermal steam (co-generation)** asset in a Macro model.
 
 ### Natural Gas Steam Boiler with Electricity Co-generation
 
@@ -307,7 +307,7 @@ The asset co-generates electricity according to the `elec_cogen_rate` parameter 
 {
     "GasSteamBoiler": [
         {
-            "type": "FuelSteam",
+            "type": "ThermalSteam",
             "instance_data": [
                 {
                     "id": "SE_natgas_steam_cogen_1",
@@ -350,7 +350,7 @@ The asset co-generates electricity according to the `elec_cogen_rate` parameter 
 
 | Type | id | location | time\_data | fuel\_commodity | fuel\_start\_vertex | co2\_sink | uc | can\_retire | can\_expand | existing\_capacity | capacity\_size | steam\_constraints--MinFlowConstraint | steam\_constraints--MinUpTimeConstraint | steam\_constraints--MinDownTimeConstraint | steam\_constraints--RampingLimitConstraint | fuel\_consumption | emission\_rate | elec\_cogen\_rate | fixed\_om\_cost | variable\_om\_cost | startup\_cost | startup\_fuel\_consumption | min\_up\_time | min\_down\_time | ramp\_up\_fraction | ramp\_down\_fraction | min\_flow\_fraction |
 |------|----|-----------|------------|----------------|---------------------|-----------|----|--------------|--------------|--------------------|----------------|--------------------------------------|-----------------------------------------|-------------------------------------------|--------------------------------------------|------------------|----------------|------------------|----------------|------------------|----------------|----------------------------|---------------|----------------|-------------------|--------------------|--------------------|
-| FuelSteam | SE\_natgas\_steam\_cogen\_1 | SE | Steam | NaturalGas | natgas\_source | co2\_sink | true | true | false | 800.0 | 100.0 | true | true | true | true | 1.3 | 0.18 | 0.25 | 7000 | 5.5 | 60.0 | 0.25 | 6 | 6 | 0.7 | 0.7 | 0.5 |
+| ThermalSteam | SE\_natgas\_steam\_cogen\_1 | SE | Steam | NaturalGas | natgas\_source | co2\_sink | true | true | false | 800.0 | 100.0 | true | true | true | true | 1.3 | 0.18 | 0.25 | 7000 | 5.5 | 60.0 | 0.25 | 6 | 6 | 0.7 | 0.7 | 0.5 |
 
 
 ### Multiple Natural Gas Steam Cogeneration Units in Different Zones
@@ -363,7 +363,7 @@ This example shows three natural gas–fired cogeneration (steam) units using na
 {
     "NaturalGasSteam": [
         {
-            "type": "FuelSteam",
+            "type": "ThermalSteam",
             "global_data": {
                 "timedata": "Steam",
                 "fuel_commodity": "NaturalGas",
@@ -449,12 +449,12 @@ This example shows three natural gas–fired cogeneration (steam) units using na
 
 | Type | id | location | time\_data | fuel\_commodity | co2\_sink | uc | can\_retire | can\_expand | existing\_capacity | capacity\_size | steam\_constraints--MinFlowConstraint | steam\_constraints--MinUpTimeConstraint | steam\_constraints--MinDownTimeConstraint | fuel\_consumption | emission\_rate | elec\_cogen\_rate | fixed\_om\_cost | variable\_om\_cost | startup\_cost | startup\_fuel\_consumption | min\_up\_time | min\_down\_time | ramp\_up\_fraction | ramp\_down\_fraction | min\_flow\_fraction |
 |------|----|-----------|------------|----------------|-----------|----|-------------|-------------|--------------------|----------------|---------------------------------------|-------------------------------------------|-------------------------------------------|------------------|---------------|------------------|----------------|------------------|----------------|---------------------------|----------------|----------------|------------------|------------------|-------------------|
-| FuelSteam | MIDAT\_natgas\_steam\_cogen\_1 | MIDAT | Steam | NaturalGas | co2\_sink | true | true | false | 4000.0 | 100.0 | true | true | true | 1.9 | 0.181 | 0.25 | 8500 | 4.8 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.444 |
-| FuelSteam | NE\_natgas\_steam\_cogen\_1 | NE | Steam | NaturalGas | co2\_sink | true | true | false | 6000.0 | 120.0 | true | true | true | 2.0 | 0.181 | 0.22 | 8700 | 4.9 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.526 |
-| FuelSteam | SE\_natgas\_steam\_cogen\_1 | SE | Steam | NaturalGas | co2\_sink | true | true | false | 25000.0 | 500.0 | true | true | true | 1.8 | 0.181 | 0.27 | 7800 | 4.1 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.41 |
+| ThermalSteam | MIDAT\_natgas\_steam\_cogen\_1 | MIDAT | Steam | NaturalGas | co2\_sink | true | true | false | 4000.0 | 100.0 | true | true | true | 1.9 | 0.181 | 0.25 | 8500 | 4.8 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.444 |
+| ThermalSteam | NE\_natgas\_steam\_cogen\_1 | NE | Steam | NaturalGas | co2\_sink | true | true | false | 6000.0 | 120.0 | true | true | true | 2.0 | 0.181 | 0.22 | 8700 | 4.9 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.526 |
+| ThermalSteam | SE\_natgas\_steam\_cogen\_1 | SE | Steam | NaturalGas | co2\_sink | true | true | false | 25000.0 | 500.0 | true | true | true | 1.8 | 0.181 | 0.27 | 7800 | 4.1 | 50.0 | 0.2 | 6 | 6 | 0.64 | 0.64 | 0.41 |
 
 
-## [Best Practices](@id fuelsteam_best_practices)
+## [Best Practices](@id thermalsteam_best_practices)
 
 1. **Use global data for common parameters**: Use the `global_data` field to set the fields and constraints that are common to all instances of the same asset type.
 2. **Set realistic efficiency parameters**: Ensure fuel consumption, emission rates, and capture rates are accurate for the technology being modeled
@@ -465,13 +465,13 @@ This example shows three natural gas–fired cogeneration (steam) units using na
 7. **Test configurations**: Start with simple configurations and gradually add complexity
 8. **Set appropriate ramp rates**: Consider the actual operational characteristics of the technology
 
-## [Input File (Advanced Format)](@id fuelsteam_advanced_json_csv_input_format)
+## [Input File (Advanced Format)](@id thermalsteam_advanced_json_csv_input_format)
 
-Macro provides an advanced format for defining fuel steam assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
+Macro provides an advanced format for defining thermal steam assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
 
-To understand the advanced format, consider the [graph representation](@ref fuelsteam_asset_structure) and the [type definition](@ref fuelsteam_type_definition) of a fuel steam asset. The input file mirrors this hierarchical structure.
+To understand the advanced format, consider the [graph representation](@ref thermalsteam_asset_structure) and the [type definition](@ref thermalsteam_type_definition) of a thermal steam asset. The input file mirrors this hierarchical structure.
 
-A fuel steam asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (fuel, steam, CO2), each represented by an `Edge` object. The input file for a fuel steam asset is therefore organized as follows:
+A thermal steam asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (fuel, steam, CO2), each represented by an `Edge` object. The input file for a thermal steam asset is therefore organized as follows:
 
 ```json
 {
@@ -497,13 +497,13 @@ A fuel steam asset in Macro is composed of a transformation component, represent
 
 Each top-level key (e.g., "transforms" or "edges") denotes a component type. The second-level keys either specify the attributes of the component (when there is a single instance) or identify the instances of the component when there are multiple instances.
 
-Below is an example of an input file for a fuel steam asset that sets up multiple fuel steam plants across different regions:
+Below is an example of an input file for a thermal steam asset that sets up multiple thermal steam plants across different regions:
 
 ```json
 {
     "NaturalGasSteam": [
         {
-            "type": "FuelSteam",
+            "type": "ThermalSteam",
             "global_data": {
                 "transforms": {
                     "timedata": "Steam",
@@ -662,8 +662,8 @@ Below is an example of an input file for a fuel steam asset that sets up multipl
     The `has_capacity` attribute is a flag that indicates whether a specific edge of an asset has a capacity variable, allowing it to be expanded or retired. Typically, users do not need to manually adjust this flag, as the asset creators in Macro have already configured it correctly for each edge. However, advanced users can use this flag to override the default settings for each edge if needed.
 
 !!! tip "Prefixes"
-    Users can apply prefixes to adjust parameters for the components of a fuel steam asset, even when using the standard format. For instance, `co2_can_retire` will adjust the `can_retire` parameter for the CO2 edge, and `co2_existing_capacity` will adjust the `existing_capacity` parameter for the CO2 edge.
-    Below are the prefixes available for modifying parameters for the components of a fuel steam asset:
+    Users can apply prefixes to adjust parameters for the components of a thermal steam asset, even when using the standard format. For instance, `co2_can_retire` will adjust the `can_retire` parameter for the CO2 edge, and `co2_existing_capacity` will adjust the `existing_capacity` parameter for the CO2 edge.
+    Below are the prefixes available for modifying parameters for the components of a thermal steam asset:
     - `transform_` for the transformation component
     - `steam_` for the steam edge
     - `elec_` for the elec edge

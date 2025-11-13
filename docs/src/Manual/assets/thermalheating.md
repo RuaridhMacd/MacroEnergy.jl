@@ -1,28 +1,28 @@
-# Fuel Heating
+# Thermal Heating
 
 ## Contents
 
-[Overview](@ref fuelheating_overview) | [Asset Structure](@ref fuelheating_asset_structure) | [Flow Equations](@ref fuelheating_flow_equations) | [Input File (Standard Format)](@ref fuelheating_input_file) | [Types - Asset Structure](@ref fuelheating_type_definition) | [Constructors](@ref fuelheating_constructors) | [Examples](@ref fuelheating_examples) | [Best Practices](@ref fuelheating_best_practices) | [Input File (Advanced Format)](@ref fuelheating_advanced_json_csv_input_format)
+[Overview](@ref thermalheating_overview) | [Asset Structure](@ref thermalheating_asset_structure) | [Flow Equations](@ref thermalheating_flow_equations) | [Input File (Standard Format)](@ref thermalheating_input_file) | [Types - Asset Structure](@ref thermalheating_type_definition) | [Constructors](@ref thermalheating_constructors) | [Examples](@ref thermalheating_examples) | [Best Practices](@ref thermalheating_best_practices) | [Input File (Advanced Format)](@ref thermalheating_advanced_json_csv_input_format)
 
-## [Overview](@id fuelheating_overview)
+## [Overview](@id thermalheating_overview)
 
-Fuel heating assets in MacroEnergy.jl represent combustion-based heating technologies that convert fuel (such as natural gas, or other fuels) into heat for district or building heating systems. These assets can represent boilers or furnaces supplying district networks. They are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `gas_heating.json`, or `fuel_heating.json`.
+Thermal Heating assets in MacroEnergy.jl represent combustion-based heating technologies that convert fuel (such as natural gas, or other fuels) into heat for district or building heating systems. These assets can represent boilers or furnaces supplying district networks. They are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `gas_heating.json`, or `fuel_heating.json`.
 
-## [Asset Structure](@id fuelheating_asset_structure)
+## [Asset Structure](@id thermalheating_asset_structure)
 
-A fuel heating plant asset consists of four main components:
+A thermal heating plant asset consists of four main components:
 
 1. **Transformation Component**: Balances the fuel and heat flows
 2. **Fuel Edge**: Represents the fuel supply to the heating unit
 3. **Heat Edge**: Represents the heat production (can have unit commitment operations)
 4. **CO₂ Edge**: Represents the CO₂ emissions
 
-Here is a graphical representation of the fuel heating asset:
+Here is a graphical representation of the thermal heating asset:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph FuelHeating
+  subgraph ThermalHeating
   direction BT
   A((Fuel)) e1@ --> B{{..}}
   B e2@ --> C((Heat))
@@ -42,8 +42,8 @@ flowchart LR
 
 ```
 
-## [Flow Equations](@id fuelheating_flow_equations)
-The fuel heating asset follows these stoichiometric relationships:
+## [Flow Equations](@id thermalheating_flow_equations)
+The thermal heating asset follows these stoichiometric relationships:
 
 ```math
 \begin{aligned}
@@ -54,14 +54,14 @@ The fuel heating asset follows these stoichiometric relationships:
 
 Where:
 - ``\phi`` represents the flow of each commodity
-- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref fuelheating_conversion_process_parameters) section.
+- ``\epsilon`` represents the stoichiometric coefficients defined in the [Conversion Process Parameters](@ref thermalheating_conversion_process_parameters) section.
 
-## [Input File (Standard Format)](@id fuelheating_input_file)
+## [Input File (Standard Format)](@id thermalheating_input_file)
 
 !!! note "Techno-Economic Analysis"
     Techno-economic analysis background is recommended for updating or adding conversion process parameters. For users not familiar with TEA, they can refer to [this guide](@ref tea). 
 
-The easiest way to include a fuel heating asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
+The easiest way to include a thermal heating asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets. 
 
 ```
 your_case/
@@ -81,7 +81,7 @@ The following is an example of a natural gas heating asset input file:
 {
     "NaturalGasHeating": [
         {
-            "type": "FuelHeating",
+            "type": "ThermalHeating",
             "instance_data": [
                 {
                     "id": "SE_natgas_boiler_1",
@@ -106,14 +106,14 @@ The following is an example of a natural gas heating asset input file:
 ```
 
 !!! tip "Global Data vs Instance Data"
-    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "fuelheating_examples") section below for an example.
+    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "thermalheating_examples") section below for an example.
 
-The following tables outline the attributes that can be set for a fuel heating asset.
+The following tables outline the attributes that can be set for a thermal heating asset.
 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"FuelHeating"` |
+| `Type` | String | Asset type identifier: `"ThermalHeating"` |
 | `id` | String | Unique identifier for the heating unit instance |
 | `location` | String | Geographic location/node identifier |
 | `fuel_commodity` | String | Fuel commodity identifier |
@@ -122,16 +122,16 @@ The following tables outline the attributes that can be set for a fuel heating a
 | `co2_sink` | String | CO₂ sink identifier |
 | `fuel_start_vertex` | String | Fuel start vertex identifier. This is **not required** if the fuel commodity is present in the location. |
 
-### [Conversion Process Parameters](@id fuelheating_conversion_process_parameters)
-The following set of parameters control the conversion process and stoichiometry of the fuel heating asset (see [Flow Equations](@ref fuelheating_flow_equations) for more details).
+### [Conversion Process Parameters](@id thermalheating_conversion_process_parameters)
+The following set of parameters control the conversion process and stoichiometry of the thermal heating asset (see [Flow Equations](@ref thermalheating_flow_equations) for more details).
 
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `fuel_consumption` | Float64 | Fuel consumption rate | $MWh_{fuel}/MWh_{heat}$ | 1.0 |
 | `emission_rate` | Float64 | CO₂ emission rate | $t_{CO₂}/MWh_{fuel}$ | 0.0 |
 
-### [Constraints Configuration](@id "fuelheating_constraints")
-Fuel heating assets can have different constraints applied to them, and the user can configure them using the following fields:
+### [Constraints Configuration](@id "thermalheating_constraints")
+Thermal Heating assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -153,10 +153,10 @@ For example, if the user wants to apply the [`BalanceConstraint`](@ref balance_c
 }
 ```
 
-Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a fuel heating asset.
+Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to the different components of a thermal heating asset.
 
 #### Default constraints
-To simplify the input file and the asset configuration, the following constraints are applied to the fuel heating asset by default:
+To simplify the input file and the asset configuration, the following constraints are applied to the thermal heating asset by default:
 
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the heat edge)
@@ -236,12 +236,12 @@ If [`MinUpTimeConstraint`](@ref min_up_and_down_time_constraint_ref) or [`MinDow
 | `min_up_time` | Int64 | Minimum time the plant must remain committed | hours | 0 |
 | `min_down_time` | Int64 | Minimum time the plant must remain shutdown | hours | 0 |
 
-## [Types - Asset Structure](@id fuelheating_type_definition)
+## [Types - Asset Structure](@id thermalheating_type_definition)
 
-The `FuelHeating` asset is defined as follows:
+The `ThermalHeating` asset is defined as follows:
 
 ```julia
-struct FuelHeating{T} <: AbstractAsset
+struct ThermalHeating{T} <: AbstractAsset
     id::AssetId
     heating_transform::Transformation
     heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}
@@ -250,27 +250,27 @@ struct FuelHeating{T} <: AbstractAsset
 end
 ```
 
-## [Constructors](@id fuelheating_constructors)
+## [Constructors](@id thermalheating_constructors)
 
 ### Default constructor
 
 ```julia
-FuelHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::Edge{<:Fuel}, co2_edge::Edge{<:CO2})
+ThermalHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::Edge{<:Fuel}, co2_edge::Edge{<:CO2})
 ```
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{FuelHeating}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{ThermalHeating}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{FuelHeating}` | Macro type of the asset |
+| `asset_type` | `Type{ThermalHeating}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-## [Examples](@id fuelheating_examples)
-This section contains examples of how to use the fuel heating asset in a Macro model.
+## [Examples](@id thermalheating_examples)
+This section contains examples of how to use the thermal heating asset in a Macro model.
 
 ### Gas Heat Pump
 
@@ -284,7 +284,7 @@ Note that the `global_data` field is used to set the fields and constraints that
 {
     "GasHeatPump": [
         {
-            "type": "FuelHeating",
+            "type": "ThermalHeating",
             "instance_data": [
                 {
                     "id": "SE_natural_gas_heating_1",
@@ -313,7 +313,7 @@ Note that the `global_data` field is used to set the fields and constraints that
 
 | Type | id | location | time\_data | fuel\_commodity | fuel\_start\_vertex | co2\_sink | uc | can\_retire | can\_expand | existing\_capacity | capacity\_size | heat\_constraints--MinFlowConstraint | fuel\_consumption | emission\_rate | fixed\_om\_cost | variable\_om\_cost |
 |------|----|-----------|------------|----------------|---------------------|-----------|----|--------------|--------------|--------------------|----------------|-------------------------------------|------------------|---------------|----------------|------------------|
-| FuelHeating | SE\_natural\_gas\_heating\_1 | SE | NaturalGas | NaturalGas | natgas\_source | co2\_sink | false | true | false | 500.0 | 50.0 | true | 1.2 | 0.18 | 6000 | 5.0 |
+| ThermalHeating | SE\_natural\_gas\_heating\_1 | SE | NaturalGas | NaturalGas | natgas\_source | co2\_sink | false | true | false | 500.0 | 50.0 | true | 1.2 | 0.18 | 6000 | 5.0 |
 
 ### Multiple Natural Gas Heating Units in Different Zones
 
@@ -325,7 +325,7 @@ This example shows three natural gas–fired heating units using natural gas as 
 {
     "NaturalGasHeating": [
         {
-            "type": "FuelHeating",
+            "type": "ThermalHeating",
             "global_data": {
                 "timedata": "NaturalGas",
                 "fuel_commodity": "NaturalGas",
@@ -384,13 +384,13 @@ This example shows three natural gas–fired heating units using natural gas as 
 
 | Type | id | location | time\_data | fuel\_commodity | co2\_sink | can\_retire | can\_expand | existing\_capacity | capacity\_size | heat\_constraints--MinFlowConstraint | fuel\_consumption | emission\_rate | fixed\_om\_cost | variable\_om\_cost |
 |------|----|-----------|------------|----------------|-----------|-------------|-------------|--------------------|----------------|-------------------------------------|------------------|---------------|----------------|------------------|
-| FuelHeating | MIDAT\_natural\_gas\_heating\_1 | MIDAT | NaturalGas | NaturalGas | co2\_sink | true | false | 4000.0 | 100.0 | true | 1.85 | 0.181 | 8000 | 4.5 |
-| FuelHeating | NE\_natural\_gas\_heating\_1 | NE | NaturalGas | NaturalGas | co2\_sink | true | false | 6000.0 | 120.0 | true | 1.90 | 0.181 | 8200 | 4.7 |
-| FuelHeating | SE\_natural\_gas\_heating\_1 | SE | NaturalGas | NaturalGas | co2\_sink | true | false | 25000.0 | 500.0 | true | 1.75 | 0.181 | 7000 | 3.9 |
+| ThermalHeating | MIDAT\_natural\_gas\_heating\_1 | MIDAT | NaturalGas | NaturalGas | co2\_sink | true | false | 4000.0 | 100.0 | true | 1.85 | 0.181 | 8000 | 4.5 |
+| ThermalHeating | NE\_natural\_gas\_heating\_1 | NE | NaturalGas | NaturalGas | co2\_sink | true | false | 6000.0 | 120.0 | true | 1.90 | 0.181 | 8200 | 4.7 |
+| ThermalHeating | SE\_natural\_gas\_heating\_1 | SE | NaturalGas | NaturalGas | co2\_sink | true | false | 25000.0 | 500.0 | true | 1.75 | 0.181 | 7000 | 3.9 |
 
 
 
-## [Best Practices](@id fuelheating_best_practices)
+## [Best Practices](@id thermalheating_best_practices)
 
 1. **Use global data for common parameters**: Use the `global_data` field to set the fields and constraints that are common to all instances of the same asset type.
 2. **Set realistic efficiency parameters**: Ensure fuel consumption, emission rates, and capture rates are accurate for the technology being modeled
@@ -401,13 +401,13 @@ This example shows three natural gas–fired heating units using natural gas as 
 7. **Test configurations**: Start with simple configurations and gradually add complexity
 8. **Set appropriate ramp rates**: Consider the actual operational characteristics of the technology
 
-## [Input File (Advanced Format)](@id fuelheating_advanced_json_csv_input_format)
+## [Input File (Advanced Format)](@id thermalheating_advanced_json_csv_input_format)
 
-Macro provides an advanced format for defining fuel heating assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
+Macro provides an advanced format for defining thermal heating assets, offering users and modelers detailed control over asset specifications. This format builds upon the standard format and is ideal for those who need more comprehensive customization.
 
-To understand the advanced format, consider the [graph representation](@ref fuelheating_asset_structure) and the [type definition](@ref fuelheating_type_definition) of a fuel heating asset. The input file mirrors this hierarchical structure.
+To understand the advanced format, consider the [graph representation](@ref thermalheating_asset_structure) and the [type definition](@ref thermalheating_type_definition) of a thermal heating asset. The input file mirrors this hierarchical structure.
 
-A fuel heating asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (fuel, heat, CO2), each represented by an `Edge` object. The input file for a fuel heating asset is therefore organized as follows:
+A thermal heating asset in Macro is composed of a transformation component, represented by a `Transformation` object, and multiple edges (fuel, heat, CO2), each represented by an `Edge` object. The input file for a thermal heating asset is therefore organized as follows:
 
 ```json
 {
@@ -430,13 +430,13 @@ A fuel heating asset in Macro is composed of a transformation component, represe
 
 Each top-level key (e.g., "transforms" or "edges") denotes a component type. The second-level keys either specify the attributes of the component (when there is a single instance) or identify the instances of the component when there are multiple instances.
 
-Below is an example of an input file for a fuel heating asset that sets up multiple fuel heating plants across different regions:
+Below is an example of an input file for a thermal heating asset that sets up multiple thermal heating plants across different regions:
 
 ```json
 {
     "NaturalGasHeating": [
         {
-            "type": "FuelHeating",
+            "type": "ThermalHeating",
             "global_data": {
                 "transforms": {
                     "timedata": "NaturalGas",
@@ -553,8 +553,8 @@ Below is an example of an input file for a fuel heating asset that sets up multi
     The `has_capacity` attribute is a flag that indicates whether a specific edge of an asset has a capacity variable, allowing it to be expanded or retired. Typically, users do not need to manually adjust this flag, as the asset creators in Macro have already configured it correctly for each edge. However, advanced users can use this flag to override the default settings for each edge if needed.
 
 !!! tip "Prefixes"
-    Users can apply prefixes to adjust parameters for the components of a fuel heating asset, even when using the standard format. For instance, `co2_can_retire` will adjust the `can_retire` parameter for the CO2 edge, and `co2_existing_capacity` will adjust the `existing_capacity` parameter for the CO2 edge.
-    Below are the prefixes available for modifying parameters for the components of a fuel heating asset:
+    Users can apply prefixes to adjust parameters for the components of a thermal heating asset, even when using the standard format. For instance, `co2_can_retire` will adjust the `can_retire` parameter for the CO2 edge, and `co2_existing_capacity` will adjust the `existing_capacity` parameter for the CO2 edge.
+    Below are the prefixes available for modifying parameters for the components of a thermal heating asset:
     - `transform_` for the transformation component
     - `heat_` for the heat edge
     - `co2_` for the CO2 edge
