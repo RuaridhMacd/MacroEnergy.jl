@@ -24,7 +24,7 @@ Here is a graphical representation of the electric steam asset:
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#E2F0FF' }}}%%
 flowchart LR
   subgraph ElectricSteam
-  direction BT
+  direction LR
   A((Electricity)) e1@ --> B{{..}}
   B e2@ --> C((Steam))
   e1@{animate: true}
@@ -32,7 +32,7 @@ flowchart LR
  end
     style A r:55px,fill:#0055A4,stroke:black,color:white,stroke-dasharray: 3,5;
     style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:26px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
 
   linkStyle 0 stroke:#0055A4, stroke-width: 2px;
   linkStyle 1 stroke:#FFA500, stroke-width: 2px;

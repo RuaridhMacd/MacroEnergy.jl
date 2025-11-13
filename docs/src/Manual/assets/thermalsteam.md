@@ -38,9 +38,9 @@ flowchart LR
  end
     style A r:55px,fill:#005F6A,stroke:black,color:white,stroke-dasharray: 3,5;
     style B r:55px,fill:black,stroke:black,color:black,stroke-dasharray: 3,5;
-    style C font-size:19px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
-    style D font-size:19px,r:55px,fill:#8EC7FF,stroke:black,color:black,stroke-dasharray: 3,5;
-    style E font-size:17px,r:55px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C font-size:26px,r:55px,fill:#FFA500,stroke:black,color:black,stroke-dasharray: 3,5;
+    style D font-size:26px,r:55px,fill:#8EC7FF,stroke:black,color:black,stroke-dasharray: 3,5;
+    style E font-size:26px,r:55px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
 
   linkStyle 0 stroke:#005F6A, stroke-width: 2px;
   linkStyle 1 stroke:#FFA500, stroke-width: 2px;
