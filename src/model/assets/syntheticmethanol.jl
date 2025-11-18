@@ -21,13 +21,13 @@ function full_default_data(::Type{SyntheticMethanol}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Methanol",
-            :electricity_consumption => 0.271,
+            :electricity_consumption => 0.271, # Source: DECHEMA 2017: DECHEMA: Low carbon energy and feedstock for the European chemical industry (https://dechema.de/dechema_media/Downloads/Positionspapiere/Technology_study_Low_carbon_energy_and_feedstock_for_the_European_chemical_industry.pdf) , pg. 65.
             :h2_consumption => 1.138,
             :co2_consumption => 0.248,
             :emission_rate => 0.10,
-            :investment_cost => 685961.676,
+            :investment_cost => 685961.676, # 2017 USD, Source: Agora Energiewende (2018): The Future Cost of Electricity-Based Synthetic Fuels (https://www.agora-energiewende.de/en/publications/the-future-cost-of-electricity-based-synthetic-fuels-1/), section 6.3.2.1.
             :fixed_om_cost => 1175.6697,
-            :variable_om_cost => 0.0,
+            :variable_om_cost => 0.0121, # assumed to be same proportion as the fixed OM cost
             :lifetime => 20,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
@@ -73,7 +73,7 @@ function simple_default_data(::Type{SyntheticMethanol}, id=missing)
         :emission_rate => 0.10,
         :investment_cost => 685961.676,
         :fixed_om_cost => 1175.6697,
-        :variable_om_cost => 0.0,
+        :variable_om_cost => 0.0121,
         :lifetime => 20,
     )
 end
