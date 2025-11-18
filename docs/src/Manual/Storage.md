@@ -1,4 +1,4 @@
-# Storage components
+# Storage
 
 ## Contents
 
