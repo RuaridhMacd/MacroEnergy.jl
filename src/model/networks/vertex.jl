@@ -363,35 +363,10 @@ macro add_balance_data(component, balance_id, equation)
     end)
 end
 
-function find_term_coeff(terms::Expr, target_term::Expr)
-    if terms.head != :call
-        return nothing
-    end
-    if target_term in terms.args
-        operator = terms.args[1]
-        if (operator == :* || operator == :/)
-        # Return all other args
-            if length(terms.args) == 3
-                return terms.args[2]
-            else
-                return Expr(:call, terms.args[1:end-1]...)
-            end
-        else
-            return 1.0
-        end
-    end
-    for term in terms.args
-        if isa(term, Expr)
-            coeff = find_term_coeff(term, target_term)
-            if !isnothing(coeff)
-                return coeff
-            end
-        end
-    end
-    return nothing
-end
-
 function inexpr(large_expr::Expr, target_expr::Expr)::Bool
+    if target_expr == large_expr
+        return true
+    end
     if target_expr in large_expr.args
         return true
     end
@@ -405,23 +380,51 @@ function inexpr(large_expr::Expr, target_expr::Expr)::Bool
     return false
 end
 
-function get_coeff_and_variable(term::Expr)
-    if length(term.args) == 1
-            error("Unexpected term format: $term")
-        elseif length(term.args) == 2
-            # This is a term without a coefficient
-            term_coeff = 1.0
-            term_variable = term
-        elseif length(term.args) == 3
-            # This is a term with a coefficient
-            term_coeff = term.args[end-1]
-            term_variable = term.args[end]
+const EXPR_COEFF = Union{Real, Symbol, Expr}
+
+function find_expr_terms(equation::Any, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
+    return []
+end
+
+function find_expr_terms(equation::Expr, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
+    coeff_multiplier = negative_term ? -1.0 : 1.0
+    if equation.args[1] == :* || equation.args[1] == :/
+        if length(equation.args) == 3
+            return [(:($coeff_multiplier * $(equation.args[2])), equation.args[3])]
         else
-            term_coeff = Expr(:call, term.args[1:end-1]...)
-            term_variable = term.args[end]
+            return [(Expr(:call, equation.args[1], coeff_multiplier, equation.args[2:end-1]...), equation.args[end])]
         end
-    return term_coeff, term_variable
-end 
+    elseif equation.args[1] == :+
+        terms = []
+        for arg in equation.args[2:end]
+            if isa(arg, Expr)
+                sub_terms = find_expr_terms(arg, negative_term)
+                append!(terms, sub_terms)
+            end
+        end
+        return terms
+    elseif equation.args[1] == :-
+        terms = []
+        for arg in equation.args[2:end]
+            if isa(arg, Expr)
+                sub_terms = find_expr_terms(arg, !negative_term)
+                append!(terms, sub_terms)
+            end
+        end
+        return terms
+    else
+        return [(1.0, equation)]
+    end
+end
+
+function find_term_coeff(terms::Vector{Tuple{EXPR_COEFF, Expr}}, target_term::Expr)
+    for term in terms
+        if term[2] == target_term
+            return term[1]
+        end
+    end
+    return nothing
+end
 
 macro add_balance(component, balance_id, equation, base_term)
 
@@ -432,17 +435,21 @@ macro add_balance(component, balance_id, equation, base_term)
 
     # Choose a term to base the balances on
     # For now, we'll use the first LHS term, or the first RHS term if no LHS terms
-    input_terms = equation.args[1]  # Fixed: args[2] is LHS, args[3] is RHS
-    output_terms = equation.args[2]
+    input_equation = equation.args[1] 
+    output_equation = equation.args[2]
 
-    if !isa(input_terms, Expr) && !isa(output_terms, Expr)
+    if !isa(input_equation, Expr) && !isa(output_equation, Expr)
         @warn("Both sides of balance equation for $component-$balance_id are constants. No balance data added.")
         return esc(quote end)  # Return empty block
     end
 
-    # Check if the base_term is in the input_terms or output_terms
-    found_in_input = inexpr(input_terms, base_term)
+    input_terms = find_expr_terms(input_equation)
+    output_terms = find_expr_terms(output_equation)
 
+    # Check if the base_term is in the input_equation or output_equation
+    found_in_input = inexpr(input_equation, base_term)
+
+    # Find the coefficient of the base_term
     if found_in_input
         base_coeff = find_term_coeff(input_terms, base_term)
     else
@@ -452,51 +459,107 @@ macro add_balance(component, balance_id, equation, base_term)
     # Now, we work through each other term, creating balance data entries
     balance_calls = Expr[]
 
-    for term in input_terms.args
-        if !isa(term, Expr)
-            continue
-        end
-
-        # For each term, if it contains the base_term, skip it
-        if term == base_term || (isa(term, Expr) && base_term in term.args)
-            continue
-        end
-
-        term_coeff, term_variable = get_coeff_and_variable(term)
-
+    if !isempty(input_terms)
         sign = found_in_input ? -1 : 1
-
-        balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-        # Otherwise, create a @add_balance_data entry
-        new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-        # println("Creating balance data, $new_balance_id: $balance_equation")
-        balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
-        push!(balance_calls, balance_call)
+        for input_term in input_terms
+            (term_coeff, term_variable) = input_term
+            if term_variable == base_term
+                continue
+            end
+            balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+            new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+            println("Creating input balance data, $new_balance_id: $balance_equation")
+            balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+            push!(balance_calls, balance_call)
+        end
     end
 
-    for term in output_terms.args
-        if !isa(term, Expr)
-            continue
-        end
-
-        # For each term, if it contains the base_term, skip it
-        if term == base_term || (isa(term, Expr) && base_term in term.args)
-            continue
-        end
-
-        term_coeff, term_variable = get_coeff_and_variable(term)
-
+    if !isempty(output_terms)
         sign = found_in_input ? 1 : -1
-
-        balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-        # Otherwise, create a @add_balance_data entry
-        new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-        # println("Creating balance data, $new_balance_id: $balance_equation")
-        balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
-        push!(balance_calls, balance_call)
+        for output_term in output_terms
+            (term_coeff, term_variable) = output_term
+            if term_variable == base_term
+                continue
+            end
+            balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+            new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+            println("Creating output balance data, $new_balance_id: $balance_equation")
+            balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+            push!(balance_calls, balance_call)
+        end
     end
+
+    # if length(input_terms.args) == 2 && !(input_terms == base_term || (isa(input_terms, Expr) && base_term in input_terms.args))
+    #     term_coeff, term_variable = get_coeff_and_variable(input_terms)
+    #     sign = found_in_input ? -1 : 1
+
+    #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+
+    #     # Otherwise, create a @add_balance_data entry
+    #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+    #     println("Creating balance data, $new_balance_id: $balance_equation")
+    #     balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #     push!(balance_calls, balance_call)
+    # else
+    #     for term in input_terms.args
+    #         if !isa(term, Expr)
+    #             continue
+    #         end
+
+    #         # For each term, if it contains the base_term, skip it
+    #         if term == base_term || (isa(term, Expr) && base_term in term.args)
+    #             continue
+    #         end
+
+    #         term_coeff, term_variable = get_coeff_and_variable(term)
+
+    #         sign = found_in_input ? -1 : 1
+
+    #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+
+    #         # Otherwise, create a @add_balance_data entry
+    #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+    #         println("Creating balance data, $new_balance_id: $balance_equation")
+    #         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #         push!(balance_calls, balance_call)
+    #     end
+    # end
+
+    # if length(output_terms.args) == 2 && !(output_terms == base_term || (isa(output_terms, Expr) && base_term in output_terms.args))
+    #     term_coeff, term_variable = get_coeff_and_variable(output_terms)
+    #     sign = found_in_input ? 1 : -1
+
+    #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+
+    #     # Otherwise, create a @add_balance_data entry
+    #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+    #     println("Creating input balance data, $new_balance_id: $balance_equation")
+    #     balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #     push!(balance_calls, balance_call)
+    # else
+    #     for term in output_terms.args
+    #         if !isa(term, Expr)
+    #             continue
+    #         end
+
+    #         # For each term, if it contains the base_term, skip it
+    #         if term == base_term || (isa(term, Expr) && base_term in term.args)
+    #             continue
+    #         end
+
+    #         term_coeff, term_variable = get_coeff_and_variable(term)
+
+    #         sign = found_in_input ? 1 : -1
+
+    #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
+
+    #         # Otherwise, create a @add_balance_data entry
+    #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+    #         println("Creating output balance data, $new_balance_id: $balance_equation")
+    #         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #         push!(balance_calls, balance_call)
+    #     end
+    # end
 
     # Return all the balance calls as a block expression
     return esc(quote
