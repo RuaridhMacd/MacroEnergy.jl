@@ -158,10 +158,11 @@ function make(asset_type::Type{Electrolyzer}, data::AbstractDict{Symbol,Any}, sy
         h2_end_node,
     )
 
-    @add_balance_data(
+    @add_balance(
         electrolyzer,
         :energy,
-        flow(h2_edge) + get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge) == 0.0
+        flow(elec_edge) --> get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge),
+        flow(h2_edge)
     )
 
     return Electrolyzer(id, electrolyzer, h2_edge, elec_edge)
