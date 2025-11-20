@@ -23,12 +23,14 @@ The version citation is available in the "About" section of the GitHub repositor
 
 We have submitted a peer-reviewed paper describing Macro, but please cite the preprint in the meantime:
 
+```bibtex
 @article{macdonald2025macroenergy,
   title={MacroEnergy. jl: A large-scale multi-sector energy system framework},
   author={Macdonald, Ruaridh and Pecci, Filippo and Bonaldo, Luca and Law, Jun Wen and Weng, Yu and Mallapragada, Dharik and Jenkins, Jesse},
   journal={arXiv preprint arXiv:2510.21943},
   year={2025}
 }
+```
 
 ## Installation
 
