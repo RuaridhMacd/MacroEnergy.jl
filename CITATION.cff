@@ -46,32 +46,3 @@ title: "MacroEnergy.jl"
 version: 0.0.2
 date-released: 2025-09-25
 url: "https://github.com/macroenergy/MacroEnergy.jl"
-preferred-citation:
-  type: article
-  authors:
-  - family-names: "Macdonald"
-    given-names: "Ruaridh"
-    orcid: "https://orcid.org/0000-0001-9034-6635"
-  - family-names: "Pecci"
-    given-names: "Filippo"
-    orcid: "https://orcid.org/0000-0003-3200-0892"
-  - family-names: "Bonaldo"
-    given-names: "Luca"
-    orcid: "https://orcid.org/0009-0000-0650-0266"
-  - family-names: "Law"
-    given-names: "Jun Wen"
-    orcid: "https://orcid.org/0009-0001-8766-3100"
-  - family-names: "Weng"
-    given-names: "Yu"
-    orcid: "https://orcid.org/0000-0003-3958-1546"
-  - family-names: "Mallapragada"
-    given-names: "Dharik"
-    orcid: "https://orcid.org/0000-0002-0330-0063"
-  - family-names: "Jenkins"
-    given-names: "Jesse"
-    orcid: "https://orcid.org/0000-0002-9670-7793"
-  doi: 10.48550/arXiv.2510.21943"
-  journal: "arXiv"
-  month: 10
-  title: "MacroEnergy. jl: A large-scale multi-sector energy system framework"
-  year: 2025

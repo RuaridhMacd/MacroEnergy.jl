@@ -17,7 +17,18 @@ Macro's key features are:
 
 ## Citing Macro
 
-If you use Macro, please cite the current version and software paper. Both citations are available in the "About" section of the GitHub repository. We have submitted a peer-reviewed paper describing Macro, but please cite the preprint in the meantime.
+If you use Macro, please cite the current version of the software and the software paper.
+
+The version citation is available in the "About" section of the GitHub repository.
+
+We have submitted a peer-reviewed paper describing Macro, but please cite the preprint in the meantime:
+
+@article{macdonald2025macroenergy,
+  title={MacroEnergy. jl: A large-scale multi-sector energy system framework},
+  author={Macdonald, Ruaridh and Pecci, Filippo and Bonaldo, Luca and Law, Jun Wen and Weng, Yu and Mallapragada, Dharik and Jenkins, Jesse},
+  journal={arXiv preprint arXiv:2510.21943},
+  year={2025}
+}
 
 ## Installation
 
