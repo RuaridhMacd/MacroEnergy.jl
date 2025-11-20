@@ -17,17 +17,7 @@ Macro's key features are:
 
 ## Citing Macro
 
-We are working to publish a peer-reviewed paper describing Macro. In the meantime, please cite this GitHub repository:
-
-```bibtex
-@misc{Macro2025,
-   author = {Ruaridh Macdonald and Filippo Pecci and Luca Bonaldo and Jun Wen Law and Yu Weng and Sambuddha Chakrabarti and Dharik Mallapragada and Jesse Jenkins},
-   month = {5},
-   title = {MacroEnergy.jl},
-   url = {https://github.com/macroenergy/MacroEnergy.jl},
-   year = {2025},
-}
-```
+If you use Macro, please cite the current version and software paper. Both citations are available in the "About" section of the GitHub repository. We have submitted a peer-reviewed paper describing Macro, but please cite the preprint in the meantime.
 
 ## Installation
 
