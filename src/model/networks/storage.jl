@@ -24,6 +24,7 @@ macro AbstractStorageBaseAttributes()
         min_duration::Float64 = $storage_defaults[:min_duration]
         min_outflow_fraction::Float64 = $storage_defaults[:min_outflow_fraction]
         min_retired_capacity::Float64 = $storage_defaults[:min_retired_capacity]
+        min_retired_capacity_track::Float64 = 0.0
         min_storage_level::Float64 = $storage_defaults[:min_storage_level]
         new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
         new_capacity_track::Dict{Int64,AffExpr} = Dict(1=>AffExpr(0.0))
@@ -166,6 +167,7 @@ min_capacity(g::AbstractStorage) = g.min_capacity;
 min_duration(g::AbstractStorage) = g.min_duration;
 min_outflow_fraction(g::AbstractStorage) = g.min_outflow_fraction;
 min_retired_capacity(g::AbstractStorage) = g.min_retired_capacity;
+min_retired_capacity_track(g::AbstractStorage) = g.min_retired_capacity_track;
 min_storage_level(g::AbstractStorage) = g.min_storage_level;
 new_capacity(g::AbstractStorage) = g.new_capacity;
 new_capacity_track(g::AbstractStorage) = g.new_capacity_track;
