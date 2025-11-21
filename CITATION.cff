@@ -43,6 +43,6 @@ authors:
   given-names: "Jesse"
   orcid: "https://orcid.org/0000-0002-9670-7793"
 title: "MacroEnergy.jl"
-version: 0.0.2
-date-released: 2025-09-25
+version: 0.0.3
+date-released: 2025-11-21
 url: "https://github.com/macroenergy/MacroEnergy.jl"
