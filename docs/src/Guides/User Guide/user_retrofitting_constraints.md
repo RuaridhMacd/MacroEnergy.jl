@@ -16,8 +16,7 @@ In the `system/macro_settings.json` file, make sure to have the line `"Retrofitt
 
 ```json
 {
-    "ConstraintScaling": true,
-    "OutputLayout": "wide",
+    // other settings
     "Retrofitting": true
 }
 ```
