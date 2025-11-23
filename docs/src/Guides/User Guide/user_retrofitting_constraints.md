@@ -253,7 +253,7 @@ The example JSON asset file below defines **oxyfuel cement plants**, which were 
 !!! warn
     ### File naming requirement
 
-The JSON file that describes retrofitting assets must end with the suffix `_retrofit_option`. This naming convention ensures that the retrofitting asset’s input data are loaded **before** other asset files. Loading these files first allows their information to be referenced when constructing new retrofit assets using `template_id`.
+    The JSON file that describes retrofitting assets must end with the suffix `_retrofit_option`. This naming convention ensures that the retrofitting asset’s input data are loaded **before** other asset files. Loading these files first allows their information to be referenced when constructing new retrofit assets using `template_id`.
 
 ### Preventing greenfield construction (optional)
 

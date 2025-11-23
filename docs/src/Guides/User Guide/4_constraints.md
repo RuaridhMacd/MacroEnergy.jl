@@ -110,5 +110,5 @@ MacroEnergy.add_model_constraint!(ct::StorageMinDurationConstraint, g::AbstractS
 ```
 ## [Retrofitting constraint](@id retrofitting_constraint_ref)
 ```@docs
-MacroEnergy.add_retrofit_constraints!(system::System, period_idx::Int, model::Model)
+MacroEnergy.add_retrofit_constraints!(system::MacroEnergy.System, period_idx::Int, model::Model)
 ```
