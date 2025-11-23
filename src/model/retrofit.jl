@@ -40,7 +40,7 @@ function make_retrofit_options(system::System, data::Dict{Symbol,Any})
 end
 
 @doc raw"""
-    add_retrofit_constraints!(system::System, model::Model)
+    add_retrofit_constraints!(system::System, period_idx::Int, model::Model)
 
 For each edge $$e$$ that can be retrofitted, the functional form of the retrofitting constraint is:
 
