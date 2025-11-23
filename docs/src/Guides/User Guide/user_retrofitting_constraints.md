@@ -250,7 +250,8 @@ Thus, each retrofit option only needs to list the parameters that should **be di
 
 The example JSON asset file below defines **oxyfuel cement plants**, which were referenced in the previous section as retrofit options for traditional cement plants. The structure of the file is the same as any standard asset input file.
 
-### File naming requirement
+!!! warn
+    ### File naming requirement
 
 The JSON file that describes retrofitting assets must end with the suffix `_retrofit_option`. This naming convention ensures that the retrofitting asset’s input data are loaded **before** other asset files. Loading these files first allows their information to be referenced when constructing new retrofit assets using `template_id`.
 
@@ -335,7 +336,7 @@ If you want to ensure that this asset is used **only** as a retrofit asset and c
 }
 ```
 
-## Common bugs to check for
+## Common input mistakes to check for
 
 - Is `"Retrofitting": true` in `settings/macro_settings.json`?
 - Is `"can_retrofit": true` and `"is_retrofit": true` set properly?
