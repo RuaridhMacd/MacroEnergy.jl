@@ -37,7 +37,8 @@ const pages = [
             "Running Models" => "Guides/User Guide/user_run_model.md",
             "Writing Results" => "Guides/User Guide/user_write_results.md",
             "Using Multi-Period Models" => "Guides/User Guide/user_multiperiod.md",
-            "Exploring the Asset library" => "Guides/User Guide/user_using_asset_libary.md"
+            "Exploring the Asset library" => "Guides/User Guide/user_using_asset_libary.md",
+            "Adding Retrofitting Constraints" => "Guides/User Guide/user_retrofitting_constraints.md"
         ],
         "Modeler Guide" => [
             "Introduction" => "Guides/Modeler Guide/modeler_introduction.md",
