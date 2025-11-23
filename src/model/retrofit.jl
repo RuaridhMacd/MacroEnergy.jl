@@ -62,7 +62,7 @@ Where $$e$$ is the edge that can be retrofitted, $$R$$ is the set of edges that 
 !!! note "Turning on retrofitting in settings"
     This constraint is only applied if the ```Retrofitting: true``` setting is set in ```macro_settings.json```.
 """
-function add_retrofit_constraints!(system::System, model::Model)    
+function add_retrofit_constraints!(system::System, period_idx::Int, model::Model)
     # Add retrofitting constraints
     
     can_retrofit_edges,is_retrofit_edges = get_retrofit_edges(system)
