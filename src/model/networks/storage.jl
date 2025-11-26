@@ -423,3 +423,7 @@ function compute_fixed_costs!(g::AbstractStorage, model::Model)
     compute_investment_costs!(g, model)
     compute_om_fixed_costs!(g, model)
 end
+
+# Function to filter storages with capacity variables from a Vector of storages.
+storages_with_capacity_variables(storages::Vector{<:AbstractStorage}) =
+    AbstractStorage[storage for storage in storages if has_capacity(storage)]
