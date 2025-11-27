@@ -342,7 +342,7 @@ If you want to ensure that this asset is used **only** as a retrofit asset and c
 - Is `"can_retrofit": true` and `"is_retrofit": true` set properly?
 - Is `"can_expand": true` for entries in `retrofitting_options`?
 - Are parameters specified in the right structure in `retrofitting_options` to enable the recursive merge to work properly?
-    - For example, is `cement_edge` within the `edges` dictioinary?
+    - For example, is `cement_edge` within the `edges` dictionary?
 
 ## Tips
 
