@@ -346,4 +346,4 @@ If you want to ensure that this asset is used **only** as a retrofit asset and c
 
 ## Tips
 
-- You can access the retrofitting constraints with `model[:cRetrofitCapacity]` to check if the constraint is formulated as expected.
+- You can access the retrofitting constraints with `model[:cRetrofitCapacity]` (`model` is the variable holding the JuMP model) to check if the constraint is formulated as expected.
