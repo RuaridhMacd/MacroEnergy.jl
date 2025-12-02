@@ -71,6 +71,9 @@ const pages = [
         "Commodities" => "Manual/Commodities.md",
         "Assets" => "Manual/Assets.md",
         "Asset Library" => [
+            "Manual/assets/aluminaplant.md",
+            "Manual/assets/aluminumrefining.md",
+            "Manual/assets/aluminumsmelting.md",
             "Manual/assets/battery.md",
             "Manual/assets/beccselectricity.md",
             "Manual/assets/beccshydrogen.md",

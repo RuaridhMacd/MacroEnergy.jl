@@ -580,6 +580,94 @@ flowchart BT
     linkStyle 4 stroke:lightgray, stroke-width: 2px;
 ```
 
+### [Alumina Plant](@ref aluminaplant_overview)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart BT
+  subgraph AluminaPlant
+  direction BT
+    A1(("**Electricity**")) e1@-->B{{"**AluminaPlant**"}}
+    A2(("**Bauxite**")) e2@-->B{{"**AluminaPlant**"}}
+    A3(("**NaturalGas**")) e3@-->B{{"**AluminaPlant**"}}
+    B{{"**AluminaPlant**"}} e4@-->C1(("**Alumina**"))
+    B{{"**AluminaPlant**"}} e5@-->C2(("**CO2**"))
+
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+    e4@{ animate: true }
+    e5@{ animate: true }
+  end
+    style A1 font-size:15px,r:46px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:46px,fill:#A52A2A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:15px,r:46px,fill:#005F6A,stroke:black,color:black,stroke-dasharray: 3,5;
+    style B fill:white,stroke:black,color:black;
+    style C1 font-size:15px,r:46px,fill:#3498DB,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:15px,r:46px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    linkStyle 0 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 1 stroke:#A52A2A, stroke-width: 2px;
+    linkStyle 2 stroke:#005F6A, stroke-width: 2px;
+    linkStyle 3 stroke:#3498DB, stroke-width: 2px;
+    linkStyle 4 stroke:lightgray, stroke-width: 2px;
+```
+
+### [Aluminum Refining](@ref aluminumrefining_overview)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart BT
+  subgraph AluminumRefining
+  direction BT
+    A1(("**Electricity**")) e1@-->B{{"**AluminumRefining**"}}
+    A2(("**AluminumScrap**")) e2@-->B{{"**AluminumRefining**"}}
+    B{{"**AluminumRefining**"}} e3@-->C1(("**Aluminum**"))
+
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+  end
+    style A1 font-size:15px,r:46px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:46px,fill:#95A5A6,stroke:black,color:black,stroke-dasharray: 3,5;
+    style B fill:white,stroke:black,color:black;
+    style C1 font-size:15px,r:46px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
+    linkStyle 0 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 1 stroke:#95A5A6, stroke-width: 2px;
+    linkStyle 2 stroke:#566573, stroke-width: 2px;
+```
+
+### [Aluminum Smelting](@ref aluminumsmelting_overview)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart BT
+  subgraph AluminumSmelting
+  direction BT
+    A1(("**Electricity**")) e1@-->B{{"**AluminumSmelting**"}}
+    A2(("**Alumina**")) e2@-->B{{"**AluminumSmelting**"}}
+    A3(("**Graphite**")) e3@-->B{{"**AluminumSmelting**"}}
+    B{{"**AluminumSmelting**"}} e4@-->C1(("**Aluminum**"))
+    B{{"**AluminumSmelting**"}} e5@-->C2(("**CO2**"))
+
+    e1@{ animate: true }
+    e2@{ animate: true }
+    e3@{ animate: true }
+    e4@{ animate: true }
+    e5@{ animate: true }
+  end
+    style A1 font-size:15px,r:46px,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A2 font-size:15px,r:46px,fill:#3498DB,stroke:black,color:black,stroke-dasharray: 3,5;
+    style A3 font-size:15px,r:46px,fill:#8B4513,stroke:black,color:black,stroke-dasharray: 3,5;
+    style B fill:white,stroke:black,color:black;
+    style C1 font-size:15px,r:46px,fill:#566573,stroke:black,color:black,stroke-dasharray: 3,5;
+    style C2 font-size:15px,r:46px,fill:lightgray,stroke:black,color:black,stroke-dasharray: 3,5;
+    linkStyle 0 stroke:#FFD700, stroke-width: 2px;
+    linkStyle 1 stroke:#3498DB, stroke-width: 2px;
+    linkStyle 2 stroke:#8B4513, stroke-width: 2px;
+    linkStyle 3 stroke:#566573, stroke-width: 2px;
+    linkStyle 4 stroke:lightgray, stroke-width: 2px;
+```
+
 ### [Variable Renewable Energy resources (VRE)](@ref vre)
 
 ```mermaid
