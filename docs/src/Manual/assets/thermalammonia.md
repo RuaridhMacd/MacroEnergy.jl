@@ -216,7 +216,7 @@ To simplify the input file and the asset configuration, the following constraint
 
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the output ammonia edge)
-- [Ramping limit constraint](@ref ramping_limit_constraint_ref) (applied to the output ammonia edge)
+- [Ramping limits constraint](@ref ramping_limits_constraint_ref) (applied to the output ammonia edge)
 
 ## [Types - Asset Structure](@id thermalammonia_type_definition)
 

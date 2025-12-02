@@ -298,5 +298,5 @@ This example illustrates a basic Synthetic Ammonia configuration in JSON format:
 - [Time Data](@ref) - Temporal modeling framework
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Thermal Ammonia](@ref thermalammonia_overview) - Thermal ammonia production without CCS
-- [Thermal Ammonia with CCS](@ref thermalammoniaccs_overview) - Thermal ammonia production with CCS
+- [Thermal Ammonia](@ref thermalammonia_overview) - Thermal ammonia production (with and without CCS)
 

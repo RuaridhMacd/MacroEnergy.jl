@@ -520,7 +520,7 @@ flowchart BT
     linkStyle 4 stroke:#2ECC71, stroke-width: 2px;
 ```
 
-### [Synthetic Ammonia](@ref)
+### [Synthetic Ammonia](@ref syntheticammonia_overview)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
@@ -548,7 +548,7 @@ flowchart BT
     linkStyle 3 stroke:#566573, stroke-width: 2px;
 ```
 
-### [Synthetic Methanol](@ref)
+### [Synthetic Methanol](@ref syntheticmethanol_overview)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%

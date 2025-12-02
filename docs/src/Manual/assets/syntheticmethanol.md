@@ -320,5 +320,5 @@ This example illustrates a basic Synthetic Methanol configuration in JSON format
 - [Time Data](@ref) - Temporal modeling framework
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Thermal Methanol](@ref thermalmethanol_overview) - Thermal methanol production without CCS
-- [Thermal Methanol with CCS](@ref thermalmethanolccs_overview) - Thermal methanol production with CCS
+- [Thermal Methanol](@ref thermalmethanol_overview) - Thermal methanol production (with and without CCS)
 
