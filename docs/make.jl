@@ -88,7 +88,11 @@ const pages = [
             "Manual/assets/mustrun.md",
             "Manual/assets/natgasdaq.md",
             "Manual/assets/standalonelectricarcfurnace.md",
+            "Manual/assets/syntheticammonia.md",
+            "Manual/assets/syntheticmethanol.md",
+            "Manual/assets/thermalammonia.md",
             "Manual/assets/thermalhydrogen.md",
+            "Manual/assets/thermalmethanol.md",
             "Manual/assets/thermalpower.md",
             "Manual/assets/transmissionlink.md",
             "Manual/assets/vre.md"
