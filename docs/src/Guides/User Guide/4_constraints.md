@@ -21,7 +21,6 @@ The aggregated demand constraint sets the level of demand that must be met at a 
 ```@docs
 MacroEnergy.add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model::Model) where {T}
 ```
-
 ## [Long-duration storage constraints](@id long_duration_storage_constraints_ref)
 These additional constraints (and variables) can be used to ensure that storage levels of long-duration storage systems do not exceed installed capacity over non-representative subperiods. 
 
@@ -108,4 +107,8 @@ MacroEnergy.add_model_constraint!(ct::StorageMaxDurationConstraint, g::AbstractS
 ## [Storage min duration constraint](@id storage_min_duration_constraint_ref)
 ```@docs
 MacroEnergy.add_model_constraint!(ct::StorageMinDurationConstraint, g::AbstractStorage, model::Model)
+```
+## [Retrofitting constraint](@id retrofitting_constraint_ref)
+```@docs
+MacroEnergy.add_retrofit_constraints!(system::MacroEnergy.System, period_idx::Int, model::Model)
 ```
