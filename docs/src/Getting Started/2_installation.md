@@ -1,6 +1,6 @@
 # Installation
 
-You can install Macro (aka. MacroEnergy.jl) using [installation steps](#installation-steps) below. If you wish to contribute to the development of Macro or modify its source code, please follow the [source code installation steps](#source-code-installation-steps).
+You can install Macro (aka. MacroEnergy.jl) using the [installation steps](#installation-steps) below. If you wish to contribute to the development of Macro or modify its source code, please follow the [source code installation steps](#source-code-installation-steps).
 
 Note, you can use the user-additions features of Macro to add new commodities and assets without making changes to the source code. The most common reasons to modify the source code are to add new constraint types, add solution algorithms, or modify the outputs written. If you are unsure whether you need to modify the source code, please contact the Macro development team through [the MacroEnergy.jl issues page.](https://github.com/macroenergy/MacroEnergy.jl/issues)
 
