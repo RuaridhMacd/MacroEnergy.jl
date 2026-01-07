@@ -270,7 +270,7 @@ function make(commodity::Type{<:Commodity}, input_data::AbstractDict{Symbol,Any}
             get(data, :balance_data, Dict(:exogenous => Dict{Symbol,Float64}()))
     end
 
-    if haskey(data, :location)
+    if haskey(data, :location) && !isempty(data[:location])
         location_id = data[:location]
         @debug "Adding node $(node.id) to location $location_id"
         location = find_locations(system, Symbol(location_id))
