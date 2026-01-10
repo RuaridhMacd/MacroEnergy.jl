@@ -1,4 +1,4 @@
-# Running a Macro Model
+# [Running a Macro Model](@id user_run_model)
 
 This guide covers different approaches to running Macro models, from the simplest one-liner to fully customized run scripts that enable parameter sweeps and batch processing in parallel. For more examples of how to run Macro models using *run scripts*, please refer to the [MacroEnergyExamples](https://github.com/macroenergy/MacroEnergyExamples.jl) repository.
 
