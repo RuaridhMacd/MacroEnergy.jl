@@ -94,7 +94,7 @@ The following tables outline the attributes that can be set for a fuel cell asse
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "FuelCell" |
+| `type` | String | Asset type identifier: "FuelCell" |
 | `id` | String | Unique identifier for the fuel cell instance |
 | `location` | String | Geographic location/node identifier |
 

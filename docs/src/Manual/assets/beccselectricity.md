@@ -130,7 +130,7 @@ The following tables outline the attributes that can be set for a BECCS electric
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "BECCSElectricity" |
+| `type` | String | Asset type identifier: "BECCSElectricity" |
 | `id` | String | Unique identifier for the BECCS electricity instance |
 | `location` | String | Geographic location/node identifier |
 | `biomass_commodity` | String | Commodity identifier for the biomass supply (can be a sub-commodity of `Biomass`) |

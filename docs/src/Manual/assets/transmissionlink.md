@@ -81,7 +81,7 @@ The following tables outline the attributes that can be set for a Transmission L
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "TransmissionLink" |
+| `type` | String | Asset type identifier: "TransmissionLink" |
 | `id` | String | Unique identifier for the Transmission Link instance |
 | `commodity` | String | Commodity type being transmitted (e.g., "Electricity") |
 | `transmission_origin` | String | Origin node identifier |

@@ -106,7 +106,7 @@ The following tables outline the attributes that can be set for a electric heati
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"electricheating"` |
+| `type` | String | Asset type identifier: `"electricheating"` |
 | `id` | String | Unique identifier for the heating unit instance |
 | `location` | String | Geographic location/node identifier |
 | `elec_commodity` | String | Electricity commodity identifier |

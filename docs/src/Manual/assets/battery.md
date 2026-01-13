@@ -97,7 +97,7 @@ The following tables outlines the attributes that can be set for a battery asset
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "Battery" |
+| `type` | String | Asset type identifier: "Battery" |
 | `id` | String | Unique identifier for the battery instance |
 | `location` | String | Geographic location/node identifier |
 

@@ -96,7 +96,7 @@ The following tables outline the attributes that can be set for a DirectReductio
 #### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "DirectReductionElectricArcFurnace" |
+| `type` | String | Asset type identifier: "DirectReductionElectricArcFurnace" |
 | `id` | String | Unique identifier for the asset instance |
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |

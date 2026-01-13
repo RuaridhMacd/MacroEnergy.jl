@@ -106,7 +106,7 @@ The following tables outline the attributes that can be set for an electric DAC 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "ElectricDAC" |
+| `type` | String | Asset type identifier: "ElectricDAC" |
 | `id` | String | Unique identifier for the electric DAC instance |
 | `location` | String | Geographic location/node identifier |
 | `co2_sink` | String | CO₂ sink node identifier |

@@ -140,7 +140,7 @@ The following tables outline the attributes that can be set for a thermal hydrog
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "ThermalHydrogen" or "ThermalHydrogenCCS" |
+| `type` | String | Asset type identifier: "ThermalHydrogen" or "ThermalHydrogenCCS" |
 | `id` | String | Unique identifier for the thermal hydrogen plant instance |
 | `location` | String | Geographic location/node identifier |
 | `fuel_commodity` | String | Commodity type of the fuel |

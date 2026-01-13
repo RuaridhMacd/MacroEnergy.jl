@@ -131,7 +131,7 @@ The following tables outline the attributes that can be set for a thermal power 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "ThermalPower" or "ThermalPowerCCS" |
+| `type` | String | Asset type identifier: "ThermalPower" or "ThermalPowerCCS" |
 | `id` | String | Unique identifier for the thermal power plant instance |
 | `location` | String | Geographic location/node identifier |
 | `fuel_commodity` | String | Fuel commodity identifier |

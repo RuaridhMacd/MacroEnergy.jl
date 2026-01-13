@@ -129,7 +129,7 @@ The following tables outline the attributes that can be set for a Natural Gas DA
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "NaturalGasDAC" |
+| `type` | String | Asset type identifier: "NaturalGasDAC" |
 | `id` | String | Unique identifier for the Natural Gas DAC instance |
 | `location` | String | Geographic location/node identifier |
 | `co2_sink` | String | ID of a CO₂ sink vertex (must be defined in the nodes input file) |
