@@ -248,7 +248,7 @@ If [`MaxStorageLevelConstraint`](@ref max_storage_level_constraint_ref) or [`Min
 
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `storage_max_storage_level` | Float64 | Maximum storage level as fraction of capacity | fraction | 0.0 |
+| `storage_max_storage_level` | Float64 | Maximum storage level as fraction of capacity | fraction | 1.0 |
 | `storage_min_storage_level` | Float64 | Minimum storage level as fraction of capacity | fraction | 0.0 |
 
 **Storage charge/discharge ratio constraint**
