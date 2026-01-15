@@ -8,7 +8,9 @@ function load!(system::System, file_path::AbstractString)::Nothing
     if isfile(file_path)
         load!(system, load_inputs(file_path))
     elseif isdir(file_path)
-        files = get_json_files(file_path)
+        json_files = get_json_files(file_path)
+        csv_files = get_csv_files(file_path)
+        files = vcat(json_files, csv_files)
         files = sort(files, by = x -> occursin("_retrofit_option", x) ? 0 : 1) # Sorts files so that retrofit options are loaded first
         for file in files
             load!(system, joinpath(file_path, file))
