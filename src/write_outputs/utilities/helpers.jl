@@ -34,6 +34,17 @@ end
 get_node_in(e::AbstractEdge) = id(e.start_vertex)
 get_node_out(e::AbstractEdge) = id(e.end_vertex)
 
+# Define flow signs for different combinations of vertices
+get_flow_sign(n1::Node, n2::Node) = 1.0
+get_flow_sign(n::Node, s::AbstractStorage) = -1.0
+get_flow_sign(n::Node, t::Transformation) = -1.0
+get_flow_sign(s::AbstractStorage, n::Node) = 1.0
+get_flow_sign(t::Transformation, n::Node) = 1.0
+get_flow_sign(s::AbstractStorage, t::Transformation) = 1.0
+get_flow_sign(t::Transformation, s::AbstractStorage) = -1.0
+# Get flow sign based on which vertex is the start and which is the end
+get_flow_sign(e::AbstractEdge) = get_flow_sign(e.start_vertex, e.end_vertex)
+
 # The resource id is the id of the asset that the object belongs to
 function get_resource_id(obj::T, asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}) where {T<:Union{AbstractEdge,AbstractStorage}}
     asset = asset_map[id(obj)]

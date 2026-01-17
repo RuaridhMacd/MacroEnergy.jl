@@ -507,12 +507,12 @@ function test_writing_output()
         # Check storage flow (node1 -> storage1)
         @test result[4, :node_in] == :node1
         @test result[4, :node_out] == :storage1
-        @test result[4, :value] == 4.0
+        @test result[4, :value] == -4.0
         
         # Check transformation flow (node1 -> transformation1)
         @test result[7, :node_in] == :node1
         @test result[7, :node_out] == :transformation1
-        @test result[7, :value] == 7.0
+        @test result[7, :value] == -7.0
         
         # Check storage discharge (storage1 -> node2)
         @test result[10, :node_in] == :storage1

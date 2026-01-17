@@ -213,19 +213,21 @@ end
 # The following functions are used to extract flow values after the model has been solved
 # from a list of MacroObjects (e.g., edges, and storage) 
 function get_optimal_flow(
-    objs::Vector{T},
+    objs::Vector{<:AbstractEdge},
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node,Location}}
-    reduce(vcat, [get_optimal_flow(o, scaling, obj_asset_map) for o in objs if !isa(o, Location)]) # filter out locations
+)
+    reduce(vcat, [get_optimal_flow(o, scaling, obj_asset_map) for o in objs])
 end
 
 function get_optimal_flow(
-    obj::T,
+    obj::AbstractEdge,
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node}}
+)
     time_axis = time_interval(obj)
+    # Apply sign based on edge direction (negative for Node → Transformation/Storage)
+    flow_sign = isa(obj, AbstractEdge) ? get_flow_sign(obj) : 1.0
     if isempty(obj_asset_map)
         return DataFrame(
             case_name = fill(missing, length(time_axis)),
@@ -238,7 +240,7 @@ function get_optimal_flow(
             variable = :flow,
             year = fill(missing, length(time_axis)),
             time = [t for t in time_axis],
-            value = [value(flow(obj, t)) * scaling for t in time_axis]
+            value = [value(flow(obj, t)) * scaling * flow_sign for t in time_axis]
         )
     else
         return DataFrame(
@@ -252,7 +254,7 @@ function get_optimal_flow(
             variable = :flow,
             year = fill(missing, length(time_axis)),
             time = [t for t in time_axis],
-            value = [value(flow(obj, t)) * scaling for t in time_axis]
+            value = [value(flow(obj, t)) * scaling * flow_sign for t in time_axis]
         )
     end
 end
