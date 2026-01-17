@@ -134,13 +134,13 @@ Two types of pattern matching are supported:
 # Example
 ```julia
 get_optimal_flow(system)
-186984×11 DataFrame
-    Row │ commodity    commodity_subtype  zone        resource_id                component_id                       type              variable  segment  time   value     
-        │ Symbol       Symbol             Symbol      Symbol                     Symbol                             Symbol            Symbol    Int64    Int64  Float64
-────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-      1 │ Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      1  0.0    
-      2 │ Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      2  0.0    
-      3 │ Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      3  0.0    
+186984×10 DataFrame
+    Row │ commodity    zone        resource_id                component_id                       type              variable  segment  time   value     
+        │ Symbol       Symbol      Symbol                     Symbol                             Symbol            Symbol    Int64    Int64  Float64
+────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+      1 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      1  0.0    
+      2 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      2  0.0    
+      3 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      3  0.0    
       ...
 # Filter by commodity
 get_optimal_flow(system, commodity="Electricity")
@@ -230,7 +230,6 @@ function get_optimal_flow(
         return DataFrame(
             case_name = fill(missing, length(time_axis)),
             commodity = fill(get_commodity_name(obj), length(time_axis)),
-            commodity_subtype = fill(get_commodity_subtype(flow), length(time_axis)),
             node_in = fill(get_node_in(obj), length(time_axis)),
             node_out = fill(get_node_out(obj), length(time_axis)),
             resource_id = fill(get_component_id(obj), length(time_axis)),
@@ -245,7 +244,6 @@ function get_optimal_flow(
         return DataFrame(
             case_name = fill(missing, length(time_axis)),
             commodity = fill(get_commodity_name(obj), length(time_axis)),
-            commodity_subtype = fill(get_commodity_subtype(flow), length(time_axis)),
             node_in = fill(get_node_in(obj), length(time_axis)),
             node_out = fill(get_node_out(obj), length(time_axis)),
             resource_id = fill(isa(obj, Node) ? get_resource_id(obj) : get_resource_id(obj, obj_asset_map), length(time_axis)),

@@ -148,13 +148,13 @@ Get the optimal capacity values for all assets/edges in a system.
 # Example
 ```julia
 get_optimal_capacity(system)
-153×8 DataFrame
- Row │ commodity    commodity_subtype  zone           resource_id                        component_id                       type              variable  value    
-     │ Symbol       Symbol             Symbol         Symbol                             Symbol                             Symbol            Symbol    Float64 
-─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ Electricity  capacity           elec_SE        existing_solar_SE                  existing_solar_SE_edge             VRE               capacity   8.5022
-   2 │ Electricity  capacity           elec_NE        existing_solar_NE                  existing_solar_NE_edge             VRE               capacity   0.0   
-   3 │ Electricity  capacity           elec_NE        existing_wind_NE                   existing_wind_NE_edge              VRE               capacity   3.6545
+153×7 DataFrame
+ Row │ commodity    zone           resource_id                        component_id                       type              variable  value    
+     │ Symbol       Symbol         Symbol                             Symbol                             Symbol            Symbol    Float64 
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ Electricity  elec_SE        existing_solar_SE                  existing_solar_SE_edge             VRE               capacity   8.5022
+   2 │ Electricity  elec_NE        existing_solar_NE                  existing_solar_NE_edge             VRE               capacity   0.0   
+   3 │ Electricity  elec_NE        existing_wind_NE                   existing_wind_NE_edge              VRE               capacity   3.6545
 ```
 """
 get_optimal_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, capacity, scaling)
@@ -174,13 +174,13 @@ Get the optimal new capacity values for all assets/edges in a system.
 # Example
 ```julia
 get_optimal_new_capacity(system)
-153×8 DataFrame
- Row │ commodity    commodity_subtype  zone           resource_id                        component_id                       type              variable      value  
-     │ Symbol       Symbol             Symbol         Symbol                             Symbol                             Symbol            Symbol        Float64
-─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ Biomass      capacity           bioherb_SE     SE_BECCS_Electricity_Herb          SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  new_capacity      0.0
-   2 │ Biomass      capacity           bioherb_MIDAT  MIDAT_BECCS_Electricity_Herb       MIDAT_BECCS_Electricity_Herb_bio…  BECCSElectricity  new_capacity      0.0
-   3 │ Biomass      capacity           bioherb_NE     NE_BECCS_Electricity_Herb          NE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  new_capacity      0.0
+153×7 DataFrame
+ Row │ commodity    zone           resource_id                        component_id                       type              variable      value  
+     │ Symbol       Symbol         Symbol                             Symbol                             Symbol            Symbol        Float64
+─────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ Biomass      bioherb_SE     SE_BECCS_Electricity_Herb          SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  new_capacity      0.0
+   2 │ Biomass      bioherb_MIDAT  MIDAT_BECCS_Electricity_Herb       MIDAT_BECCS_Electricity_Herb_bio…  BECCSElectricity  new_capacity      0.0
+   3 │ Biomass      bioherb_NE     NE_BECCS_Electricity_Herb          NE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  new_capacity      0.0
 ```
 """
 get_optimal_new_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, new_capacity, scaling)
@@ -200,13 +200,13 @@ Get the optimal retired capacity values for all assets/edges in a system.
 # Example
 ```julia
 get_optimal_retired_capacity(system)
-153×8 DataFrame
- Row │ commodity    commodity_subtype  zone           resource_id                        component_id                       type              variable      value    
-     │ Symbol       Symbol             Symbol         Symbol                             Symbol                             Symbol            Symbol        Float64  
-─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ Biomass      capacity           bioherb_SE     SE_BECCS_Electricity_Herb          SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  retired_capacity  0.0
-   2 │ Biomass      capacity           bioherb_MIDAT  MIDAT_BECCS_Electricity_Herb       MIDAT_BECCS_Electricity_Herb_bio…  BECCSElectricity  retired_capacity  0.0
-   3 │ Biomass      capacity           bioherb_NE     NE_BECCS_Electricity_Herb          NE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  retired_capacity  0.0
+153×7 DataFrame
+ Row │ commodity    zone           resource_id                        component_id                       type              variable          value    
+     │ Symbol       Symbol         Symbol                             Symbol                             Symbol            Symbol            Float64  
+─────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ Biomass      bioherb_SE     SE_BECCS_Electricity_Herb          SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  retired_capacity  0.0
+   2 │ Biomass      bioherb_MIDAT  MIDAT_BECCS_Electricity_Herb       MIDAT_BECCS_Electricity_Herb_bio…  BECCSElectricity  retired_capacity  0.0
+   3 │ Biomass      bioherb_NE     NE_BECCS_Electricity_Herb          NE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  retired_capacity  0.0
 ```
 """
 get_optimal_retired_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, retired_capacity, scaling)
@@ -255,7 +255,6 @@ function get_optimal_capacity_by_field(
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = [get_commodity_name(obj) for obj in objs for f in field_list],
-            commodity_subtype = [get_commodity_subtype(f) for obj in objs for f in field_list],
             zone = [get_zone_name(obj) for obj in objs for f in field_list],
             resource_id = [get_component_id(obj) for obj in objs for f in field_list],  # component id is same as resource id
             component_id = [get_component_id(obj) for obj in objs for f in field_list],
@@ -268,7 +267,6 @@ function get_optimal_capacity_by_field(
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = [get_commodity_name(obj) for obj in objs for f in field_list],
-            commodity_subtype = [get_commodity_subtype(f) for obj in objs for f in field_list],
             zone = [get_zone_name(obj) for obj in objs for f in field_list],
             resource_id = [get_resource_id(obj, obj_asset_map) for obj in objs for f in field_list],
             component_id = [get_component_id(obj) for obj in objs for f in field_list],

@@ -7,19 +7,6 @@ get_commodity_name(obj::AbstractEdge) = typesymbol(commodity_type(obj))
 get_commodity_name(obj::Node) = typesymbol(commodity_type(obj))
 get_commodity_name(obj::AbstractStorage) = typesymbol(commodity_type(obj))
 
-# The commodity subtype is an identifier for the field names
-# e.g., "capacity" for capacity variables, "flow" for flow variables, etc.
-function get_commodity_subtype(f::Function)
-    field_name = Symbol(f)
-    if any(field_name .== (:capacity, :new_capacity, :retired_capacity, :existing_capacity, :retrofitted_capacity))
-        return :capacity
-    # elseif f == various cost # TODO: implement this
-    #     return :cost
-    else
-        return field_name
-    end
-end
-
 # Get the zone name/location of a vertex
 get_zone_name(v::AbstractVertex) = ismissing(location(v)) ? id(v) : location(v)
 

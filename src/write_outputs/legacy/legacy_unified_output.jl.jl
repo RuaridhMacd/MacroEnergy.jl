@@ -54,13 +54,13 @@ Returns a `DataFrame` with all the results after the optimization is performed.
 # Example
 ```julia
 collect_results(system, model)
-198534×12 DataFrame
-    Row │ case_name  commodity    commodity_subtype  zone        resource_id                component_id                       type              variable  segment  time   value
-        │ Missing    Symbol       Symbol             Symbol      Symbol                     Symbol                             Symbol            Symbol    Int64    Int64  Float64
-────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-      1 │   missing  Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      1  0.0
-      2 │   missing  Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      2  0.0
-      3 │   missing  Biomass      flow               bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      3  0.0
+198534×11 DataFrame
+    Row │ case_name  commodity    zone        resource_id                component_id                       type              variable  segment  time   value
+        │ Missing    Symbol       Symbol      Symbol                     Symbol                             Symbol            Symbol    Int64    Int64  Float64
+────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+      1 │   missing  Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      1  0.0
+      2 │   missing  Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      2  0.0
+      3 │   missing  Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  flow            1      3  0.0
       ...
 ```
 """
@@ -112,7 +112,6 @@ function get_optimal_vars(objs::Vector{T}, field_list::Tuple, scaling::Float64=1
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = [get_commodity_name(obj) for obj in objs for f in field_list],
-            commodity_subtype = [get_commodity_subtype(f) for obj in objs for f in field_list],
             zone = [get_zone_name(obj) for obj in objs for f in field_list],
             resource_id = [get_component_id(obj) for obj in objs for f in field_list],
             component_id = [get_component_id(obj) for obj in objs for f in field_list],
@@ -125,7 +124,6 @@ function get_optimal_vars(objs::Vector{T}, field_list::Tuple, scaling::Float64=1
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = [get_commodity_name(obj) for obj in objs for f in field_list],
-            commodity_subtype = [get_commodity_subtype(f) for obj in objs for f in field_list],
             zone = [get_zone_name(obj) for obj in objs for f in field_list],
             resource_id = [get_resource_id(obj, obj_asset_map) for obj in objs for f in field_list],
             component_id = [get_component_id(obj) for obj in objs for f in field_list],
@@ -183,7 +181,6 @@ function get_optimal_vars_timeseries(
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = Symbol[get_commodity_name(obj) for s in 1:num_segments for t in time_axis],
-            commodity_subtype = Symbol[get_commodity_subtype(f) for s in 1:num_segments for t in time_axis],
             zone = Symbol[get_zone_name(obj) for s in 1:num_segments for t in time_axis],
             resource_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],  # component id is same as resource id
             component_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],
@@ -198,7 +195,6 @@ function get_optimal_vars_timeseries(
         return DataFrame(
             case_name = fill(missing, total_rows),
             commodity = Symbol[get_commodity_name(obj) for s in 1:num_segments for t in time_axis],
-            commodity_subtype = Symbol[get_commodity_subtype(f) for s in 1:num_segments for t in time_axis],
             zone = Symbol[get_zone_name(obj) for s in 1:num_segments for t in time_axis],
             resource_id = Symbol[isa(obj, Node) ? get_resource_id(obj) : get_resource_id(obj, obj_asset_map) for s in 1:num_segments for t in time_axis],
             component_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],

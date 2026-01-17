@@ -16,7 +16,6 @@ import MacroEnergy:
     max_non_served_demand,
     edges_with_capacity_variables,
     get_commodity_name,
-    get_commodity_subtype,
     get_edges,
     get_nodes,
     get_transformations,
@@ -254,14 +253,6 @@ function test_writing_output()
         @test get_commodity_name(edge_from_transformation) == :Electricity
         @test get_commodity_name(edge_storage_transformation) == :Electricity
 
-        # Test get_commodity_subtype for a vertex
-        @test get_commodity_subtype(capacity) == :capacity
-        @test get_commodity_subtype(new_capacity) == :capacity
-        @test get_commodity_subtype(retired_capacity) == :capacity
-        @test get_commodity_subtype(flow) == :flow
-        @test get_commodity_subtype(storage_level) == :storage_level
-        @test get_commodity_subtype(non_served_demand) == :non_served_demand
-
         # Test get_resource_id for a vertex
         @test get_resource_id(node1) == :node1
         @test get_resource_id(node2) == :node2
@@ -343,7 +334,6 @@ function test_writing_output()
         result = get_optimal_vars(mock_edges, capacity, 2.0, obj_asset_map)
         @test size(result, 1) == 6
         @test result[1, :commodity] === :Electricity
-        @test result[1, :commodity_subtype] === :capacity
         @test result[1, :zone] === :node1_node2
         @test result[1, :resource_id] === :asset1
         @test result[1, :component_id] === :edge1
@@ -352,7 +342,6 @@ function test_writing_output()
         @test result[1, :year] === missing
         @test result[1, :value] === 200.0
         @test result[2, :commodity] === :Electricity
-        @test result[2, :commodity_subtype] === :capacity
         @test result[2, :zone] === :node1
         @test result[2, :resource_id] === :asset1
         @test result[2, :component_id] === :edge2
@@ -361,28 +350,24 @@ function test_writing_output()
         @test result[2, :year] === missing
         @test result[2, :value] === 202.0
         @test result[3, :commodity] === :Electricity
-        @test result[3, :commodity_subtype] === :capacity
         @test result[3, :zone] === :node1
         @test result[3, :resource_id] === :asset1
         @test result[3, :component_id] === :edge3
         @test result[3, :type] === Symbol("ThermalPower{NaturalGas}")
         @test result[3, :value] === 204.0
         @test result[4, :commodity] === :Electricity
-        @test result[4, :commodity_subtype] === :capacity
         @test result[4, :zone] === :node2
         @test result[4, :resource_id] === :asset1
         @test result[4, :component_id] === :edge4
         @test result[4, :type] === Symbol("ThermalPower{NaturalGas}")
         @test result[4, :value] === 206.0
         @test result[5, :commodity] === :Electricity
-        @test result[5, :commodity_subtype] === :capacity
         @test result[5, :zone] === :node2
         @test result[5, :resource_id] === :asset1
         @test result[5, :component_id] === :edge5
         @test result[5, :type] === Symbol("ThermalPower{NaturalGas}")
         @test result[5, :value] === 208.0
         @test result[6, :commodity] === :Electricity
-        @test result[6, :commodity_subtype] === :capacity
         @test result[6, :zone] === :internal
         @test result[6, :resource_id] === :asset1
         @test result[6, :component_id] === :edge6
@@ -391,7 +376,6 @@ function test_writing_output()
         result = get_optimal_vars(Edge{Electricity}[edge_between_nodes], (new_capacity), 5.0)
         @test size(result, 1) == 1
         @test result[1, :commodity] === :Electricity
-        @test result[1, :commodity_subtype] === :capacity
         @test result[1, :zone] === :node1_node2
         @test result[1, :resource_id] === :edge1
         @test result[1, :component_id] === :edge1
@@ -400,7 +384,6 @@ function test_writing_output()
         result = get_optimal_vars(Storage[storage], new_capacity, 5.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
         @test size(result, 1) == 1
         @test result[1, :commodity] === :Electricity
-        @test result[1, :commodity_subtype] === :capacity
         @test result[1, :zone] === :storage1
         @test result[1, :resource_id] === :asset2
         @test result[1, :component_id] === :storage1
@@ -409,7 +392,6 @@ function test_writing_output()
         result = get_optimal_vars(Storage[storage], (new_capacity), 5.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
         @test size(result, 1) == 1
         @test result[1, :commodity] === :Electricity
-        @test result[1, :commodity_subtype] === :capacity
         @test result[1, :zone] === :storage1
         @test result[1, :resource_id] === :asset2
         @test result[1, :component_id] === :storage1
@@ -417,9 +399,8 @@ function test_writing_output()
         @test result[1, :value] === 500.0
     end
 
-    function check_output_row(row, expected_commodity, expected_commodity_subtype, expected_zone, expected_resource_id, expected_component_id, expected_type, expected_variable, expected_year, expected_segment, expected_time, expected_value)
+    function check_output_row(row, expected_commodity, expected_zone, expected_resource_id, expected_component_id, expected_type, expected_variable, expected_year, expected_segment, expected_time, expected_value)
         @test row.commodity == expected_commodity
-        @test row.commodity_subtype == expected_commodity_subtype
         @test row.zone == expected_zone
         @test row.resource_id == expected_resource_id
         @test row.component_id == expected_component_id
@@ -434,31 +415,31 @@ function test_writing_output()
 
     @testset "get_optimal_vars_timeseries Tests" begin
         expected_values = [
-            (:Electricity, :flow, :node1_node2, :asset1, :edge1, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [1.0, 2.0, 3.0]) #, :MWh),
-            (:Electricity, :flow, :node1, :asset1, :edge2, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [4.0, 5.0, 6.0]) #, :MWh),
-            (:Electricity, :flow, :node1, :asset1, :edge3, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [7.0, 8.0, 9.0]) #, :MWh),
-            (:Electricity, :flow, :node2, :asset1, :edge4, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [10.0, 11.0, 12.0]) #, :MWh),
-            (:Electricity, :flow, :node2, :asset1, :edge5, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [13.0, 14.0, 15.0]) #, :MWh),
-            (:Electricity, :flow, :internal, :asset1, :edge6, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [16.0, 17.0, 18.0]) #, :MWh)
+            (:Electricity, :node1_node2, :asset1, :edge1, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [1.0, 2.0, 3.0]) #, :MWh),
+            (:Electricity, :node1, :asset1, :edge2, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [4.0, 5.0, 6.0]) #, :MWh),
+            (:Electricity, :node1, :asset1, :edge3, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [7.0, 8.0, 9.0]) #, :MWh),
+            (:Electricity, :node2, :asset1, :edge4, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [10.0, 11.0, 12.0]) #, :MWh),
+            (:Electricity, :node2, :asset1, :edge5, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [13.0, 14.0, 15.0]) #, :MWh),
+            (:Electricity, :internal, :asset1, :edge6, Symbol("ThermalPower{NaturalGas}"), :flow, missing, 1, [1, 2, 3], [16.0, 17.0, 18.0]) #, :MWh)
         ]
         result = get_optimal_vars_timeseries(mock_edges, flow, 1.0, obj_asset_map)
         @test size(result, 1) == 18
         index = 1
-        for (commodity, commodity_subtype, zone, resource_id, component_id, type, variable, year, segment, times, values) in expected_values
+        for (commodity, zone, resource_id, component_id, type, variable, year, segment, times, values) in expected_values
             for i in eachindex(times)
-                check_output_row(result[index, :], commodity, commodity_subtype, zone, resource_id, component_id, type, variable, year, segment, times[i], values[i])
+                check_output_row(result[index, :], commodity, zone, resource_id, component_id, type, variable, year, segment, times[i], values[i])
                 index += 1
             end
         end
         result = get_optimal_vars_timeseries(storage, storage_level, 1.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
         @test size(result, 1) == 3
         for i = 1:3
-            check_output_row(result[i, :], :Electricity, :storage_level, :storage1, :asset2, :storage1, :Battery, :storage_level, missing, 1, i, i)
+            check_output_row(result[i, :], :Electricity, :storage1, :asset2, :storage1, :Battery, :storage_level, missing, 1, i, i)
         end
         result = get_optimal_vars_timeseries(storage, tuple(storage_level), 1.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
         @test size(result, 1) == 3
         for i = 1:3
-            check_output_row(result[i, :], :Electricity, :storage_level, :storage1, :asset2, :storage1, :Battery, :storage_level, missing, 1, i, i)
+            check_output_row(result[i, :], :Electricity, :storage1, :asset2, :storage1, :Battery, :storage_level, missing, 1, i, i)
         end
         result = get_optimal_vars_timeseries([node1, node2], max_non_served_demand, 1.0)
         @test size(result, 1) == 6
@@ -480,7 +461,6 @@ function test_writing_output()
         
         # Check first result structure
         @test result[1, :commodity] == :Electricity
-        @test result[1, :commodity_subtype] == :capacity
         @test result[1, :zone] == :node1_node2
         @test result[1, :resource_id] == :asset1
         @test result[1, :component_id] == :edge1
@@ -504,7 +484,6 @@ function test_writing_output()
         
         # Check first result structure (node1 -> node2)
         @test result[1, :commodity] == :Electricity
-        @test result[1, :commodity_subtype] == :flow
         @test result[1, :node_in] == :node1
         @test result[1, :node_out] == :node2
         @test result[1, :resource_id] == :asset1
@@ -565,7 +544,6 @@ function test_writing_output()
         
         # Check first result structure
         @test result[1, :commodity] == :Electricity
-        @test result[1, :commodity_subtype] == :flow
         @test result[1, :zone] == :node1_node2
         @test result[1, :resource_id] == :asset1
         @test result[1, :component_id] == :edge1
