@@ -105,6 +105,7 @@ function make_storage(
     data::Dict{Symbol,Any},
     time_data::TimeData,
     commodity::DataType,
+    location::Union{Missing,Symbol} = missing
 )
     # We could instead filter on an explicit list of keys
     # As it is, this will add configure several additional
@@ -113,7 +114,7 @@ function make_storage(
     filtered_data = Dict{Symbol, Any}(
         k => v for (k,v) in data if k in storage_kwargs
     )
-    remove_keys = [:id, :timedata]
+    remove_keys = [:id, :timedata, :location]
     for key in remove_keys
         if haskey(filtered_data, key)
             delete!(filtered_data, key)
@@ -125,12 +126,13 @@ function make_storage(
     _storage = Storage{commodity}(;
         id = id,
         timedata = time_data,
+        location = location,
         filtered_data...
     )
     return _storage
 end
-Storage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, commodity::DataType) =
-    make_storage(id, data, time_data, commodity)
+Storage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, commodity::DataType, location::Union{Missing,Symbol} = missing) =
+    make_storage(id, data, time_data, commodity, location)
 
 ######### Storage interface #########
 all_constraints(g::AbstractStorage) = g.constraints;
@@ -280,13 +282,13 @@ function make_long_duration_storage(
     data::Dict{Symbol,Any},
     time_data::TimeData,
     commodity::DataType,
+    location::Union{Missing,Symbol} = missing
 )
-
     storage_kwargs = Base.fieldnames(LongDurationStorage)
     filtered_data = Dict{Symbol,Any}(
         k => v for (k, v) in data if k in storage_kwargs
     )
-    remove_keys = [:id, :timedata]
+    remove_keys = [:id, :timedata, :location]
     for key in remove_keys
         if haskey(filtered_data, key)
             delete!(filtered_data, key)
@@ -298,12 +300,13 @@ function make_long_duration_storage(
     _storage = LongDurationStorage{commodity}(;
         id=id,
         timedata=time_data,
+        location = location,
         filtered_data...
     )
     return _storage
 end
-LongDurationStorage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, commodity::DataType) =
-    make_long_duration_storage(id, data, time_data, commodity)
+LongDurationStorage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, commodity::DataType, location::Union{Missing,Symbol} = missing) =
+    make_long_duration_storage(id, data, time_data, commodity, location)
 
 function add_linking_variables!(g::LongDurationStorage, model::Model)
 

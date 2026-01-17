@@ -116,6 +116,7 @@ function make(asset_type::Type{ThermalHeating}, data::AbstractDict{Symbol,Any}, 
     heating_transform = Transformation(;
         id = Symbol(id, "_", thermal_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

@@ -178,6 +178,7 @@ function make(asset_type::Type{ThermalHydrogenCCS}, data::AbstractDict{Symbol,An
     thermalhydrogenccs_transform = Transformation(;
         id = Symbol(id, "_", thermalhydrogenccs_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

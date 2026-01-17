@@ -23,37 +23,24 @@ end
 # Get the zone name/location of a vertex
 get_zone_name(v::AbstractVertex) = ismissing(location(v)) ? id(v) : location(v)
 
-# The zone name for an edge is derived from the locations of its connected vertices if not missing,
-# otherwise the concatenation of the ids of its nodes:
-# e.g., "elec_1_elec_2" for an edge connecting nodes "elec_1" and "elec_2" or 
-# "elec_1" if connecting a node to storage/transformation
+# The zone name for an edge is derived from the locations of its connected vertices.
+# Priority: both locations → same location or "loc1_loc2"; one location → that location;
+# no locations → fallback to concatenated vertex IDs
 function get_zone_name(e::AbstractEdge)
     start_loc = location(e.start_vertex)
     end_loc = location(e.end_vertex)
     
+    # Both vertices have locations
     if !ismissing(start_loc) && !ismissing(end_loc)
-        if start_loc == end_loc
-            return start_loc
-        else
-            return Symbol("$(start_loc)_$(end_loc)")
-        end
-    elseif !ismissing(start_loc)
-        return start_loc
-    elseif !ismissing(end_loc)
-        return end_loc
+        return start_loc == end_loc ? start_loc : Symbol("$(start_loc)_$(end_loc)")
     end
-
-    msg = "Edge $(id(e)) is not connected to any location because the nodes $(id(e.start_vertex)) and $(id(e.end_vertex)) are not connected to any location. \n"
-    msg *= "If you want to specify the zone name for this edge, please add a location to the nodes $(id(e.start_vertex)) and $(id(e.end_vertex)) in the input data. \n"
-    msg *= "The zone name in the output will be the concatenation of the ids of the nodes: $(id(e.start_vertex)) and $(id(e.end_vertex)). \n"
-    msg *= "Please check the output data and adjust the zone name if necessary. \n"
-    @warn msg
     
-    region_name = join((id(n) for n in (e.start_vertex, e.end_vertex) if isa(n, Node)), "_")
-    if isempty(region_name)
-        region_name = join((id(n) for n in (e.start_vertex, e.end_vertex)), "_")
-    end
-    Symbol(region_name)
+    # Only one vertex has a location - use it
+    !ismissing(start_loc) && return start_loc
+    !ismissing(end_loc) && return end_loc
+    
+    # Neither vertex has a location - fall back to concatenated vertex IDs
+    return Symbol("$(id(e.start_vertex))_$(id(e.end_vertex))")
 end
 
 # New functions for flow outputs - get node_in and node_out

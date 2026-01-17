@@ -166,6 +166,10 @@ macro setup_data(type, data, id)
     return esc(quote
         data = recursive_merge(clear_dict(default_data($type, $id, "full")), $data)
         defaults = default_data($type, $id, "full")
+        # Extract asset location ID for use in Storage/Transformation components
+        asset_location = let loc = get($data, :location, missing)
+            ismissing(loc) ? missing : Symbol(loc)
+        end
     end)
 end
 

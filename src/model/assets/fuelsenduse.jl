@@ -95,6 +95,7 @@ function make(asset_type::Type{FuelsEndUse}, data::AbstractDict{Symbol,Any}, sys
     fuelsenduse_transform = Transformation(;
         id = Symbol(id, "_", FuelsEndUse_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = transform_data[:constraints],
     )
 

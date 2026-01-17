@@ -76,6 +76,7 @@ function make(asset_type::Type{CO2Injection}, data::AbstractDict{Symbol,Any}, sy
     co2injection_transform = Transformation(;
         id = Symbol(id, "_", co2injection_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = transform_data[:constraints],
     )
 

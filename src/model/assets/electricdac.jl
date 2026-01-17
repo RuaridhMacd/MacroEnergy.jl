@@ -79,6 +79,7 @@ function make(asset_type::Type{ElectricDAC}, data::AbstractDict{Symbol,Any}, sys
     electricdac_transform = Transformation(;
         id=Symbol(id, "_", electricdac_key),
         timedata=system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints=transform_data[:constraints],
     )
 

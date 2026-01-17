@@ -102,6 +102,7 @@ function make(asset_type::Type{Electrolyzer}, data::AbstractDict{Symbol,Any}, sy
     electrolyzer = Transformation(;
         id = Symbol(id, "_", electrolyzer_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = transform_data[:constraints],
     )
 

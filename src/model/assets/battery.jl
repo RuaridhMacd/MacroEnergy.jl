@@ -139,6 +139,7 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
         storage_data,
         system.time_data[commodity_symbol],
         commodity,
+        asset_location
     )
 
     # If storage is long duration, add the implicit min-max constraint

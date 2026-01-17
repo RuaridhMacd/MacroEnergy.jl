@@ -112,6 +112,7 @@ function make(asset_type::Type{SyntheticLiquidFuels}, data::AbstractDict{Symbol,
     synthetic_liquid_fuels_transform = Transformation(;
         id = Symbol(id, "_", synthetic_liquid_fuels_transform_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

@@ -68,6 +68,7 @@ function make(asset_type::Type{MustRun}, data::AbstractDict{Symbol,Any}, system:
     mustrun_transform = Transformation(;
         id = Symbol(id, "_", energy_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
     )
 
     elec_edge_key = :elec_edge
