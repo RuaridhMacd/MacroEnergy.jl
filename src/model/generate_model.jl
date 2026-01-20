@@ -1,5 +1,5 @@
 
-function generate_model(case::Case)
+function generate_model(case::Case,model::Model)
 
     periods = get_periods(case)
     settings = get_settings(case)
@@ -8,8 +8,6 @@ function generate_model(case::Case)
     @info("Generating model")
 
     start_time = time();
-
-    model = Model()
 
     @variable(model, vREF == 1)
 
@@ -270,6 +268,34 @@ function carry_over_capacities!(g::Transformation,g_prev::Transformation; perfec
 end
 function carry_over_capacities!(n::Node,n_prev::Node; perfect_foresight::Bool = true)
     return nothing
+end
+
+function carry_over_capacities!(system::System, prev_results::Dict{Int64,DataFrame}, last_period::Int)
+
+    all_edges = get_edges(system)
+    storages = get_storage(system)
+    edges_with_capacity = edges_with_capacity_variables(all_edges)
+    components_with_capacity = vcat(edges_with_capacity, storages)
+    for y in components_with_capacity
+        df_restart = prev_results[last_period]
+        component_row = findfirst(df_restart.component_id .== String(id(y)))
+        if isnothing(component_row)
+            @info("Skipping component $(id(y)) as it was not present in the previous period")
+        else
+            y.existing_capacity = df_restart.capacity[component_row]
+            for prev_period in keys(prev_results)
+                df = prev_results[prev_period];
+                component_row = findfirst(df.component_id .== String(id(y)))
+                if !isnothing(component_row)
+                    y.new_capacity_track[prev_period] = df.new_capacity[component_row]
+                    y.retired_capacity_track[prev_period] = df.retired_capacity[component_row]
+                    if isa(y, AbstractEdge) && "retrofitted_capacity" ∈ names(df)
+                        y.retrofitted_capacity_track[prev_period] = df.retrofitted_capacity[component_row]
+                    end
+                end
+            end
+        end
+    end
 end
 
 function compute_annualized_costs!(system::System,settings::NamedTuple)
