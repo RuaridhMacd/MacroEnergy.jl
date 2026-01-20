@@ -13,7 +13,9 @@ end
 function default_myopic_settings()
     return Dict(
         :ReturnModels => false,
-        :WriteModelLP => false
+        :WriteModelLP => false,
+        :Restart => Dict(:enabled=>false, :path => "results_001/period_1", :from_period => 1),
+        :PeriodTermination => nothing
     )
 end
 
