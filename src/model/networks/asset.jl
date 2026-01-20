@@ -192,3 +192,31 @@ function edges_with_capacity_variables(asset::AbstractAsset; return_ids_map::Boo
         return AbstractEdge[edge for edge in get_edges(asset) if has_capacity(edge)]
     end
 end
+
+function storages_with_capacity_variables(assets::Vector{<:AbstractAsset}; return_ids_map::Bool=false)
+    if return_ids_map
+        all_storages = Vector{Vector{AbstractStorage}}(undef, length(assets))
+        all_storage_asset_map = Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+        for i in eachindex(assets)
+            asset = assets[i]
+            storages, storage_asset_map = storages_with_capacity_variables(asset, return_ids_map=true)
+            all_storages[i] = storages
+            merge!(all_storage_asset_map, storage_asset_map)
+        end
+        return reduce(vcat, all_storages), all_storage_asset_map
+    else
+        return reduce(vcat, [storages_with_capacity_variables(asset) for asset in assets])
+    end
+end
+function storages_with_capacity_variables(asset::AbstractAsset; return_ids_map::Bool=false)
+    if return_ids_map
+        storages, storage_asset_map = get_storages(asset, return_ids_map=true)
+        #### Note that all storages have capacity variables
+        storages_with_capacity = storages
+        #### storages_with_capacity = storages_with_capacity_variables(storages)
+        storages_with_capacity_asset_map = filter(storage -> storage[1] in id.(storages_with_capacity), storage_asset_map)
+        return storages_with_capacity, storages_with_capacity_asset_map
+    else
+        return AbstractStorage[storage for storage in get_storages(asset)]
+    end
+end

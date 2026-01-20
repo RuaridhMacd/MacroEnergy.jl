@@ -289,6 +289,20 @@ function edges_with_capacity_variables(system::System; return_ids_map::Bool=fals
     end
 end
 
+# Function to extract the storages with capacity variables from a system.
+# If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.  
+function storages_with_capacity_variables(system::System; return_ids_map::Bool=false)
+    if return_ids_map
+        storages_with_capacity, storages_with_capacity_asset_map = get_storage(system, return_ids_map=true)
+        ### Note: we do not need the below as every storage has capacity variables
+        ##### storages_with_capacity = storages_with_capacity_variables(storages)
+        ##### storages_with_capacity_asset_map = filter(storage -> storage[1] in id.(storages_with_capacity), storage_asset_map)
+        return storages_with_capacity, storages_with_capacity_asset_map
+    else
+        return storages_with_capacity_variables(system.assets)
+    end
+end
+
 function asset_ids_from_file(asset_file::AbstractString, ids::Set{AssetId}=Set{AssetId}())
     if !isfile(asset_file)
         @error("Asset file $asset_file not found")
