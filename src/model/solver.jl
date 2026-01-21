@@ -85,13 +85,8 @@ function ensure_duals_available!(model::Model)
     # Fix integer and binary variables to their current values
     fix_discrete_variables(model);
     
-    # Re-solve the LP model silently
-    was_silent = get_attribute(model, MOI.Silent())
-    set_silent(model)
+    # Re-solve the LP model
     optimize!(model)
-    
-    # Restore original silent setting if it was not already set
-    was_silent || unset_silent(model)
     
     # Verify that duals are now available
     assert_is_solved_and_feasible(model)
