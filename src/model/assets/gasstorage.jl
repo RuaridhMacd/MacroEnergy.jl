@@ -36,6 +36,7 @@ function full_default_data(::Type{GasStorage}, id=missing)
         :storage => @storage_data(
             :commodity => missing,
             :constraints => Dict{Symbol, Bool}(
+                :BalanceConstraint => true,
                 :StorageCapacityConstraint => true,
             ),
         ),
