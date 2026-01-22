@@ -25,14 +25,13 @@ function full_default_data(::Type{ThermalAmmoniaCCS}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Ammonia",
-            :emission_rate => 0.0091,            # 5% CO2 emission rate, 0.181048235160161 tons CO2 per MWh of CH4
-            :capture_rate => 0.17195,             # 95% CO2 capture rate
-            :electricity_consumption => 0.07342, # data from the literature https://www.sciencedirect.com/science/article/pii/S0306261920313453, 1.93 times the electricity consumption of a thermalammonia without CCS
-            :fuel_consumption => 1.3095,        # MWh of CH4
-            :investment_cost => 2720959.03, # 130% of the investment cost of a thermalammonia without CCS
-            :fixed_om_cost => 109232.584,
-            :variable_om_cost => 1.17195,
-            :lifetime => 30,
+            :emission_rate => 0.0,
+            :capture_rate => 0.0,
+            :electricity_consumption => 0.0,
+            :fuel_consumption => 0.0,
+            :investment_cost => 0.0,
+            :fixed_om_cost => 0.0,
+            :variable_om_cost => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -77,13 +76,13 @@ function simple_default_data(::Type{ThermalAmmoniaCCS}, id=missing)
         :fuel_commodity => "NaturalGas",
         :co2_sink => missing,
         :uc => false,
-        :investment_cost => 2720959.03,
-        :fixed_om_cost => 109232.584,
-        :variable_om_cost => 1.17195,
-        :fuel_consumption => 1.3095,
-        :electricity_consumption => 0.07342,
-        :emission_rate => 0.0091,
-        :capture_rate => 0.17195,
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
+        :fuel_consumption => 0.0,
+        :electricity_consumption => 0.0,
+        :emission_rate => 0.0,
+        :capture_rate => 0.0,
     )
 end
 
@@ -274,19 +273,19 @@ function make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any
 
     thermalammoniaccs_transform.balance_data = Dict(
         :energy => Dict(
-            nh3_edge.id => get(transform_data, :fuel_consumption, 1.3095),
+            nh3_edge.id => get(transform_data, :fuel_consumption, 0.0),
             fuel_edge.id => 1.0,
         ),
         :electricity => Dict(
-            nh3_edge.id => get(transform_data, :electricity_consumption, 0.07342),
+            nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
             elec_edge.id => 1.0
         ),
         :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0091),
+            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
             co2_edge.id => 1.0,
         ),
         :capture => Dict(
-            fuel_edge.id => get(transform_data, :capture_rate, 0.17195),
+            fuel_edge.id => get(transform_data, :capture_rate, 0.0),
             co2_captured_edge.id => 1.0,
         ),
     )

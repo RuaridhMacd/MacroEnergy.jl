@@ -21,14 +21,13 @@ function full_default_data(::Type{SyntheticMethanol}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Methanol",
-            :electricity_consumption => 0.271, # Source: DECHEMA 2017: DECHEMA: Low carbon energy and feedstock for the European chemical industry (https://dechema.de/dechema_media/Downloads/Positionspapiere/Technology_study_Low_carbon_energy_and_feedstock_for_the_European_chemical_industry.pdf) , pg. 65.
-            :h2_consumption => 1.138,
-            :co2_consumption => 0.248,
-            :emission_rate => 0.10,
-            :investment_cost => 685961.676, # 2017 USD, Source: Agora Energiewende (2018): The Future Cost of Electricity-Based Synthetic Fuels (https://www.agora-energiewende.de/en/publications/the-future-cost-of-electricity-based-synthetic-fuels-1/), section 6.3.2.1.
-            :fixed_om_cost => 1175.6697,
-            :variable_om_cost => 0.0121, # assumed to be same proportion as the fixed OM cost
-            :lifetime => 20,
+            :electricity_consumption => 0.0,
+            :h2_consumption => 0.0,
+            :co2_consumption => 0.0,
+            :emission_rate => 0.0,
+            :investment_cost => 0.0,
+            :fixed_om_cost => 0.0,
+            :variable_om_cost => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -67,14 +66,13 @@ function simple_default_data(::Type{SyntheticMethanol}, id=missing)
         :can_expand => true,
         :can_retire => true,
         :existing_capacity => 0.0,
-        :electricity_consumption => 0.271,
-        :h2_consumption => 1.138,
-        :co2_consumption => 0.248,
-        :emission_rate => 0.10,
-        :investment_cost => 685961.676,
-        :fixed_om_cost => 1175.6697,
-        :variable_om_cost => 0.0121,
-        :lifetime => 20,
+        :electricity_consumption => 0.0,
+        :h2_consumption => 0.0,
+        :co2_consumption => 0.0,
+        :emission_rate => 0.0,
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
     )
 end
 
@@ -237,19 +235,19 @@ function make(asset_type::Type{SyntheticMethanol}, data::AbstractDict{Symbol,Any
 
     synthetic_methanol_transform.balance_data = Dict(
         :co2_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :co2_consumption, 0.248),
+            ch3oh_edge.id => get(transform_data, :co2_consumption, 0.0),
             co2_captured_edge.id => 1.0,
         ),
         :elec_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.271),
+            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
             elec_edge.id => 1.0,
         ),
         :h2_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :h2_consumption, 1.138),
+            ch3oh_edge.id => get(transform_data, :h2_consumption, 0.0),
             h2_edge.id => 1.0,
         ),
         :emissions => Dict(
-            co2_captured_edge.id => get(transform_data, :emission_rate, 0.10),
+            co2_captured_edge.id => get(transform_data, :emission_rate, 0.0),
             co2_emission_edge.id => 1.0
         )
     )

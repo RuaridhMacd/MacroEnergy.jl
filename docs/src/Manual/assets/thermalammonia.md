@@ -144,10 +144,10 @@ The following tables outline the attributes that can be set for a Thermal Ammoni
 #### [Conversion Process Parameters](@id thermalammonia_conversion_process_parameters)
 | Field | Type | Description | Units | Default (without CCS) | Default (with CCS) |
 |--------------|---------|------------|----------------|----------------------|-------------------|
-| `fuel_consumption` | Float64 | Fuel consumption per MWh of ammonia output | $MWh_{fuel}/MWh_{NH_3}$ | 1.3095 | 1.3095 |
-| `electricity_consumption` | Float64 | Electricity consumption per MWh of ammonia output | $MWh_{elec}/MWh_{NH_3}$ | 0.03787 | 0.07342 |
-| `emission_rate` | Float64 | CO₂ emissions per MWh of fuel input | $t_{CO_2}/MWh_{fuel}$ | 0.181048235160161 | 0.0091 |
-| `capture_rate` | Float64 | CO₂ capture rate per MWh of fuel input **(CCS only)** | $t_{CO_2}/MWh_{fuel}$ | - | 0.17195 |
+| `fuel_consumption` | Float64 | Fuel consumption per MWh of ammonia output | $MWh_{fuel}/MWh_{NH_3}$ | 0.0 | 0.0 |
+| `electricity_consumption` | Float64 | Electricity consumption per MWh of ammonia output | $MWh_{elec}/MWh_{NH_3}$ | 0.0 | 0.0 |
+| `emission_rate` | Float64 | CO₂ emissions per MWh of fuel input | $t_{CO_2}/MWh_{fuel}$ | 0.0 | 0.0 |
+| `capture_rate` | Float64 | CO₂ capture rate per MWh of fuel input **(CCS only)** | $t_{CO_2}/MWh_{fuel}$ | - | 0.0 |
 
 #### General Attributes
 
@@ -177,10 +177,9 @@ The following tables outline the attributes that can be set for a Thermal Ammoni
 #### Economic Parameters
 | Field | Type | Description | Units | Default (without CCS) | Default (with CCS) |
 |--------------|---------|------------|----------------|----------------------|-------------------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 2,093,045.41 | 2,720,959.03 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 84,025.0649 | 109,232.584 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh NH₃ | 0.9015 | 1.17195 |
-| `lifetime` | Float64 | Asset lifetime | years | 30 | 30 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh NH₃ | 0.0 | 0.0 |
 
 ### [Constraints Configuration](@id thermalammonia_constraints)
 
@@ -272,15 +271,15 @@ make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any}, system
 ```julia
 thermalammonia_transform.balance_data = Dict(
     :energy => Dict(
-        nh3_edge.id => get(transform_data, :fuel_consumption, 1.3095),
+        nh3_edge.id => get(transform_data, :fuel_consumption, 0.0),
         fuel_edge.id => 1.0,
     ),
     :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.03787),
+        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0
     ),
     :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.181048235160161),
+        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
         co2_edge.id => 1.0,
     ),
 )
@@ -291,19 +290,19 @@ thermalammonia_transform.balance_data = Dict(
 ```julia
 thermalammoniaccs_transform.balance_data = Dict(
     :energy => Dict(
-        nh3_edge.id => get(transform_data, :fuel_consumption, 1.3095),
+        nh3_edge.id => get(transform_data, :fuel_consumption, 0.0),
         fuel_edge.id => 1.0,
     ),
     :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.07342),
+        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0
     ),
     :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.0091),
+        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
         co2_edge.id => 1.0,
     ),
     :capture => Dict(
-        fuel_edge.id => get(transform_data, :capture_rate, 0.17195),
+        fuel_edge.id => get(transform_data, :capture_rate, 0.0),
         co2_captured_edge.id => 1.0,
     ),
 )

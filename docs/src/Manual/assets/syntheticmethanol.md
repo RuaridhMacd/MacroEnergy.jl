@@ -101,10 +101,10 @@ The following tables outline the attributes that can be set for a Synthetic Meth
 #### [Conversion Process Parameters](@id syntheticmethanol_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `h2_consumption` | Float64 | Hydrogen consumption per MWh of methanol output | $MWh_{H_2}/MWh_{CH_3OH}$ | 1.138 |
-| `co2_consumption` | Float64 | Captured CO₂ consumption per MWh of methanol output | $t_{CO_2}/MWh_{CH_3OH}$ | 0.248 |
-| `electricity_consumption` | Float64 | Electricity consumption per MWh of methanol output | $MWh_{elec}/MWh_{CH_3OH}$ | 0.271 |
-| `emission_rate` | Float64 | CO₂ emission rate (as fraction of consumed CO₂) | - | 0.10 |
+| `h2_consumption` | Float64 | Hydrogen consumption per MWh of methanol output | $MWh_{H_2}/MWh_{CH_3OH}$ | 0.0 |
+| `co2_consumption` | Float64 | Captured CO₂ consumption per MWh of methanol output | $t_{CO_2}/MWh_{CH_3OH}$ | 0.0 |
+| `electricity_consumption` | Float64 | Electricity consumption per MWh of methanol output | $MWh_{elec}/MWh_{CH_3OH}$ | 0.0 |
+| `emission_rate` | Float64 | CO₂ emission rate (as fraction of consumed CO₂) | - | 0.0 |
 
 #### General Attributes
 
@@ -131,10 +131,9 @@ The following tables outline the attributes that can be set for a Synthetic Meth
 #### Economic Parameters
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 685,961.676 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 1,175.6697 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh CH₃OH | 0.0121 |
-| `lifetime` | Float64 | Asset lifetime | years | 20 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh CH₃OH | 0.0 |
 
 ### [Constraints Configuration](@id syntheticmethanol_constraints)
 
@@ -204,19 +203,19 @@ make(asset_type::Type{SyntheticMethanol}, data::AbstractDict{Symbol,Any}, system
 ```julia
 synthetic_methanol_transform.balance_data = Dict(
     :co2_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :co2_consumption, 0.248),
+        ch3oh_edge.id => get(transform_data, :co2_consumption, 0.0),
         co2_captured_edge.id => 1.0,
     ),
     :elec_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.271),
+        ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0,
     ),
     :h2_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :h2_consumption, 1.138),
+        ch3oh_edge.id => get(transform_data, :h2_consumption, 0.0),
         h2_edge.id => 1.0,
     ),
     :emissions => Dict(
-        co2_captured_edge.id => get(transform_data, :emission_rate, 0.10),
+        co2_captured_edge.id => get(transform_data, :emission_rate, 0.0),
         co2_emission_edge.id => 1.0
     )
 )

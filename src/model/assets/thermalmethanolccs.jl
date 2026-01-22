@@ -25,14 +25,13 @@ function full_default_data(::Type{ThermalMethanolCCS}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Methanol",
-            :electricity_consumption => 0.0,  # -0.10 MWh per MWh of Methanol. Source: https://www.osti.gov/biblio/1601964
-            :fuel_consumption => 1.7158,         # 103% of the fuel consumption of a thermalmethanol without CCS
-            :emission_rate => 0.0110645539,              # tons CO2 per MWh of CH3OH (1ton/ton)
-            :capture_rate => 0.099576,             # 90% CO2 capture rate of a thermalmethanol without CCS
-            :investment_cost => 981373.863, # 2011 USD, 105% of the investment cost of a thermalmethanol without CCS
-            :fixed_om_cost => 39328.8, # 2011 USD, 105% of the fixed OM cost of a thermalmethanol without CCS
-            :variable_om_cost => 1.924125, # 2011 USD, 105% of the variable OM cost of a thermalmethanol without CCS
-            :lifetime => 30,
+            :electricity_consumption => 0.0,
+            :fuel_consumption => 0.0,
+            :emission_rate => 0.0,
+            :capture_rate => 0.0,
+            :investment_cost => 0.0,
+            :fixed_om_cost => 0.0,
+            :variable_om_cost => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -77,13 +76,13 @@ function simple_default_data(::Type{ThermalMethanolCCS}, id=missing)
         :fuel_commodity => "NaturalGas",
         :co2_sink => missing,
         :uc => false,
-        :investment_cost => 981373.863, # 105% of the investment cost of a thermalmethanol without CCS
-        :fixed_om_cost => 39328.8, # 105% of the fixed OM cost of a thermalmethanol without CCS
-        :variable_om_cost => 1.924125, # 105% of the variable OM cost of a thermalmethanol without CCS
-        :fuel_consumption => 1.7158, # 103% of the fuel consumption of a thermalmethanol without CCS
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
+        :fuel_consumption => 0.0,
         :electricity_consumption => 0.0,
-        :emission_rate => 0.0110645539,
-        :capture_rate => 0.099576,
+        :emission_rate => 0.0,
+        :capture_rate => 0.0,
     )
 end
 
@@ -274,7 +273,7 @@ function make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,An
 
     thermalmethanolccs_transform.balance_data = Dict(
         :energy => Dict(
-            ch3oh_edge.id => get(transform_data, :fuel_consumption, 1.7158),
+            ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
             fuel_edge.id => 1.0,
         ),
         :electricity => Dict(
@@ -282,11 +281,11 @@ function make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,An
             elec_edge.id => 1.0
         ),
         :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0110645539),
+            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
             co2_edge.id => 1.0,
         ),
         :capture => Dict(
-            fuel_edge.id => get(transform_data, :capture_rate, 0.099576),
+            fuel_edge.id => get(transform_data, :capture_rate, 0.0),
             co2_captured_edge.id => 1.0,
         ),
     )

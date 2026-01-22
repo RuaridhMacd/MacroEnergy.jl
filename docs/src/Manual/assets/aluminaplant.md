@@ -105,10 +105,10 @@ The following tables outline the attributes that can be set for an Alumina Plant
 #### [Conversion Process Parameters](@id aluminaplant_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `elec_alumina_rate` | Float64 | Electricity consumption per tonne of alumina output | $MWh_{elec}/t_{Al_2O_3}$ | 0.15 |
-| `bauxite_alumina_rate` | Float64 | Bauxite consumption per tonne of alumina output | $t_{bauxite}/t_{Al_2O_3}$ | 2.4 |
-| `fuel_alumina_rate` | Float64 | Fuel consumption per tonne of alumina output | $MWh_{fuel}/t_{Al_2O_3}$ | 2.917 |
-| `fuel_emissions_rate` | Float64 | CO₂ emissions per MWh of fuel input | $t_{CO_2}/MWh_{fuel}$ | 0.181048235160161 |
+| `elec_alumina_rate` | Float64 | Electricity consumption per tonne of alumina output | $MWh_{elec}/t_{Al_2O_3}$ | 0.0 |
+| `bauxite_alumina_rate` | Float64 | Bauxite consumption per tonne of alumina output | $t_{bauxite}/t_{Al_2O_3}$ | 0.0 |
+| `fuel_alumina_rate` | Float64 | Fuel consumption per tonne of alumina output | $MWh_{fuel}/t_{Al_2O_3}$ | 0.0 |
+| `fuel_emissions_rate` | Float64 | CO₂ emissions per MWh of fuel input | $t_{CO_2}/MWh_{fuel}$ | 0.0 |
 
 #### General Attributes
 
@@ -138,12 +138,9 @@ The following tables outline the attributes that can be set for an Alumina Plant
 #### Economic Parameters
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 3,600,000 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 613,200 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al₂O₃ | 30 |
-| `lifetime` | Float64 | Asset lifetime | years | 20 |
-| `wacc` | Float64 | Weighted average cost of capital | fraction | 0.039 |
-| `capital_recovery_period` | Float64 | Capital recovery period | years | 20 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al₂O₃ | 0.0 |
 
 ### [Constraints Configuration](@id aluminaplant_constraints)
 
@@ -218,22 +215,22 @@ aluminaplant_transform.balance_data = Dict(
         elec_edge.id => 1.0,
         fuel_edge.id => 0.0,
         bauxite_edge.id => 0.0,
-        alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.15)
-    ),
-    :bauxite_to_alumina => Dict(
-        elec_edge.id => 0.0,
-        fuel_edge.id => 0.0,
-        bauxite_edge.id => 1.0,
-        alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 2.4)
-    ),
-    :fuel_to_alumina => Dict(
-        elec_edge.id => 0.0,
-        fuel_edge.id => 1.0,
-        bauxite_edge.id => 0.0,
-        alumina_edge.id => get(transform_data, :fuel_alumina_rate, 2.917)
-    ),
-    :emissions => Dict(
-        fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.181048235160161),
+        alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.0)
+        ),
+        :bauxite_to_alumina => Dict(
+            elec_edge.id => 0.0,
+            fuel_edge.id => 0.0,
+            bauxite_edge.id => 1.0,
+            alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 0.0)
+        ),
+        :fuel_to_alumina => Dict(
+            elec_edge.id => 0.0,
+            fuel_edge.id => 1.0,
+            bauxite_edge.id => 0.0,
+            alumina_edge.id => get(transform_data, :fuel_alumina_rate, 0.0)
+        ),
+        :emissions => Dict(
+            fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.0),
         co2_edge.id => 1.0
     )
 )

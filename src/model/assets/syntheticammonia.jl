@@ -20,13 +20,12 @@ function full_default_data(::Type{SyntheticAmmonia}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Ammonia",
-            :h2_consumption => 1.1484, # Source: DECHEMA 2017: Low carbon energy and feedstock for the European chemical industry (https://dechema.de/dechema_media/Downloads/Positionspapiere/Technology_study_Low_carbon_energy_and_feedstock_for_the_European_chemical_industry.pdf), table 11.
-            :n2_consumption => 0.1597,
-            :electricity_consumption => 0.2473,
-            :investment_cost => 1461749.91, # 2015 $ USD, Source: Danish Energy Agency, inputs/data_sheets_for_renewable_fuels.xlsx
-            :fixed_om_cost => 2512.7481, # 2015 $ USD, Source: Danish Energy Agency, inputs/data_sheets_for_renewable_fuels.xlsx
-            :variable_om_cost => 0.02027,
-            :lifetime => 30,
+            :h2_consumption => 0.0,
+            :n2_consumption => 0.0,
+            :electricity_consumption => 0.0,
+            :investment_cost => 0.0,
+            :fixed_om_cost => 0.0,
+            :variable_om_cost => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -61,13 +60,12 @@ function simple_default_data(::Type{SyntheticAmmonia}, id=missing)
         :can_expand => true,
         :can_retire => true,
         :existing_capacity => 0.0,
-        :h2_consumption => 1.1484,
-        :n2_consumption => 0.1597,
-        :electricity_consumption => 0.2473,
-        :investment_cost => 1461749.91,
-        :fixed_om_cost => 2512.7481,
-        :variable_om_cost => 0.02027,
-        :lifetime =>30,
+        :h2_consumption => 0.0,
+        :n2_consumption => 0.0,
+        :electricity_consumption => 0.0,
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
     )
 end
 
@@ -199,15 +197,15 @@ function make(asset_type::Type{SyntheticAmmonia}, data::AbstractDict{Symbol,Any}
 
     synthetic_ammonia_transform.balance_data = Dict(
         :hydrogen => Dict(
-            nh3_edge.id => get(transform_data, :h2_consumption, 0.178),
+            nh3_edge.id => get(transform_data, :h2_consumption, 0.0),
             h2_edge.id => 1.0,
         ),
         :nitrogen => Dict(
-            nh3_edge.id => get(transform_data, :n2_consumption, 0.8251),
+            nh3_edge.id => get(transform_data, :n2_consumption, 0.0),
             n2_edge.id => 1.0,
         ),
         :electricity => Dict(
-            nh3_edge.id => get(transform_data, :electricity_consumption, 1.278),
+            nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
             elec_edge.id => 1.0
         ),
     )

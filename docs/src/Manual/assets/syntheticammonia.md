@@ -95,9 +95,9 @@ The following tables outline the attributes that can be set for a Synthetic Ammo
 #### [Conversion Process Parameters](@id syntheticammonia_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `h2_consumption` | Float64 | Hydrogen consumption per MWh of ammonia output | $MWh_{H_2}/MWh_{NH_3}$ | 1.1484 |
-| `n2_consumption` | Float64 | Nitrogen consumption per MWh of ammonia output | $t_{N_2}/MWh_{NH_3}$ | 0.1597 |
-| `electricity_consumption` | Float64 | Electricity consumption per MWh of ammonia output | $MWh_{elec}/MWh_{NH_3}$ | 0.2473 |
+| `h2_consumption` | Float64 | Hydrogen consumption per MWh of ammonia output | $MWh_{H_2}/MWh_{NH_3}$ | 0.0 |
+| `n2_consumption` | Float64 | Nitrogen consumption per MWh of ammonia output | $t_{N_2}/MWh_{NH_3}$ | 0.0 |
+| `electricity_consumption` | Float64 | Electricity consumption per MWh of ammonia output | $MWh_{elec}/MWh_{NH_3}$ | 0.0 |
 
 #### General Attributes
 
@@ -124,10 +124,9 @@ The following tables outline the attributes that can be set for a Synthetic Ammo
 #### Economic Parameters
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 1,461,749.91 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 2,512.7481 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh NH₃ | 0.02027 |
-| `lifetime` | Float64 | Asset lifetime | years | 30 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh NH₃ | 0.0 |
 
 ### [Constraints Configuration](@id syntheticammonia_constraints)
 
@@ -196,15 +195,15 @@ make(asset_type::Type{SyntheticAmmonia}, data::AbstractDict{Symbol,Any}, system:
 ```julia
 synthetic_ammonia_transform.balance_data = Dict(
     :hydrogen => Dict(
-        nh3_edge.id => get(transform_data, :h2_consumption, 1.1484),
+        nh3_edge.id => get(transform_data, :h2_consumption, 0.0),
         h2_edge.id => 1.0,
     ),
     :nitrogen => Dict(
-        nh3_edge.id => get(transform_data, :n2_consumption, 0.1597),
+        nh3_edge.id => get(transform_data, :n2_consumption, 0.0),
         n2_edge.id => 1.0,
     ),
     :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.2473),
+        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0
     ),
 )

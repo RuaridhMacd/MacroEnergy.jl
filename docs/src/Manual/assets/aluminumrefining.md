@@ -93,8 +93,8 @@ The following tables outline the attributes that can be set for an Aluminum Refi
 #### [Conversion Process Parameters](@id aluminumrefining_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `elec_aluminum_rate` | Float64 | Electricity consumption per tonne of aluminum output | $MWh_{elec}/t_{Al}$ | 2.0 |
-| `aluminumscrap_aluminum_rate` | Float64 | Aluminum scrap consumption per tonne of aluminum output (includes 5% loss) | $t_{scrap}/t_{Al}$ | 1.05 |
+| `elec_aluminum_rate` | Float64 | Electricity consumption per tonne of aluminum output | $MWh_{elec}/t_{Al}$ | 0.0 |
+| `aluminumscrap_aluminum_rate` | Float64 | Aluminum scrap consumption per tonne of aluminum output (includes 5% loss) | $t_{scrap}/t_{Al}$ | 0.0 |
 
 #### General Attributes
 
@@ -121,12 +121,9 @@ The following tables outline the attributes that can be set for an Aluminum Refi
 #### Economic Parameters
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 2,400,000 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 420,000 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al | 123 |
-| `lifetime` | Float64 | Asset lifetime | years | 20 |
-| `wacc` | Float64 | Weighted average cost of capital | fraction | 0.039 |
-| `capital_recovery_period` | Float64 | Capital recovery period | years | 20 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al | 0.0 |
 
 ### [Constraints Configuration](@id aluminumrefining_constraints)
 
@@ -196,12 +193,12 @@ aluminumrefining_transform.balance_data = Dict(
     :elec_to_aluminum => Dict(
         elec_edge.id => 1.0,
         aluminumscrap_edge.id => 0.0,
-        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 2.0)
-    ),
-    :aluminumscrap_to_aluminum => Dict(
-        elec_edge.id => 0.0,
-        aluminumscrap_edge.id => 1.0,
-        aluminum_edge.id => get(transform_data, :aluminumscrap_aluminum_rate, 1.05)
+        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 0.0)
+        ),
+        :aluminumscrap_to_aluminum => Dict(
+            elec_edge.id => 0.0,
+            aluminumscrap_edge.id => 1.0,
+            aluminum_edge.id => get(transform_data, :aluminumscrap_aluminum_rate, 0.0)
     )
 )
 ```

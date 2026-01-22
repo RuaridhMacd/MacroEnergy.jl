@@ -145,10 +145,10 @@ The following tables outline the attributes that can be set for a Thermal Methan
 #### [Conversion Process Parameters](@id thermalmethanol_conversion_process_parameters)
 | Field | Type | Description | Units | Default (without CCS) | Default (with CCS) |
 |--------------|---------|------------|----------------|----------------------|-------------------|
-| `fuel_consumption` | Float64 | Fuel consumption per MWh of methanol output | $MWh_{fuel}/MWh_{CH_3OH}$ | 1.66586 | 1.7158 |
-| `electricity_consumption` | Float64 | Net electricity production (negative) or consumption per MWh of methanol output | $MWh_{elec}/MWh_{CH_3OH}$ | -0.10 | 0.0 |
-| `emission_rate` | Float64 | CO₂ emissions per MWh of methanol output (without CCS) or residual emissions (with CCS) | $t_{CO_2}/MWh_{CH_3OH}$ | 0.110645539 | 0.0110645539 |
-| `capture_rate` | Float64 | CO₂ capture rate per MWh of fuel input **(CCS only)** | $t_{CO_2}/MWh_{fuel}$ | - | 0.099576 |
+| `fuel_consumption` | Float64 | Fuel consumption per MWh of methanol output | $MWh_{fuel}/MWh_{CH_3OH}$ | 0.0 | 0.0 |
+| `electricity_consumption` | Float64 | Net electricity production (negative) or consumption per MWh of methanol output | $MWh_{elec}/MWh_{CH_3OH}$ | 0.0 | 0.0 |
+| `emission_rate` | Float64 | CO₂ emissions per MWh of methanol output (without CCS) or residual emissions (with CCS) | $t_{CO_2}/MWh_{CH_3OH}$ | 0.0 | 0.0 |
+| `capture_rate` | Float64 | CO₂ capture rate per MWh of fuel input **(CCS only)** | $t_{CO_2}/MWh_{fuel}$ | - | 0.0 |
 
 #### General Attributes
 
@@ -181,10 +181,9 @@ The following tables outline the attributes that can be set for a Thermal Methan
 #### Economic Parameters
 | Field | Type | Description | Units | Default (without CCS) | Default (with CCS) |
 |--------------|---------|------------|----------------|----------------------|-------------------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 934,641.774 | 981,373.863 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 37,456.44 | 39,328.8 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh CH₃OH | 1.8325 | 1.924125 |
-| `lifetime` | Float64 | Asset lifetime | years | 30 | 30 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh CH₃OH | 0.0 | 0.0 |
 
 ### [Constraints Configuration](@id thermalmethanol_constraints)
 
@@ -276,15 +275,15 @@ make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,Any}, syste
 ```julia
 thermalmethanol_transform.balance_data = Dict(
     :energy => Dict(
-        ch3oh_edge.id => get(transform_data, :fuel_consumption, 1.66586),
+        ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
         fuel_edge.id => 1.0,
     ),
     :electricity => Dict(
-        ch3oh_edge.id => get(transform_data, :electricity_consumption, -0.10),
+        ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
         elec_edge.id => 1.0
     ),
     :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.110645539),
+        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
         co2_edge.id => 1.0,
     ),
 )
@@ -295,7 +294,7 @@ thermalmethanol_transform.balance_data = Dict(
 ```julia
 thermalmethanolccs_transform.balance_data = Dict(
     :energy => Dict(
-        ch3oh_edge.id => get(transform_data, :fuel_consumption, 1.7158),
+        ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
         fuel_edge.id => 1.0,
     ),
     :electricity => Dict(
@@ -303,11 +302,11 @@ thermalmethanolccs_transform.balance_data = Dict(
         elec_edge.id => 1.0
     ),
     :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.0110645539),
+        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
         co2_edge.id => 1.0,
     ),
     :capture => Dict(
-        fuel_edge.id => get(transform_data, :capture_rate, 0.099576),
+        fuel_edge.id => get(transform_data, :capture_rate, 0.0),
         co2_captured_edge.id => 1.0,
     ),
 )

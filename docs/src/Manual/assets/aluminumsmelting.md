@@ -105,10 +105,10 @@ The following tables outline the attributes that can be set for an Aluminum Smel
 #### [Conversion Process Parameters](@id aluminumsmelting_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `elec_aluminum_rate` | Float64 | Electricity consumption per tonne of aluminum output | $MWh_{elec}/t_{Al}$ | 13.3 |
-| `alumina_aluminum_rate` | Float64 | Alumina consumption per tonne of aluminum output | $t_{Al_2O_3}/t_{Al}$ | 1.93 |
-| `graphite_aluminum_rate` | Float64 | Graphite consumption per tonne of aluminum output | $t_{graphite}/t_{Al}$ | 0.45 |
-| `graphite_emissions_rate` | Float64 | CO₂ emissions per tonne of graphite input | $t_{CO_2}/t_{graphite}$ | 3.67 |
+| `elec_aluminum_rate` | Float64 | Electricity consumption per tonne of aluminum output | $MWh_{elec}/t_{Al}$ | 0.0 |
+| `alumina_aluminum_rate` | Float64 | Alumina consumption per tonne of aluminum output | $t_{Al_2O_3}/t_{Al}$ | 0.0 |
+| `graphite_aluminum_rate` | Float64 | Graphite consumption per tonne of aluminum output | $t_{graphite}/t_{Al}$ | 0.0 |
+| `graphite_emissions_rate` | Float64 | CO₂ emissions per tonne of graphite input | $t_{CO_2}/t_{graphite}$ | 0.0 |
 
 #### General Attributes
 
@@ -138,13 +138,10 @@ The following tables outline the attributes that can be set for an Aluminum Smel
 #### Economic Parameters
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 12,000,000 |
-| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 2,040,000 |
-| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al | 62 |
-| `lifetime` | Float64 | Asset lifetime | years | 20 |
-| `wacc` | Float64 | Weighted average cost of capital | fraction | 0.039 |
-| `capital_recovery_period` | Float64 | Capital recovery period | years | 20 |
-| `startup_cost` | Float64 | Startup cost | \$ | 1,469,798 |
+| `investment_cost` | Float64 | CAPEX per unit capacity | \$/MW | 0.0 |
+| `fixed_om_cost` | Float64 | Fixed O&M costs | \$/MW-yr | 0.0 |
+| `variable_om_cost` | Float64 | Variable O&M costs | \$/MWh Al | 0.0 |
+| `startup_cost` | Float64 | Startup cost | \$ | 0.0 |
 
 ### [Constraints Configuration](@id aluminumsmelting_constraints)
 
@@ -217,22 +214,22 @@ aluminumsmelting_transform.balance_data = Dict(
         elec_edge.id => 1.0,
         alumina_edge.id => 0.0,
         graphite_edge.id => 0.0,
-        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 13.3)
-    ),
-    :alumina_to_aluminum => Dict(
-        elec_edge.id => 0.0,
-        alumina_edge.id => 1.0,
-        graphite_edge.id => 0.0,
-        aluminum_edge.id => get(transform_data, :alumina_aluminum_rate, 1.93)
-    ),
-    :graphite_to_aluminum => Dict(
-        elec_edge.id => 0.0,
-        alumina_edge.id => 0.0,
-        graphite_edge.id => 1.0,
-        aluminum_edge.id => get(transform_data, :graphite_aluminum_rate, 0.45)
-    ),
-    :emissions => Dict(
-        graphite_edge.id => get(transform_data, :graphite_emissions_rate, 3.67),
+        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 0.0)
+        ),
+        :alumina_to_aluminum => Dict(
+            elec_edge.id => 0.0,
+            alumina_edge.id => 1.0,
+            graphite_edge.id => 0.0,
+            aluminum_edge.id => get(transform_data, :alumina_aluminum_rate, 0.0)
+        ),
+        :graphite_to_aluminum => Dict(
+            elec_edge.id => 0.0,
+            alumina_edge.id => 0.0,
+            graphite_edge.id => 1.0,
+            aluminum_edge.id => get(transform_data, :graphite_aluminum_rate, 0.0)
+        ),
+        :emissions => Dict(
+            graphite_edge.id => get(transform_data, :graphite_emissions_rate, 0.0),
         co2_edge.id => 1.0
     )
 )

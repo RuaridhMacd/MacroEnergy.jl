@@ -24,13 +24,12 @@ function full_default_data(::Type{ThermalMethanol}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Methanol",
-            :electricity_consumption => -0.10,  # -0.10 MWh per MWh of Methanol. Source: https://www.osti.gov/biblio/1601964
-            :fuel_consumption => 1.66586,         # 1.66586 MWh of CH4 per MWh of CH3OH
-            :emission_rate => 0.110645539,              # tons CO2 per MWh of CH3OH (1ton/ton)
-            :investment_cost => 934641.774, # 2011 USD, scale: plant cost of 2,172 MUSD
-            :fixed_om_cost => 37456.44,
-            :variable_om_cost => 1.8325,
-            :lifetime => 30,
+            :electricity_consumption => 0.0,
+            :fuel_consumption => 0.0,
+            :emission_rate => 0.0,
+            :investment_cost => 0.0,
+            :fixed_om_cost => 0.0,
+            :variable_om_cost => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -67,17 +66,17 @@ function simple_default_data(::Type{ThermalMethanol}, id=missing)
         :can_expand => true,
         :can_retire => true,
         :existing_capacity => 0.0,
-        :capacity_size => 0.0,
+        :capacity_size => 1.0,
         :timedata => "NaturalGas",
         :fuel_commodity => "NaturalGas",
         :co2_sink => missing,
         :uc => false,
-        :investment_cost => 934641.774,
-        :fixed_om_cost => 37456.44,
-        :variable_om_cost => 1.8325,
-        :fuel_consumption => 1.66586,
-        :electricity_consumption => -0.10,
-        :emission_rate => 0.110645539,
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
+        :fuel_consumption => 0.0,
+        :electricity_consumption => 0.0,
+        :emission_rate => 0.0,
     )
 end
 
@@ -242,15 +241,15 @@ function make(asset_type::Type{ThermalMethanol}, data::AbstractDict{Symbol,Any},
 
     thermalmethanol_transform.balance_data = Dict(
         :energy => Dict(
-            ch3oh_edge.id => get(transform_data, :fuel_consumption, 1.66586),
+            ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
             fuel_edge.id => 1.0,
         ),
         :electricity => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, -0.10),
+            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
             elec_edge.id => 1.0
         ),
         :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.110645539),
+            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
             co2_edge.id => 1.0,
         ),
     )
