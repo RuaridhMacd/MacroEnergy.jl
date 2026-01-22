@@ -178,7 +178,7 @@ Users can refer to the [Adding Asset Constraints to a System](@ref) section of t
 #### Default constraints
 To simplify the input file and the asset configuration, the following constraints are applied to the gas storage asset by default:
 
-- [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
+- [Balance constraint](@ref balance_constraint_ref) (applied to the transformation and storage components)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to both charge and discharge edges)
 - [Storage capacity constraint](@ref storage_capacity_constraint_ref) (applied to the storage component)
 
