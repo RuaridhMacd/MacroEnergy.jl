@@ -1,11 +1,7 @@
 ###### ###### ###### ###### ###### ######
-# Function to print the system data
+# Function to write the system data to a JSON file
 ###### ###### ###### ###### ###### ######
-# TODO: For now, I commented out the function that prints the system data to a JSON file
-#       because we first need to fix the issue with in-place modification of the edge ids.
-#       We can uncomment it once we have a solution for that.
-function print_to_json(system::System, file_path::AbstractString="")::Nothing
-    # Note: right now System does not have a node field, so we're using locations
+function write_to_json(system::System, file_path::AbstractString="")::Nothing
     system_data = prepare_to_json(system)
     println("Writing system data to JSON file at: ", file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path)
     write_json(file_path, system_data)
