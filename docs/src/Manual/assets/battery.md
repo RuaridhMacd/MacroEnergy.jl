@@ -149,6 +149,19 @@ If the storage is a long-duration storage, the following additional constraints 
 | `discharge_existing_capacity` | Float64 | Initial installed discharge capacity | MWh/hr | 0.0 |
 | `discharge_capacity_size` | Float64 | Unit size for capacity decisions | - | 1.0 |
 
+#### Integer capacity decisions
+Battery charge and discharge edges can be configured to build in integer multiples of `*_capacity_size`. This is controlled by the following fields:
+
+| Field | Type | Description | Default |
+|--------------|---------|------------|----------|
+| `integer_decisions` | Boolean | Apply integer capacity decisions to both charge and discharge edges | false |
+| `charge_integer_decisions` | Boolean | Apply integer capacity decisions to the charge edge only | false |
+| `discharge_integer_decisions` | Boolean | Apply integer capacity decisions to the discharge edge only | false |
+
+Notes:
+- If `integer_decisions` is set, it applies to both edges unless overridden by `charge_integer_decisions` or `discharge_integer_decisions`.
+- These flags apply to edge capacity decisions (MW). Storage energy capacity (MWh) remains continuous.
+
 ##### Asymmetric battery
 If the battery is asymmetric, the following investment parameters are also used:
 

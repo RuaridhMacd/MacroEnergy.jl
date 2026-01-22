@@ -162,6 +162,14 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
             (data, Symbol("charge_", key)),
         ]
     )
+    # Use charge_integer_decisions if set, otherwise fall back to global integer_decisions if set
+    charge_integer = get_from([
+        (data, :charge_integer_decisions),
+        (data, :integer_decisions),
+    ], missing, false)
+    if !ismissing(charge_integer)
+        charge_edge_data[:integer_decisions] = charge_integer
+    end
     @start_vertex(
         charge_start_node,
         charge_edge_data,
@@ -188,6 +196,14 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
             (data[:edges][discharge_edge_key], Symbol("discharge_", key)),
             (data, Symbol("discharge_", key)),
         ])
+    # Use discharge_integer_decisions if set, otherwise fall back to global integer_decisions if set
+    discharge_integer = get_from([
+        (data, :discharge_integer_decisions),
+        (data, :integer_decisions),
+    ], missing, false)
+    if !ismissing(discharge_integer)
+        discharge_edge_data[:integer_decisions] = discharge_integer
+    end
     discharge_start_node = battery_storage
     @end_vertex(
         discharge_end_node,
