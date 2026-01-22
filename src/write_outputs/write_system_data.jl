@@ -7,7 +7,7 @@
 function print_to_json(system::System, file_path::AbstractString="")::Nothing
     # Note: right now System does not have a node field, so we're using locations
     system_data = prepare_to_json(system)
-    println("Writing system data to JSON file at: ", file_path == "" ? joinpath(pwd(), "printed_system_data.json") : file_path)
+    println("Writing system data to JSON file at: ", file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path)
     write_json(file_path, system_data)
     return nothing
 end
@@ -17,7 +17,7 @@ function write_system_data(
     file_path::AbstractString="",
 )::Nothing
     if file_path == ""
-        file_path = joinpath(pwd(), "printed_system_data.json")
+        file_path = joinpath(pwd(), "output_system_data.json")
     end
     write_json(file_path, system_data)
     return nothing
@@ -66,7 +66,6 @@ function prepare_to_json(node::Node)
 end
 
 function prepare_to_json(asset::AbstractAsset)
-    println("Preparing asset of type: ", id(asset))
     asset_data = Dict{Symbol,Any}(
         :type => Base.typename(typeof(asset)).name,  # e.g., this will give just "ThermalPower" instead of "ThermalPower{NaturalGas}"
         :instance_data => Dict{Symbol,Any}(
