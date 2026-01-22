@@ -73,6 +73,9 @@ const pages = [
         "Commodities" => "Manual/Commodities.md",
         "Assets" => "Manual/Assets.md",
         "Asset Library" => [
+            "Manual/assets/aluminaplant.md",
+            "Manual/assets/aluminumrefining.md",
+            "Manual/assets/aluminumsmelting.md",
             "Manual/assets/battery.md",
             "Manual/assets/beccselectricity.md",
             "Manual/assets/beccshydrogen.md",
@@ -90,7 +93,11 @@ const pages = [
             "Manual/assets/mustrun.md",
             "Manual/assets/natgasdaq.md",
             "Manual/assets/standalonelectricarcfurnace.md",
+            "Manual/assets/syntheticammonia.md",
+            "Manual/assets/syntheticmethanol.md",
+            "Manual/assets/thermalammonia.md",
             "Manual/assets/thermalhydrogen.md",
+            "Manual/assets/thermalmethanol.md",
             "Manual/assets/thermalpower.md",
             "Manual/assets/transmissionlink.md",
             "Manual/assets/vre.md"

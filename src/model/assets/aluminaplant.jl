@@ -24,10 +24,10 @@ function full_default_data(::Type{AluminaPlant}, id=missing)
         :id => id,
         :transforms => @transform_data(
             :timedata => "Alumina",
-            :elec_alumina_rate => 0.15,
-            :bauxite_alumina_rate => 2.4,
-            :fuel_alumina_rate => 2.917,
-            :fuel_emissions_rate => 0.181048235160161,
+            :elec_alumina_rate => 0.0,
+            :bauxite_alumina_rate => 0.0,
+            :fuel_alumina_rate => 0.0,
+            :fuel_emissions_rate => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -42,12 +42,9 @@ function full_default_data(::Type{AluminaPlant}, id=missing)
                 :can_retire => true,
                 :can_expand => true,
                 :capacity_size => 1,
-                :investment_cost => 3600000,
-                :wacc => 0.039,
-                :lifetime => 20,
-                :capital_recovery_period => 20,
-                :fixed_om_cost => 613200,
-                :variable_om_cost => 30,
+                :investment_cost => 0.0,
+                :fixed_om_cost => 0.0,
+                :variable_om_cost => 0.0,
                 :constraints => Dict{Symbol, Bool}(
                     :CapacityConstraint => true,
                 )
@@ -75,18 +72,15 @@ function simple_default_data(::Type{AluminaPlant}, id=missing)
         :existing_capacity => 0.0,
         :capacity_size => 1.0,
         :timedata => "Alumina",
-        :elec_alumina_rate => 0.15,
-        :bauxite_alumina_rate => 2.4,
-        :fuel_alumina_rate => 2.917,
-        :fuel_emissions_rate => 0.181048235160161,
+        :elec_alumina_rate => 0.0,
+        :bauxite_alumina_rate => 0.0,
+        :fuel_alumina_rate => 0.0,
+        :fuel_emissions_rate => 0.0,
         :co2_sink => missing,
         :uc => false,
-        :investment_cost => 3600000,
-        :wacc => 0.039,
-        :lifetime => 20,
-        :capital_recovery_period => 20,
-        :fixed_om_cost => 613200,
-        :variable_om_cost => 30,
+        :investment_cost => 0.0,
+        :fixed_om_cost => 0.0,
+        :variable_om_cost => 0.0,
     )
 end
 
@@ -260,22 +254,22 @@ function make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, sy
             elec_edge.id => 1.0,
             fuel_edge.id => 0.0,
             bauxite_edge.id => 0.0,
-            alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.15)
+            alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.0)
         ),
         :bauxite_to_alumina => Dict(
             elec_edge.id => 0.0,
             fuel_edge.id => 0.0,
             bauxite_edge.id => 1.0,
-            alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 2.4)
+            alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 0.0)
         ),
         :fuel_to_alumina => Dict(
             elec_edge.id => 0.0,
             fuel_edge.id => 1.0,
             bauxite_edge.id => 0.0,
-            alumina_edge.id => get(transform_data, :fuel_alumina_rate, 2.917)
+            alumina_edge.id => get(transform_data, :fuel_alumina_rate, 0.0)
         ),
         :emissions => Dict(
-            fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.181048235160161),
+            fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.0),
             co2_edge.id => 1.0
         )
     )

@@ -48,6 +48,9 @@ abstract type Bauxite <: Commodity end ## tonnes
 abstract type IronOre <: Commodity end ## tonnes
 abstract type SteelScrap <: Commodity end ## tonnes
 abstract type CrudeSteel <: Commodity end ## tonnes
+abstract type Ammonia <: Commodity end ## MWh
+abstract type Methanol <: Commodity end ## MWh
+abstract type Nitrogen <: Commodity end ## tonnes
 abstract type Heat <: Commodity end ## MWh
 abstract type Steam <: Commodity end ## MWh
 
@@ -167,6 +170,10 @@ include("model/assets/thermalhydrogen.jl")
 include("model/assets/thermalpower.jl")
 include("model/assets/transmissionlink.jl")
 include("model/assets/vre.jl")
+include("model/assets/thermalammonia.jl")
+include("model/assets/thermalammoniaccs.jl")
+include("model/assets/thermalmethanol.jl")
+include("model/assets/thermalmethanolccs.jl")
 include("model/assets/thermalhydrogenccs.jl")
 include("model/assets/thermalpowerccs.jl")
 include("model/assets/natgasdac.jl")
@@ -182,6 +189,8 @@ include("model/assets/fossilfuelsupstream.jl")
 include("model/assets/fuelsenduse.jl")
 include("model/assets/syntheticnaturalgas.jl")
 include("model/assets/syntheticliquidfuels.jl")
+include("model/assets/syntheticammonia.jl")
+include("model/assets/syntheticmethanol.jl")
 include("model/assets/co2injection.jl")
 include("model/assets/cementplant.jl")
 include("model/assets/aluminumrefining.jl")
