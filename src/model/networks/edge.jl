@@ -640,6 +640,19 @@ function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
 
 end
 
+function lossy_edge(e::AbstractEdge)
+    a = loss_fraction(e)
+    if isempty(a)
+        return false
+    else
+        if any(a.>0.0)
+            return true
+        else
+            return false
+        end
+    end
+end
+
 function update_balances!(e::AbstractEdge, model::Model)
 
     update_balance_start!(e, model)
@@ -656,8 +669,12 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
     i = startup_fuel_balance_id(e)
 
-    if i ∈ balance_ids(v)
-        add_to_expression!.(get_balance(v, i), -1 * startup_fuel_consumption(e) * capacity_size(e) * ustart(e))
+    if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
+        balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
+        balance_expr = get_balance(v,i)
+        for t in time_interval(e)
+            add_to_expression!(balance_expr[t], balance_coeff, ustart(e, t))
+        end
     end
 
     return nothing
@@ -672,7 +689,7 @@ function update_balance_start!(e::AbstractEdge, model::Model)
 
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
 
-    else
+    elseif e.unidirectional == false && lossy_edge(e)
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
 
@@ -685,12 +702,19 @@ function update_balance_start!(e::AbstractEdge, model::Model)
         end
 
         effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
-    end
-
-    for i in balance_ids(v)
-        add_to_expression!.(get_balance(v, i),  -1 * balance_data(e, v, i) * effective_flow)
+    elseif e.unidirectional == false && !lossy_edge(e)
+        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
     
+    for i in balance_ids(v)
+        balance_coeff = -1 * balance_data(e, v, i)
+        balance_expr = get_balance(v,i)
+        if balance_coeff != 0.0
+            for t in time_interval(e)
+                add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
+            end
+        end
+    end
 
 end
 
@@ -700,7 +724,7 @@ function update_balance_end!(e::AbstractEdge, model::Model)
 
     if e.unidirectional == true
         effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
-    else
+    elseif e.unidirectional == false && lossy_edge(e)
     
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
@@ -714,11 +738,18 @@ function update_balance_end!(e::AbstractEdge, model::Model)
         end
 
         effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * flow_pos[t] - flow_neg[t])
-
+    elseif e.unidirectional == false && !lossy_edge(e)
+        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
 
     for i in balance_ids(v)
-        add_to_expression!.(get_balance(v, i),  balance_data(e, v, i) * effective_flow)
+        balance_coeff = balance_data(e, v, i)
+        balance_expr = get_balance(v,i)
+        if balance_coeff != 0.0
+            for t in time_interval(e)
+                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
+            end
+        end
     end
     
 end
