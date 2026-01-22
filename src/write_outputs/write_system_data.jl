@@ -20,17 +20,6 @@ function write_to_json(case::Case, file_path::AbstractString="")::Nothing
     return nothing
 end
 
-function write_system_data(
-    system_data::AbstractDict{Symbol,Any},
-    file_path::AbstractString="",
-)::Nothing
-    if file_path == ""
-        file_path = joinpath(pwd(), "output_system_data.json")
-    end
-    write_json(file_path, system_data)
-    return nothing
-end
-
 ###### ###### ###### ###### ###### ######
 # Function to prepare the system data for being printed to JSON
 ###### ###### ###### ###### ###### ######
