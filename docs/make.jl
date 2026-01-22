@@ -106,6 +106,7 @@ const pages = [
         "Writing output data" => "References/4_writing_output.md",
         "Utilities" => "References/5_utilities.md",
         "Downloading examples" => "References/ref_download_examples.md",
+        "Running a Macro Model" => "References/ref_run_case.md",
         # "Asset Library" => "References/2_assets.md", TODO: think if we should include this
     ],
     "Appendix" => [

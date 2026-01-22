@@ -1,7 +1,7 @@
 # Macro Objects
 
 ```@index
-Pages = ["2_macro_objects.md"]
+Pages = ["3_macro_objects.md"]
 ```
 
 ## [`Edge`](@id edge-reference)

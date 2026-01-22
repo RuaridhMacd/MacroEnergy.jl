@@ -1,7 +1,7 @@
 # [Non-Benders Utility Functions](@id non-benders-utilities)
 
 ```@index
-Pages = ["4_utilities.md"]
+Pages = ["5_utilities.md"]
 ```
 
 ## `all_constraints`

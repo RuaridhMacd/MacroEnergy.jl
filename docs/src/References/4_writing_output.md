@@ -1,7 +1,7 @@
 # Output functions
 
 ```@index
-Pages = ["3_writing_output.md"]
+Pages = ["4_writing_output.md"]
 ```
 
 ## `collect_results`
