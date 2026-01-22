@@ -162,6 +162,7 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
             (data, Symbol("charge_", key)),
         ]
     )
+    # Use charge_integer_decisions if set, otherwise fall back to global integer_decisions if set
     charge_integer = get_from([
         (data, :charge_integer_decisions),
         (data, :integer_decisions),
@@ -195,6 +196,7 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
             (data[:edges][discharge_edge_key], Symbol("discharge_", key)),
             (data, Symbol("discharge_", key)),
         ])
+    # Use discharge_integer_decisions if set, otherwise fall back to global integer_decisions if set
     discharge_integer = get_from([
         (data, :discharge_integer_decisions),
         (data, :integer_decisions),
