@@ -531,6 +531,13 @@ function operation_model!(e::EdgeWithUC, model::Model)
         return nothing
     end
 
+    if !has_capacity(e)
+        error(
+            "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
+        )
+        return nothing
+    end
+
     e.flow = @variable(
         model,
         [t in time_interval(e)],
