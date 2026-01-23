@@ -171,9 +171,6 @@ Each new Node will be added to the end of the existing Nodes in the Nodes file. 
             "instance_data": [
                 {
                     "location": null,
-                    "min_nsd": [
-                        0
-                    ],
                     "timedata": null,
                     "max_nsd": [
                         0
