@@ -73,7 +73,7 @@ For example, a city Location might contain `Node{Electricity}`, `Node{NaturalGas
 | Field                    | Type                      | Description                           | Units    | Default |
 |--------------------------|---------------------------|---------------------------------------|----------|---------|
 | `demand`                 | Vector{Float64}           | Time-varying demand requirements      |  MWh/hr | Float64[] |
-| `max_nsd`                | Vector{Float64}           | Maximum non-served demand by segment  |  MWh/hr | [0.0]   |
+| `max_nsd`                | Vector{Float64}           | Maximum fraction of demand that can be curtailed, per segment  |  fraction $\in$ [0,1] | [0.0]   |
 | `min_nsd`                | Vector{Float64}           | Minimum non-served demand by segment  |  MWh/hr | [0.0]   |
 | `price_nsd`              | Vector{Float64}           | Penalty cost for non-served demand    | \$/MWh    | [0.0]   |
 
