@@ -219,9 +219,12 @@ get_existing_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_
 
 # Utility function to get the optimal capacity by macro object field
 function get_optimal_capacity_by_field(system::System, capacity_func::Function, scaling::Float64=1.0)
-    @debug " -- Getting optimal values for $(Symbol(capacity_func)) for the system."
+    @debug " -- Getting optimal valses for $(Symbol(capacity_func)) for the system."
     edges, edge_asset_idmap = edges_with_capacity_variables(system, return_ids_map=true)
-    asset_capacity = get_optimal_capacity_by_field(edges, capacity_func, scaling, edge_asset_idmap)
+    storages, storage_asset_idmap = storages_with_capacity_variables(system, return_ids_map=true)
+    edges_capacity = get_optimal_capacity_by_field(edges, capacity_func, scaling, edge_asset_idmap)
+    storages_capacity = get_optimal_capacity_by_field(storages, capacity_func, scaling, storage_asset_idmap)
+    asset_capacity = vcat(edges_capacity, storages_capacity)
     asset_capacity[!, (!isa).(eachcol(asset_capacity), Vector{Missing})] # remove missing columns
 end
 
