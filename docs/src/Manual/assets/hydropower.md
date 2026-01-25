@@ -104,7 +104,7 @@ The following tables outline the attributes that can be set for a hydro reservoi
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "HydroRes" |
+| `type` | String | Asset type identifier: "HydroRes" |
 | `id` | String | Unique identifier for the hydro reservoir instance |
 | `location` | String | Geographic location/node identifier |
 | `hydro_source` | String | ID of the electricity node in the system that represents the hydro source |

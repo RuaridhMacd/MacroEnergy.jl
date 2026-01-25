@@ -113,7 +113,7 @@ The following tables outline the attributes that can be set for a thermal heatin
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"ThermalHeating"` |
+| `type` | String | Asset type identifier: `"ThermalHeating"` |
 | `id` | String | Unique identifier for the heating unit instance |
 | `location` | String | Geographic location/node identifier |
 | `fuel_commodity` | String | Fuel commodity identifier |

@@ -103,7 +103,7 @@ The following tables outline the attributes that can be set for an electrolyzer 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "Electrolyzer" |
+| `type` | String | Asset type identifier: "Electrolyzer" |
 | `id` | String | Unique identifier for the electrolyzer instance |
 | `location` | String | Geographic location/node identifier |
 

@@ -127,7 +127,7 @@ The following tables outline the attributes that can be set for a gas storage as
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "GasStorage" |
+| `type` | String | Asset type identifier: "GasStorage" |
 | `id` | String | Unique identifier for the gas storage instance |
 | `location` | String | Geographic location/node identifier |
 | `storage_commodity` | String | Commodity identifier for the gas being stored |

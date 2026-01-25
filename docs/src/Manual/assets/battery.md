@@ -97,7 +97,7 @@ The following tables outlines the attributes that can be set for a battery asset
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "Battery" |
+| `type` | String | Asset type identifier: "Battery" |
 | `id` | String | Unique identifier for the battery instance |
 | `location` | String | Geographic location/node identifier |
 
@@ -248,7 +248,7 @@ If [`MaxStorageLevelConstraint`](@ref max_storage_level_constraint_ref) or [`Min
 
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
-| `storage_max_storage_level` | Float64 | Maximum storage level as fraction of capacity | fraction | 0.0 |
+| `storage_max_storage_level` | Float64 | Maximum storage level as fraction of capacity | fraction | 1.0 |
 | `storage_min_storage_level` | Float64 | Minimum storage level as fraction of capacity | fraction | 0.0 |
 
 **Storage charge/discharge ratio constraint**

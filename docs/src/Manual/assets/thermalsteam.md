@@ -123,7 +123,7 @@ The following tables outline the attributes that can be set for a thermal steam 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"ThermalSteam"` |
+| `type` | String | Asset type identifier: `"ThermalSteam"` |
 | `id` | String | Unique identifier for the co-generation unit instance |
 | `location` | String | Geographic location or node identifier |
 | `fuel_commodity` | String | Primary fuel commodity identifier |

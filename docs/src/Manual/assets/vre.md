@@ -87,7 +87,7 @@ The following tables outline the attributes that can be set for a VRE asset.
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "VRE" |
+| `type` | String | Asset type identifier: "VRE" |
 | `id` | String | Unique identifier for the VRE instance |
 | `location` | String | Geographic location/node identifier |
 

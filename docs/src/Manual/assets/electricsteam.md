@@ -106,7 +106,7 @@ The following tables outline the attributes that can be set for a electric steam
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: `"electricsteam"` |
+| `type` | String | Asset type identifier: `"electricsteam"` |
 | `id` | String | Unique identifier for the steam unit instance |
 | `location` | String | Geographic location/node identifier |
 | `elec_commodity` | String | Electricity commodity identifier |

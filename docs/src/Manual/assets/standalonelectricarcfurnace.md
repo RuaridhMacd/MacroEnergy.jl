@@ -98,7 +98,7 @@ The following tables outline the attributes that can be set for an Electric Arc 
 #### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "ElectricArcFurnace" |
+| `type` | String | Asset type identifier: "ElectricArcFurnace" |
 | `id` | String | Unique identifier for the asset instance |
 | `location` | String | Geographic location/node identifier |
 | `timedata` | String | Time resolution for the time series data linked to the transformation |

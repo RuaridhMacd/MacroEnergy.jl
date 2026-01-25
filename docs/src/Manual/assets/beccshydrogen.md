@@ -150,7 +150,7 @@ The following tables outline the attributes that can be set for a BECCS hydrogen
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `Type` | String | Asset type identifier: "BECCSHydrogen" |
+| `type` | String | Asset type identifier: "BECCSHydrogen" |
 | `id` | String | Unique identifier for the BECCS hydrogen instance |
 | `location` | String | Geographic location/node identifier |
 | `biomass_commodity` | String | Commodity identifier for the biomass supply (can be a sub-commodity of `Biomass`) |
