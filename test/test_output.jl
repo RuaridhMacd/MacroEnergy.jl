@@ -18,6 +18,7 @@ import MacroEnergy:
     get_commodity_name,
     get_edges,
     get_nodes,
+    get_storages,
     get_transformations,
     get_resource_id,
     get_component_id,
@@ -30,6 +31,8 @@ import MacroEnergy:
     get_optimal_vars_timeseries,
     get_optimal_capacity_by_field,
     get_optimal_flow,
+    get_optimal_non_served_demand,
+    get_optimal_storage_level,
     convert_to_dataframe, 
     empty_system, 
     create_output_path,
@@ -536,6 +539,177 @@ function test_writing_output()
         @test result_fast isa DataFrame
         @test size(result_fast, 1) == 18
         @test result_fast[1, :value] == 1.0  # No scaling applied
+    end
+
+    @testset "Non-Served Demand Output Functions Tests" begin
+        # Create nodes with non-served demand variables
+        node_with_nsd = Node{Electricity}(;
+            id=:node_nsd,
+            timedata=TimeData{Electricity}(;
+                time_interval=1:3,
+                hours_per_timestep=10,
+                subperiods=[1:10, 11:20, 21:30],
+                subperiod_indices=[1, 2, 3],
+                subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+            ),
+            max_nsd=[0.1, 0.2],  # 2 segments
+            non_served_demand=[1.0 2.0 3.0; 4.0 5.0 6.0]  # 2 segments × 3 time steps
+        )
+        
+        # Test get_optimal_non_served_demand for single node
+        result = get_optimal_non_served_demand(node_with_nsd, 1.0)
+        @test result isa DataFrame
+        @test size(result, 1) == 6  # 2 segments × 3 time steps
+        
+        # Check structure
+        @test result[1, :commodity] == :Electricity
+        @test result[1, :zone] == :node_nsd
+        @test result[1, :component_id] == :node_nsd
+        @test result[1, :component_type] == "Node{Electricity}"
+        @test result[1, :variable] == :non_served_demand
+        @test result[1, :segment] == 1
+        @test result[1, :time] == 1
+        @test result[1, :value] == 1.0
+        
+        # Check segment 1 values
+        @test result[1, :value] == 1.0  # seg 1, time 1
+        @test result[2, :value] == 2.0  # seg 1, time 2
+        @test result[3, :value] == 3.0  # seg 1, time 3
+        
+        # Check segment 2 values
+        @test result[4, :segment] == 2
+        @test result[4, :value] == 4.0  # seg 2, time 1
+        @test result[5, :value] == 5.0  # seg 2, time 2
+        @test result[6, :value] == 6.0  # seg 2, time 3
+        
+        # Test scaling
+        result_scaled = get_optimal_non_served_demand(node_with_nsd, 2.0)
+        @test result_scaled[1, :value] == 2.0
+        @test result_scaled[4, :value] == 8.0
+        
+        # Test with list of nodes
+        node_with_nsd2 = Node{Electricity}(;
+            id=:node_nsd2,
+            timedata=TimeData{Electricity}(;
+                time_interval=1:3,
+                hours_per_timestep=10,
+                subperiods=[1:10, 11:20, 21:30],
+                subperiod_indices=[1, 2, 3],
+                subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+            ),
+            max_nsd=[0.1],  # 1 segment
+            non_served_demand=reshape([7.0, 8.0, 9.0], 1, 3)  # 1 segment × 3 time steps
+        )
+        
+        result_multi = get_optimal_non_served_demand([node_with_nsd, node_with_nsd2], 1.0)
+        @test size(result_multi, 1) == 9  # 6 from node1 + 3 from node2
+        
+        # Test empty result for node without NSD
+        node_without_nsd = Node{Electricity}(;
+            id=:node_no_nsd,
+            timedata=TimeData{Electricity}(;
+                time_interval=1:3,
+                hours_per_timestep=10,
+                subperiods=[1:10, 11:20, 21:30],
+                subperiod_indices=[1, 2, 3],
+                subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+            )
+        )
+        result_empty = get_optimal_non_served_demand(node_without_nsd, 1.0)
+        @test isempty(result_empty)
+    end
+
+    @testset "Storage Level Output Functions Tests" begin
+        # Create storage with storage_level values
+        storage_for_test = Storage{Electricity}(;
+            id=:storage_test,
+            timedata=TimeData{Electricity}(;
+                time_interval=1:3,
+                hours_per_timestep=10,
+                subperiods=[1:10, 11:20, 21:30],
+                subperiod_indices=[1, 2, 3],
+                subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+            ),
+            storage_level=[10.0, 20.0, 30.0]
+        )
+        
+        # Test get_optimal_storage_level for single storage (without asset map)
+        result = get_optimal_storage_level(storage_for_test, 1.0)
+        @test result isa DataFrame
+        @test size(result, 1) == 3  # 3 time steps
+        
+        # Check structure
+        @test result[1, :commodity] == :Electricity
+        @test result[1, :zone] == :storage_test
+        @test result[1, :resource_id] == :storage_test
+        @test result[1, :component_id] == :storage_test
+        @test result[1, :component_type] == "Storage{Electricity}"
+        @test result[1, :variable] == :storage_level
+        @test result[1, :time] == 1
+        @test result[1, :value] == 10.0
+        
+        # Check time progression
+        @test result[2, :time] == 2
+        @test result[2, :value] == 20.0
+        @test result[3, :time] == 3
+        @test result[3, :value] == 30.0
+        
+        # Test scaling
+        result_scaled = get_optimal_storage_level(storage_for_test, 2.0)
+        @test result_scaled[1, :value] == 20.0
+        @test result_scaled[2, :value] == 40.0
+        @test result_scaled[3, :value] == 60.0
+        
+        # Test with list of storages
+        storage_for_test2 = Storage{Electricity}(;
+            id=:storage_test2,
+            timedata=TimeData{Electricity}(;
+                time_interval=1:3,
+                hours_per_timestep=10,
+                subperiods=[1:10, 11:20, 21:30],
+                subperiod_indices=[1, 2, 3],
+                subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+            ),
+            storage_level=[40.0, 50.0, 60.0]
+        )
+        
+        result_multi = get_optimal_storage_level([storage_for_test, storage_for_test2], 1.0)
+        @test size(result_multi, 1) == 6  # 3 from storage1 + 3 from storage2
+        @test result_multi[4, :component_id] == :storage_test2
+        @test result_multi[4, :value] == 40.0
+        
+        # Test with asset map (using existing storage and asset_ref2 from test setup)
+        storage_asset_map = Dict{Symbol, Base.RefValue{<:MacroEnergy.AbstractAsset}}(:storage1 => asset_ref2)
+        
+        result_with_map = get_optimal_storage_level(storage, 1.0, storage_asset_map)
+        @test result_with_map[1, :resource_id] == :asset2
+        @test result_with_map[1, :resource_type] == "Battery"
+        @test result_with_map[1, :component_id] == :storage1
+        
+        # Test system-level function with filtering (using existing system)
+        result_system = get_optimal_storage_level(system)
+        @test result_system isa DataFrame
+        @test size(result_system, 1) == 3  # storage1 has 3 time steps
+        
+        # Test filtering by commodity - should return results (storage is Electricity)
+        result_filtered_commodity = get_optimal_storage_level(system, commodity="Electricity")
+        @test size(result_filtered_commodity, 1) == 3
+        
+        # Test filtering by asset type - should return results (asset is Battery)
+        result_filtered_asset = get_optimal_storage_level(system, asset_type="Battery")
+        @test size(result_filtered_asset, 1) == 3
+        
+        # Test filtering with non-existent commodity - should warn and return empty
+        @test_logs (:warn, "Commodities not found: [:NaturalGas] when printing storage level results") (:warn, "No storages found after filtering") begin
+            result_no_match = get_optimal_storage_level(system, commodity="NaturalGas")
+            @test isempty(result_no_match)
+        end
+        
+        # Test filtering with non-existent asset type - should warn and return empty
+        @test_logs (:warn, "Asset type(s) not found: [\"VRE\"] when printing storage level results") (:warn, "No storages found after filtering") begin
+            result_no_match_asset = get_optimal_storage_level(system, asset_type="VRE")
+            @test isempty(result_no_match_asset)
+        end
     end
 
     @testset "Timeseries Functions Tests" begin
