@@ -589,6 +589,7 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
         storage_data,
         system.time_data[commodity_symbol],
         commodity,
+        asset_location
     )
     if long_duration
         lds_constraints = [LongDurationStorageImplicitMinMaxConstraint()]

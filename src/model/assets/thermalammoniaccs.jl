@@ -121,6 +121,7 @@ function make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any
     thermalammoniaccs_transform = Transformation(;
         id = Symbol(id, "_", thermalammoniaccs_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

@@ -115,6 +115,7 @@ function make(asset_type::Type{ThermalMethanol}, data::AbstractDict{Symbol,Any},
     thermalmethanol_transform = Transformation(;
         id = Symbol(id, "_", thermalmethanol_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

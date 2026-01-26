@@ -88,6 +88,7 @@ function make(asset_type::Type{SyntheticAmmonia}, data::AbstractDict{Symbol,Any}
     synthetic_ammonia_transform = Transformation(;
         id = Symbol(id, "_", synthetic_ammonia_transform_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

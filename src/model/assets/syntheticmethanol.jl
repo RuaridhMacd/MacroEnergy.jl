@@ -99,6 +99,7 @@ function make(asset_type::Type{SyntheticMethanol}, data::AbstractDict{Symbol,Any
     synthetic_methanol_transform = Transformation(;
         id = Symbol(id, "_", synthetic_methanol_transform_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
+        location = asset_location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 
