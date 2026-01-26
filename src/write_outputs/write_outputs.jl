@@ -130,6 +130,9 @@ function write_outputs(results_dir::AbstractString,
     # Flow results
     write_flow(joinpath(results_dir, "flows.csv"), system)
 
+    # Non-served demand results
+    write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system)
+
     # Write dual values (if enabled)
     if system.settings.DualExportsEnabled
         ensure_duals_available!(model)        

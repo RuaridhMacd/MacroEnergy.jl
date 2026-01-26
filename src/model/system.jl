@@ -271,7 +271,8 @@ get_assets_sametype(system::System, asset_type::T) where T<:Type{<:AbstractAsset
 
 # Function to extract all the nodes, edges, storages, and transformations from a system
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.
-get_nodes(system::System) = system.locations
+get_locations(system::System) = system.locations
+get_nodes(system::System) = Node[node for node in system.locations if isa(node, Node)]
 get_edges(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractEdge) : get_macro_objs(system, AbstractEdge)
 get_storages(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractStorage) : get_macro_objs(system, AbstractStorage)
 get_transformations(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, Transformation) : get_macro_objs(system, Transformation)
