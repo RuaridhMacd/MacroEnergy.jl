@@ -4,11 +4,6 @@
 Pages = ["4_writing_output.md"]
 ```
 
-## `collect_results`
-```@docs
-MacroEnergy.collect_results
-```
-
 ## `get_optimal_capacity`
 ```@docs
 MacroEnergy.get_optimal_capacity
@@ -81,12 +76,6 @@ MacroEnergy.write_settings
 ## `write_dataframe`
 ```@docs
 MacroEnergy.write_dataframe
-```
-
-## `write_results`
-
-```@docs
-MacroEnergy.write_results
 ```
 
 ## `MacroEnergy.write_outputs`

@@ -62,10 +62,6 @@ mkpath(result_dir)
 write_capacity(joinpath(result_dir, "capacity.csv"), system)
 write_costs(joinpath(result_dir, "costs.csv"), system, model)
 write_flow(joinpath(result_dir, "flow.csv"), system)
-
-# Alternative: Write all results at once (legacy function)
-# Creates multiple files: results_capacity.csv.gz, results_flow.csv.gz, etc.
-write_results(result_dir, system, model, settings)
 ```
 
 To only view the results, we can use the following functions:

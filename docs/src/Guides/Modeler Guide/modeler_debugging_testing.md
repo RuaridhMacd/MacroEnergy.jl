@@ -956,24 +956,6 @@ julia> write_settings(case, "settings.json")
 ```
 This function exports case and system settings to a JSON file, useful for debugging and documentation.
 
-### [`write_results`](@ref)
-
-!!! warning "write_results is a legacy function"
-    The `write_results` function is part of the legacy unified output system. For new code, consider using the specialized output functions instead.
-
-```julia
-julia> write_results(file_path, system, model, settings, ext=".csv.gz")
-julia> write_results(file_path, system, model, settings, ext=".parquet")
-```
-
-This function creates multiple output files, one for each result type:
-- `file_path_capacity.ext` - Capacity results
-- `file_path_flow.ext` - Flow results
-- `file_path_non_served_demand.ext` - Non-served demand
-- `file_path_storage_level.ext` - Storage levels
-- `file_path_discounted_costs.ext` - Discounted costs
-- `file_path_undiscounted_costs.ext` - Undiscounted costs
-
 ```@meta
 DocTestSetup = nothing
 ```
