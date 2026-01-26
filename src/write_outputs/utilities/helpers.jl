@@ -60,14 +60,15 @@ function get_type(asset::Base.RefValue{<:AbstractAsset})
     asset = asset[]
     type_name = string(typesymbol(typeof(asset)))
     param_names = string.(typesymbol.(typeof(asset).parameters))
+    # If the asset has commodities that are parametric, return the type name with the commodities
     if !isempty(param_names)
-        return Symbol("\"$type_name{$(join(param_names, ","))}\"")
+        return "$type_name{$(join(param_names, ","))}"
     else
-        return Symbol(type_name)
+        return type_name
     end   
 end
 # Get the type of a MacroObject
-get_type(obj::T) where {T<:Union{AbstractEdge,Node,AbstractStorage}} = Symbol(typeof(obj))
+get_type(obj::T) where {T<:Union{AbstractEdge,Node,AbstractStorage}} = string(typeof(obj))
 
 # Get the unit of a MacroObject
 get_unit(obj::AbstractEdge, f::Function) = unit(commodity_type(obj.timedata), f)    #TODO: check if this is correct

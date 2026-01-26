@@ -184,7 +184,7 @@ function get_optimal_vars_timeseries(
             zone = Symbol[get_zone_name(obj) for s in 1:num_segments for t in time_axis],
             resource_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],  # component id is same as resource id
             component_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],
-            type = Symbol[get_type(obj) for s in 1:num_segments for t in time_axis],
+            type = String[get_type(obj) for s in 1:num_segments for t in time_axis],
             variable = Symbol[Symbol(f) for s in 1:num_segments for t in time_axis],
             year = fill(missing, total_rows),
             segment = Int[s for s in 1:num_segments for t in time_axis],
@@ -198,7 +198,7 @@ function get_optimal_vars_timeseries(
             zone = Symbol[get_zone_name(obj) for s in 1:num_segments for t in time_axis],
             resource_id = Symbol[isa(obj, Node) ? get_resource_id(obj) : get_resource_id(obj, obj_asset_map) for s in 1:num_segments for t in time_axis],
             component_id = Symbol[get_component_id(obj) for s in 1:num_segments for t in time_axis],
-            type = Symbol[isa(obj, Node) ? get_type(obj) : get_type(obj_asset_map[id(obj)]) for s in 1:num_segments for t in time_axis],
+            type = String[isa(obj, Node) ? get_type(obj) : get_type(obj_asset_map[id(obj)]) for s in 1:num_segments for t in time_axis],
             variable = Symbol[Symbol(f) for s in 1:num_segments for t in time_axis],
             year = fill(missing, total_rows),
             segment = Int[s for s in 1:num_segments for t in time_axis],
