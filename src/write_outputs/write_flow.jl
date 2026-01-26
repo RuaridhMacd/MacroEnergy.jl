@@ -135,12 +135,12 @@ Two types of pattern matching are supported:
 ```julia
 get_optimal_flow(system)
 186984×10 DataFrame
-    Row │ commodity    zone        resource_id                component_id                       resource_type              component_type      variable  segment  time   value     
-        │ Symbol       Symbol      Symbol                     Symbol                             String            String    Int64    Int64  Float64
-────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-      1 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow            1      1  0.0    
-      2 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow            1      2  0.0    
-      3 │ Biomass      bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow            1      3  0.0    
+    Row │ commodity  zone        resource_id                component_id                       resource_type     component_type     variable  segment  time   value     
+        │ Symbol     Symbol      Symbol                     Symbol                             String            String             Symbol    Int64    Int64  Float64
+────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+      1 │ Biomass    bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow      1        1      0.0    
+      2 │ Biomass    bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow      1        2      0.0    
+      3 │ Biomass    bioherb_SE  SE_BECCS_Electricity_Herb  SE_BECCS_Electricity_Herb_biomas…  BECCSElectricity  Edge{Electricity}  flow      1        3      0.0    
       ...
 # Filter by commodity
 get_optimal_flow(system, commodity="Electricity")
