@@ -5,6 +5,8 @@ Currently, Macro supports the following types of outputs:
 - [Capacity Results](@ref): final capacity, new capacity and retired capacity for each technology.
 - [Costs](@ref): fixed, variable and total system costs.
 - [Flow Results](@ref): flow for each commodity through each edge in the system.
+- [Non-Served Demand Results](@ref): non-served demand for each node with demand.
+- [Storage Level Results](@ref): storage level for each storage unit over time.
 
 For detailed information about output formats and layouts, please refer to the [Output Format](@ref) and [Output Files Layout](@ref) sections below.
 
@@ -85,6 +87,43 @@ write_flow("flows.csv", system, asset_type="ThermalPower*")
 !!! note "Output Layout"
     Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"Flow": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
 
+## Non-Served Demand Results
+
+Export non-served demand results for all nodes with demand using the [`write_non_served_demand`](@ref) function:
+
+```julia
+write_non_served_demand("non_served_demand.csv", system)
+```
+
+This function exports non-served demand values only for nodes that have non-served demand variables defined (i.e., nodes with `max_nsd != [0.0]` in the input data). 
+
+!!! note "Segment Handling"
+    Non-served demand can have multiple segments (for piecewise linear cost curves). In *long* format, the `segment` column indicates which segment each value belongs to. In *wide* format, compound column names are used: `{node_id}_seg{segment}` (e.g., `elec_SE_seg1`, `elec_SE_seg2`).
+
+!!! note "Output Layout"
+    Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"NonServedDemand": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
+
+## Storage Level Results
+
+Export storage level results for all storage units using the [`write_storage_level`](@ref) function:
+
+```julia
+write_storage_level("storage_level.csv", system)
+```
+
+Filter results by commodity or asset type using the `commodity` and `asset_type` parameters:
+
+```julia
+# Filter by commodity
+write_storage_level("storage_level.csv", system, commodity="Electricity")
+
+# Filter by asset type
+write_storage_level("storage_level.csv", system, asset_type="Battery")
+```
+
+!!! note "Output Layout"
+    Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"StorageLevel": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
+
 ## Writing Case Settings
 
 To export case and system settings to a JSON file, use the [`write_settings`](@ref) function:
@@ -149,7 +188,9 @@ or
   "OutputLayout": {
     "Capacity": "wide",
     "Costs": "long",
-    "Flow": "long"
+    "Flow": "long",
+    "NonServedDemand": "long",
+    "StorageLevel": "wide"
   }
 }
 ```
@@ -157,7 +198,7 @@ or
 Available options:
 - `"OutputLayout": "long"` (applies to all outputs)
 - `"OutputLayout": "wide"` (applies to all outputs)
-- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Flow": "long"}` (individual layout settings)
+- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Flow": "long", "NonServedDemand": "long", "StorageLevel": "wide"}` (individual layout settings)
 
 ## Output Files Location
 

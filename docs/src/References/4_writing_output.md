@@ -24,9 +24,19 @@ MacroEnergy.get_optimal_flow
 MacroEnergy.get_optimal_new_capacity
 ```
 
+## `get_optimal_non_served_demand`
+```@docs
+MacroEnergy.get_optimal_non_served_demand
+```
+
 ## `get_optimal_retired_capacity`
 ```@docs
 MacroEnergy.get_optimal_retired_capacity
+```
+
+## `get_optimal_storage_level`
+```@docs
+MacroEnergy.get_optimal_storage_level
 ```
 
 ## `write_balance_duals`
@@ -67,10 +77,22 @@ MacroEnergy.write_duals_benders
 MacroEnergy.write_flow
 ```
 
+## `write_non_served_demand`
+
+```@docs
+MacroEnergy.write_non_served_demand
+```
+
 ## `write_settings`
 
 ```@docs
 MacroEnergy.write_settings
+```
+
+## `write_storage_level`
+
+```@docs
+MacroEnergy.write_storage_level
 ```
 
 ## `write_dataframe`
