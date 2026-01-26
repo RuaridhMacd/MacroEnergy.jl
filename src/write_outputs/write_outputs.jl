@@ -51,6 +51,12 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
     # get the flow results from the operational subproblems
     flow_df = collect_flow_results(case, bd_results)
+
+    # get the non-served demand results from the operational subproblems
+    nsd_df = collect_non_served_demand_results(case, bd_results)
+
+    # get the storage level results from the operational subproblems
+    storage_level_df = collect_storage_level_results(case, bd_results)
     
     # get the policy slack variables from the operational subproblems
     slack_vars = collect_distributed_policy_slack_vars(bd_results)
@@ -80,6 +86,12 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
         # Flow results
         write_flows(joinpath(results_dir, "flows.csv"), period, flow_df[subop_indices_period])
+
+        # Non-served demand results
+        write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), period, nsd_df[subop_indices_period])
+
+        # Storage level results
+        write_storage_level(joinpath(results_dir, "storage_level.csv"), period, storage_level_df[subop_indices_period])
         
         # Cost results
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)

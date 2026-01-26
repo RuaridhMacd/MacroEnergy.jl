@@ -76,6 +76,34 @@ function write_storage_level(
     return nothing
 end
 
+# Function to write storage level results from multiple dataframes
+# This function is used when the results are distributed across multiple processes (Benders)
+function write_storage_level(
+    file_path::AbstractString, 
+    system::System, 
+    storage_level_dfs::Vector{DataFrame}
+)
+    @info "Writing storage level results to $file_path"
+
+    # Filter out empty DataFrames and concatenate
+    non_empty_dfs = filter(!isempty, storage_level_dfs)
+    if isempty(non_empty_dfs)
+        @debug "No storage level results found (no storages have storage level variables)"
+        return nothing
+    end
+    
+    storage_level_results = reduce(vcat, non_empty_dfs)
+    
+    # Reshape if wide layout requested
+    layout = get_output_layout(system, :StorageLevel)
+    if layout == "wide"
+        storage_level_results = reshape_wide(storage_level_results, :time, :component_id, :value)
+    end
+    
+    write_dataframe(file_path, storage_level_results)
+    return nothing
+end
+
 ## Storage level extraction functions ##
 
 """

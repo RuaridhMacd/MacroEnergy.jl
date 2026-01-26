@@ -30,40 +30,68 @@ function prepare_costs_benders(system::System,
 end
     
 """
-Collect flow results from all subproblems, handling distributed case.
+    collect_subproblem_results(case::Case, bd_results::BendersResults, getter_fn::Function)
+
+Generic function to collect results from all subproblems (Benders), handling both distributed and local cases.
+
+# Arguments
+- `case::Case`: The case containing settings
+- `bd_results::BendersResults`: Benders decomposition results containing subproblems
+- `getter_fn::Function`: Function to extract results from a system (e.g., `get_optimal_flow`, `get_optimal_non_served_demand`)
+
+# Returns
+- `Vector{DataFrame}`: Vector of DataFrames, one per subproblem
 """
-function collect_flow_results(case::Case, bd_results::BendersResults)
+function collect_subproblem_results(case::Case, bd_results::BendersResults, getter_fn::Function)
     if case.settings.BendersSettings[:Distributed]
-        return collect_distributed_flows(bd_results)
+        return collect_distributed_results(bd_results, getter_fn)
     else
-        return collect_local_flows(bd_results)
+        return collect_local_results(bd_results, getter_fn)
     end
+end
+
+"""
+Collect results from subproblems on distributed workers using the given getter function.
+"""
+function collect_distributed_results(bd_results::BendersResults, getter_fn::Function)
+    p_id = workers()
+    np_id = length(p_id)
+    result_df = Vector{Vector{DataFrame}}(undef, np_id)
+    @sync for i in 1:np_id
+        @async result_df[i] = @fetchfrom p_id[i] get_local_expressions(getter_fn, DistributedArrays.localpart(bd_results.op_subproblem))
+    end
+    return reduce(vcat, result_df)
+end
+
+"""
+Collect results from local subproblems using the given getter function.
+"""
+function collect_local_results(bd_results::BendersResults, getter_fn::Function)
+    result_df = Vector{DataFrame}(undef, length(bd_results.op_subproblem))
+    for i in eachindex(bd_results.op_subproblem)
+        system = bd_results.op_subproblem[i][:system_local]
+        result_df[i] = getter_fn(system)
+    end
+    return result_df
 end
 
 """
 Collect flow results from subproblems on distributed workers.
 """
-function collect_distributed_flows(bd_results::BendersResults)
-    p_id = workers()
-    np_id = length(p_id)
-    flow_df = Vector{Vector{DataFrame}}(undef, np_id)
-    @sync for i in 1:np_id
-        @async flow_df[i] = @fetchfrom p_id[i] get_local_expressions(get_optimal_flow, DistributedArrays.localpart(bd_results.op_subproblem))
-    end
-    return reduce(vcat, flow_df)
-end
+collect_flow_results(case::Case, bd_results::BendersResults) = 
+    collect_subproblem_results(case, bd_results, get_optimal_flow)
 
 """
-Collect flow results from local subproblems.
+Collect non-served demand results from subproblems on distributed workers.
 """
-function collect_local_flows(bd_results::BendersResults)
-    flow_df = Vector{DataFrame}(undef, length(bd_results.op_subproblem))
-    for i in eachindex(bd_results.op_subproblem)
-        system = bd_results.op_subproblem[i][:system_local]
-        flow_df[i] = get_optimal_flow(system)
-    end
-    return flow_df
-end
+collect_non_served_demand_results(case::Case, bd_results::BendersResults) = 
+    collect_subproblem_results(case, bd_results, get_optimal_non_served_demand)
+
+"""
+Collect storage level results from subproblems on distributed workers.
+"""
+collect_storage_level_results(case::Case, bd_results::BendersResults) = 
+    collect_subproblem_results(case, bd_results, get_optimal_storage_level)
 
 """
 Convert DenseAxisArray to Dict, preserving axis information.
