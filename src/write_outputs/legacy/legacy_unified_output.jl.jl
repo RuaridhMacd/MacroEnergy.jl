@@ -81,7 +81,7 @@ function collect_results(system::System, model::Model, settings::NamedTuple, sca
     nsd = get_optimal_vars_timeseries(system.locations, non_served_demand, scaling, edge_asset_map)
 
     # storage storage_level
-    storages, storage_asset_map = get_storage(system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(system, return_ids_map=true)
     storlevel = get_optimal_vars_timeseries(storages, storage_level, scaling, storage_asset_map)
 
     # costs
@@ -143,7 +143,7 @@ function get_optimal_vars_timeseries(
     field_list::Tuple,
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node,Location}}
+) where {T<:Union{AbstractEdge,AbstractStorage,Node,Location}}
     reduce(vcat, [get_optimal_vars_timeseries(o, field_list, scaling, obj_asset_map) for o in objs if !isa(o, Location)]) # filter out locations
 end
 
@@ -152,7 +152,7 @@ function get_optimal_vars_timeseries(
     f::Function,
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node,Location}}
+) where {T<:Union{AbstractEdge,AbstractStorage,Node,Location}}
     reduce(vcat, [get_optimal_vars_timeseries(o, f, scaling, obj_asset_map) for o in objs if !isa(o, Location)])
 end
 
@@ -161,7 +161,7 @@ function get_optimal_vars_timeseries(
     field_list::Tuple,
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node}}
+) where {T<:Union{AbstractEdge,AbstractStorage,Node}}
     reduce(vcat, [get_optimal_vars_timeseries(obj, f, scaling, obj_asset_map) for f in field_list])
 end
 
@@ -170,7 +170,7 @@ function get_optimal_vars_timeseries(
     f::Function,
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
-) where {T<:Union{AbstractEdge,Storage,Node}}
+) where {T<:Union{AbstractEdge,AbstractStorage,Node}}
     time_axis = time_interval(obj)
     # check if the time series is piecewise linear approximation with segments
     has_segments = ndims(f(obj)) > 1 # a matrix (segments, time)

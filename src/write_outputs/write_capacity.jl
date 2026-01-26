@@ -232,7 +232,8 @@ end
 function get_optimal_capacity_by_field(asset::AbstractAsset, capacity_func::Function, scaling::Float64=1.0)
     @debug " -- Getting optimal values for $(Symbol(capacity_func)) for the asset $(id(asset))."
     edges, edge_asset_idmap = edges_with_capacity_variables(asset, return_ids_map=true)
-    asset_capacity = get_optimal_capacity_by_field(edges, capacity_func, scaling, edge_asset_idmap)
+    storages, storage_asset_idmap = storages_with_capacity_variables(asset, return_ids_map=true)
+    asset_capacity = vcat(get_optimal_capacity_by_field(edges, capacity_func, scaling, edge_asset_idmap), get_optimal_capacity_by_field(storages, capacity_func, scaling, storage_asset_idmap))
     asset_capacity[!, (!isa).(eachcol(asset_capacity), Vector{Missing})] # remove missing columns
 end
 
@@ -248,6 +249,9 @@ function get_optimal_capacity_by_field(
     scaling::Float64=1.0,
     obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
 ) where {T<:MacroObject}
+    # Check if the objects is empty
+    isempty(objs) && return DataFrame()
+
     # Calculate total number of rows needed
     total_rows = length(objs) * length(field_list)
     
