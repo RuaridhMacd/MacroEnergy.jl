@@ -133,6 +133,9 @@ function write_outputs(results_dir::AbstractString,
     # Non-served demand results
     write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system)
 
+    # Storage level results
+    write_storage_level(joinpath(results_dir, "storage_level.csv"), system)
+
     # Write dual values (if enabled)
     if system.settings.DualExportsEnabled
         ensure_duals_available!(model)        
