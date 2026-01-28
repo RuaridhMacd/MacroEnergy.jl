@@ -3,6 +3,7 @@ module TestWorkflow
 using Test
 using HiGHS
 using Pkg
+using JuMP
 try Pkg.add("Gurobi"); using Gurobi; catch e end
 using CSV, DataFrames, JSON3
 import MacroEnergy:
