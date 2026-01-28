@@ -131,10 +131,16 @@ julia> thermal_plant = thermal_plants[1]; # first thermal power plant in the lis
 
 ## Model Generation and Running
 
-### `generate_model`
-Uses JuMP to generate the optimization model for the system data. 
+### `create_optimizer`
+Create an optimizer given a solver, optionally passing also environment and attributes:
 ```julia
-julia> model = MacroEnergy.generate_model(case);
+optimizer = MacroEnergy.create_optimizer(HiGHS.Optimizer)
+```
+
+### `generate_model`
+Uses JuMP to generate the optimization model for the system data.
+```julia
+julia> model = MacroEnergy.generate_model(case,optimizer);
 [ Info: Generating model
 [ Info:  -- Period 1
 [ Info:  -- Adding linking variables
@@ -143,12 +149,6 @@ julia> model = MacroEnergy.generate_model(case);
 [ Info:  -- Including age-based retirements
 [ Info:  -- Generating operational model
 [ Info:  -- Model generation complete, it took 8.293462991714478 seconds
-```
-
-### `set_optimizer`
-Sets the optimizer for the JuMP model.
-```julia
-julia> MacroEnergy.set_optimizer(model, HiGHS.Optimizer);
 ```
 
 ### `optimize!`

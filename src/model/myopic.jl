@@ -32,7 +32,15 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
 
     for (period_idx,system) in enumerate(periods)
         @info(" -- Generating model for period $(period_idx)")
-        model = Model()
+
+        if system.settings.EnableJuMPDirectModel
+            model = create_direct_model_with_optimizer(opt)
+        else
+            model = Model()
+            set_optimizer(model, opt)
+        end
+
+        set_string_names_on_creation(model,system.settings.EnableJuMPStringNames)
 
         @variable(model, vREF == 1)
 
@@ -87,8 +95,6 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         @expression(model, eVariableCost, eVariableCostByPeriod[period_idx])
 
         @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
-
-        set_optimizer(model, opt)
 
         scale_constraints!(system, model)
 

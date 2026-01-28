@@ -32,19 +32,16 @@ We first load the inputs:
 ```julia
 system = MacroEnergy.load_system("one_zone_electricity_only");
 ```
-
+Next, we set the optimizer. Note that we are using the open-source LP solver [HiGHS](https://highs.dev/), alternatives include the commercial solvers [Gurobi](https://www.gurobi.com/), [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio), [COPT](https://www.copt.de/).
+```julia
+optimizer = create_optimizer(HiGHS.Optimizer)
+```
 We are now ready to generate the Macro capacity expansion model. Because Macro is designed to be solved by [high performance decomposition algorithms](https://arxiv.org/abs/2403.02559), the model formulation has a specific block structure that can be exploited by these schemes. In the case of 3 operational sub-periods, the block structure looks like this:
 
 ![model_structure](../images/model_structure.png)
 
 ```julia
-model = MacroEnergy.generate_model(system)
-```
-
-Next, we set the optimizer. Note that we are using the open-source LP solver [HiGHS](https://highs.dev/), alternatives include the commercial solvers [Gurobi](https://www.gurobi.com/), [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio), [COPT](https://www.copt.de/).
-
-```julia
-MacroEnergy.set_optimizer(model, HiGHS.Optimizer);
+model = MacroEnergy.generate_model(system,optimizer)
 ```
 
 Finally, we solve the capacity expansion model:
@@ -152,11 +149,10 @@ system = MacroEnergy.load_system("one_zone_electricity_only");
 ```
 generate the Macro model:
 ```julia
-model = MacroEnergy.generate_model(system);
+model = MacroEnergy.generate_model(system,optimizer)
 ```
 and solve it:
 ```julia
-MacroEnergy.set_optimizer(model, HiGHS.Optimizer);
 MacroEnergy.optimize!(model)
 ```
 We can check the results by printing the total system cost:

@@ -316,14 +316,17 @@ First, load the inputs:
 ```julia
 system = MacroEnergy.load_system("one_zone_multisector");
 ```
+Then, define the HiGHS solver as Optimizer:
+```julia
+optimizer = create_optimizer(HiGHS.Optimizer)
+```
 Then, generate the model:
 ```julia
-model = MacroEnergy.generate_model(system)
+model = MacroEnergy.generate_model(system, optimizer)
 ```
 
-Finally, solve it using the HiGHS solver:
+Finally, solve it:
 ```julia
-MacroEnergy.set_optimizer(model, HiGHS.Optimizer);
 MacroEnergy.optimize!(model)
 ```
 

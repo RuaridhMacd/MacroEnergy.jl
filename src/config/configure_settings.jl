@@ -1,6 +1,8 @@
 function default_settings()
     return (
         ConstraintScaling = false,
+        EnableJuMPDirectModel = false,
+        EnableJuMPStringNames = false,
         WriteSubcommodities = false,
         OverwriteResults = false,
         OutputDir = "results",

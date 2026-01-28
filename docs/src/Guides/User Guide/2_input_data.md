@@ -82,6 +82,13 @@ The `settings` folder currently contains only one file, `macro_settings.yml`, wh
 | WriteSubcommodities | True, False | False | If true, the model will write the subcommodities created by the user in the results. |
 | OverwriteResults | True, False | False | If true, the model will overwrite the results file if it already exists. |
 | OutputDir | String | "results" | The directory where the results will be saved. |
+| OutputLayout | "long", "wide" | "long" | Switch between "long" and "wide" layouts for CSV output files. |
+| DualExportsEnabled | True, False | False | If true, the model will write duals for balance equations in the results folder |
+| EnableJuMPStringNames | True, False | False | If true, the model will attach a string name to each JuMP variables. Ignored when Benders decomposition is used. |
+| EnableJuMPDirectModel | True, False | False | If true, the model will be generate a JuMP direct model. Ignored when Benders decomposition is used. |
+| AutoCreateNodes | True, False | False | If true, the model will automatically create a new Node if Macro is asked to find a Node of a given Commodity at a Location and the Node does not exist. |
+| AutoCreateLocations | True, False | True |  If true, the model will automatically create a new Location if Macro comes across a Node which is a assigned to a Location that does not exist. |
+| Retrofitting | True, False | False | If true, the model will consider retrofi investments |
 
 ## System folder
 

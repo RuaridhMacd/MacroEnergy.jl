@@ -19,6 +19,7 @@ import MacroEnergy:
     current_subperiod,
     ensure_duals_available!,
     generate_model,
+    create_optimizer,
     get_constraint_by_type,
     get_transformations,
     has_duals,
@@ -76,8 +77,8 @@ function test_ensure_duals_available!()
     @testset "ensure_duals_available! Tests" begin
         # Load case and generate model
         case = load_case(test_path)
-        model = generate_model(case)
-        set_optimizer(model, optim)
+        optimizer = create_optimizer(optim)
+        model = generate_model(case, optimizer)
         set_silent(model)
         optimize!(model)
 

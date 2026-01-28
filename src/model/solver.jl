@@ -5,10 +5,8 @@ end
 function solve_case(case::Case, opt::Optimizer, ::Monolithic)
 
     @info("*** Running simulation with monolithic solver ***")
-    
-    model = generate_model(case)
 
-    set_optimizer(model, opt)
+    model = generate_model(case, opt)
 
     # For monolithic solution there is only one model
     # scale constraints if the flag is true in the first system
