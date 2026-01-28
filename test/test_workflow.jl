@@ -24,6 +24,7 @@ import MacroEnergy:
     load_case,
     read_file,
     generate_model,
+    create_optimizer,
     set_optimizer,
     optimize!,
     objective_value,

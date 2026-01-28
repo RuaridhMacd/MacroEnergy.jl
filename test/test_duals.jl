@@ -19,6 +19,7 @@ import MacroEnergy:
     current_subperiod,
     ensure_duals_available!,
     generate_model,
+    create_optimizer,
     get_constraint_by_type,
     get_transformations,
     has_duals,
