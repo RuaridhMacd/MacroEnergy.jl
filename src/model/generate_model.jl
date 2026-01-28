@@ -1,5 +1,14 @@
 
-function generate_model(case::Case,model::Model)
+function generate_model(case::Case,opt::Optimizer)
+
+    if case.systems[1].settings.EnableJuMPDirectModel
+        model = create_direct_model_with_optimizer(opt)
+    else
+        model = Model()
+        set_optimizer(model, opt)
+    end
+
+    set_string_names_on_creation(model,case.systems[1].settings.EnableJuMPStringNames)
 
     periods = get_periods(case)
     settings = get_settings(case)

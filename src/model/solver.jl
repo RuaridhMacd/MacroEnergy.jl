@@ -5,17 +5,8 @@ end
 function solve_case(case::Case, opt::Optimizer, ::Monolithic)
 
     @info("*** Running simulation with monolithic solver ***")
-    
-    if case.systems[1].settings.EnableJuMPDirectModel
-        model = create_direct_model_with_optimizer(opt)
-    else
-        model = Model()
-        set_optimizer(model, opt)
-    end
 
-    set_string_names_on_creation(model,case.systems[1].settings.EnableJuMPStringNames)
-
-    model = generate_model(case,model)
+    model = generate_model(case, opt)
 
     # For monolithic solution there is only one model
     # scale constraints if the flag is true in the first system

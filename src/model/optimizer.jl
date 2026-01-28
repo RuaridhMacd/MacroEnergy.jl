@@ -5,7 +5,7 @@ struct Optimizer
     attributes::Tuple
 end
 
-function create_optimizer(optimizer::DataType, optimizer_env::Any, attributes::Tuple)
+function create_optimizer(optimizer::DataType, optimizer_env::Any=nothing, attributes::Tuple=())
     return Optimizer(optimizer, optimizer_env, attributes)
 end
 
