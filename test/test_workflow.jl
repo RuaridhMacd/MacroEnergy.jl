@@ -267,8 +267,9 @@ end
 
 function test_model_generation_and_optimization()
     case = load_case(test_path)
-    model = generate_model(case)
+    model = Model()
     set_optimizer(model, optim)
+    model = generate_model(case,model)
     optimize!(model)
     macro_objval = objective_value(model)
 

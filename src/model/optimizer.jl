@@ -9,33 +9,13 @@ function create_optimizer(optimizer::DataType, optimizer_env::Any, attributes::T
     return Optimizer(optimizer, optimizer_env, attributes)
 end
 
-function create_direct_model_with_optimizer(opt::Optimizer)
-    
-    if !isnothing(opt.optimizer_env)
-        @debug("Setting optimizer with environment $(opt.optimizer_env)")
-        try 
-            model = direct_model(MOI.instantiate(() -> opt.optimizer(opt.optimizer_env)));
-        catch
-            error("Error creating optimizer with environment. Check that the environment is valid.")
-        end
-    else
-        @debug("Setting optimizer $(opt.optimizer)")
-        model = direct_model(MOI.instantiate(opt.optimizer));
-    end
-    @debug("Setting optimizer attributes $(opt.attributes)")
-    
-    set_optimizer_attributes(model, opt)
-
-    return model
-end
-
 function set_optimizer(model::Model, opt::Optimizer)
     if !isnothing(opt.optimizer_env)
         @debug("Setting optimizer with environment $(opt.optimizer_env)")
         try 
             set_optimizer(model, () -> opt.optimizer(opt.optimizer_env));
-        catch
-            error("Error creating optimizer with environment. Check that the environment is valid.")
+        catch e
+            error("Error creating optimizer with environment: $e")
         end
     else
         @debug("Setting optimizer $(opt.optimizer)")

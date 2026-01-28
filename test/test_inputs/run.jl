@@ -6,7 +6,8 @@ optim = is_gurobi_available() ? Gurobi.Optimizer : HiGHS.Optimizer
 println()
 
 system = MacroEnergy.load_system(@__DIR__)
-model = MacroEnergy.generate_model(system)
+model = Model()
 MacroEnergy.set_optimizer(model, optim)
+model = MacroEnergy.generate_model(system, model)
 MacroEnergy.optimize!(model)
 macro_objval = MacroEnergy.objective_value(model)

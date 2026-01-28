@@ -76,8 +76,9 @@ function test_ensure_duals_available!()
     @testset "ensure_duals_available! Tests" begin
         # Load case and generate model
         case = load_case(test_path)
-        model = generate_model(case)
+        model = Model()
         set_optimizer(model, optim)
+        model = generate_model(case,model)
         set_silent(model)
         optimize!(model)
 
