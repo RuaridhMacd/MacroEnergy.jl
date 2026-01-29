@@ -43,6 +43,23 @@ using Gurobi # or CPLEX, etc.
 
 For more information about the available solvers and their settings, please refer to the JuMP documentation or the solver's documentation.
 
+### Stop-and-go myopic iteration
+
+By default, Macro solves the model with perfect foresight (either monolithically or applying Benders decomposition). When the `SolutionAlgorithm` setting is set to `"Myopic"`, Macro will run a myopic algorithm where each planning period is considered individually, and planning decisions are carried over from one period to to the next. Because of time or memory constraints, the user may choose to stop the myopic iterations after a certain period, and start them again at a later stage (for example, in a different job on a computer cluster). This is done by adding to the `case_settings.json` file:
+
+```julia
+"MyopicSettings": {
+        "Restart": {
+            "enabled": true,
+            "path": "results",
+            "from_period": 2
+        },
+        "StopAfterPeriod": 3,
+    }
+```julia
+
+With the above settings, Macro will start the myopic iteration from period 2, loading planning solutions from folder "results" and it will terminate the iterations after period 3 has been solved.
+
 ### Benders decomposition
 
 To run a case with Benders decomposition, users need to specify the optimizer for the planning problem and the subproblems.
