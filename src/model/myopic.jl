@@ -36,7 +36,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         else
             restart_path = joinpath(case.systems[1].data_dirpath,myopic_settings[:Restart][:path])
             restart_period_idx = myopic_settings[:Restart][:from_period]
-            @info("Restarting myopic iteration from period $(restart_period_idx) using capacities results from $(restart_path)")
+            @info("Restarting myopic iteration from period $(restart_period_idx) using capacities results in $(restart_path)")
             capacity_results = Dict{Int,DataFrame}()
             for period_idx in 1:restart_period_idx-1
                 capacity_results[period_idx] = load_dataframe(restart_path * "/results_period_$(period_idx)/capacity.csv")
@@ -49,11 +49,10 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         if myopic_settings[:Restart][:enabled] && (period_idx < myopic_settings[:Restart][:from_period])
             continue
         end
-        if myopic_settings[:PeriodTermination] !== nothing
-            if period_idx > myopic_settings[:PeriodTermination]
-                @info("Reached specified period termination at period $(myopic_settings[:PeriodTermination]). Ending myopic iteration.")
-                break
-            end
+        
+        if period_idx > myopic_settings[:PeriodTermination]
+            @info("Reached specified period termination at period $(myopic_settings[:PeriodTermination]). Ending myopic iteration.")
+            break
         end
 
         @info(" -- Generating model for period $(period_idx)")
