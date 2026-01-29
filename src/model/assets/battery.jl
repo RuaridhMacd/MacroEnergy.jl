@@ -40,6 +40,7 @@ function full_default_data(::Type{Battery}, id=missing)
                 :constraints => Dict{Symbol,Bool}(
                     :CapacityConstraint => true,
                     :StorageDischargeLimitConstraint => true
+                    :StorageChargeLimitConstraint => true,
                 )
             )
         )
