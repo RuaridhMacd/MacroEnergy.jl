@@ -50,8 +50,8 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
             continue
         end
         
-        if period_idx > myopic_settings[:PeriodTermination]
-            @info("Reached specified period termination at period $(myopic_settings[:PeriodTermination]). Ending myopic iteration.")
+        if period_idx > myopic_settings[:StopAfterPeriod]
+            @info("Reached specified period termination at period $(myopic_settings[:StopAfterPeriod]). Ending myopic iteration.")
             break
         end
 

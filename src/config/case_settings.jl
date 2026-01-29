@@ -15,7 +15,7 @@ function default_myopic_settings()
         :ReturnModels => false,
         :WriteModelLP => false,
         :Restart => Dict(:enabled=>false, :path => "results_001/period_1", :from_period => 1),
-        :PeriodTermination => Inf
+        :StopAfterPeriod => Inf
     )
 end
 
@@ -206,9 +206,9 @@ function validate_myopic_settings(myopic_settings::AbstractDict{Symbol,Any})
     @assert isa(myopic_settings[:Restart][:enabled], Bool)
     @assert isa(myopic_settings[:Restart][:path], AbstractString)
     @assert isa(myopic_settings[:Restart][:from_period], Int)
-    @assert isa(myopic_settings[:PeriodTermination], Number)
-    @assert myopic_settings[:PeriodTermination] >= 1
+    @assert isa(myopic_settings[:StopAfterPeriod], Number)
+    @assert myopic_settings[:StopAfterPeriod] >= 1
     @assert myopic_settings[:Restart][:from_period] >= 1
-    @assert myopic_settings[:Restart][:from_period] <= myopic_settings[:PeriodTermination]
+    @assert myopic_settings[:Restart][:from_period] <= myopic_settings[:StopAfterPeriod]
 
 end
