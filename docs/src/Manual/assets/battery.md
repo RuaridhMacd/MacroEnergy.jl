@@ -133,6 +133,7 @@ To simplify the input file and the asset configuration, the following constraint
 - [Storage symmetric capacity constraint](@ref storage_symmetric_capacity_constraint_ref) (applied to the storage component)
 - [Capacity constraint](@ref capacity_constraint_ref) (applied to the discharge edge)
 - [Storage discharge limit constraint](@ref storage_discharge_limit_constraint_ref) (applied to the discharge edge)
+- [Storage charge limit constraint](@ref storage_charge_limit_constraint_ref) (applied to the charge edge)
 
 If the storage is a long-duration storage, the following additional constraints are applied:
 - [Long-duration storage constraints](@ref long_duration_storage_constraints_ref) (applied to the storage component)
@@ -485,7 +486,8 @@ Below is an example of an input file for a battery asset that sets up three batt
                         "can_retire": false,
                         "constraints": {
                             "CapacityConstraint": true,
-                            "StorageDischargeLimitConstraint": true
+                            "StorageDischargeLimitConstraint": true,
+                            "StorageChargeLimitConstraint": true
                         }
                     },
                     "charge_edge": {
