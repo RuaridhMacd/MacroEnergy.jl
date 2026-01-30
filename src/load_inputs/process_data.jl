@@ -69,7 +69,7 @@ end
 
 function check_and_convert_inf!(data::AbstractDict{Symbol,Any})
     convert_inf_string_to_value(data, :max_capacity)
-    convert_inf_string_to_value(data, :max_capacity)
+    convert_inf_string_to_value(data, :max_new_capacity)
     return nothing
 end
 
