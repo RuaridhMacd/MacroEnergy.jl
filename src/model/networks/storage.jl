@@ -273,30 +273,9 @@ function make_long_duration_storage(
     commodity::DataType,
 )
 
-    storage_kwargs = Base.fieldnames(LongDurationStorage)
     remove_keys = [:id, :timedata, :retrofit_id, :charge_edge, :discharge_edge, :spillage_edge, :balance_data]
     tracking_keys = [:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track]
-    storage_kwargs = filter(x -> !(x in remove_keys) && !(x in tracking_keys), storage_kwargs)
-    filtered_data = Dict{Symbol,Any}(
-        k => v for (k,v) in data if (k in storage_kwargs) && !(v == "")
-    )
-    for k in tracking_keys
-        if haskey(data, k)
-            filtered_data[k] = Dict{Int64,AffExpr}(
-                parse(Int64,String(kk)) => AffExpr(vv) for (kk,vv) in data[k]
-            )
-        end
-    end
-    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{<:Real})
-        filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end
-    filtered_data[:warm_starts] = get(filtered_data, :warm_starts, Dict{Symbol,Any}())
-    for k in storage_kwargs
-        if haskey(filtered_data, k) && isa(filtered_data[k], Real) && fieldtype(LongDurationStorage, k) in [Union{JuMPVariable, AffExpr}, Union{Missing, JuMPVariable}, JuMPVariable, AffExpr]
-            filtered_data[:warm_starts][k] = filtered_data[k]
-            delete!(filtered_data, k)
-        end
-    end
+    filtered_data = filter_input_data(data, Storage, remove_keys, tracking_keys)
     _storage = LongDurationStorage{commodity}(;
         id=id,
         timedata=time_data,
