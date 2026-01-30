@@ -12,7 +12,7 @@ end
 function write_to_json(case::Case, file_path::AbstractString="", compress::Bool=false)::Nothing
     case_data = Dict{Symbol, Any}(
         :case => [prepare_to_json(system) for system in case.systems],
-        :settings => case.settings
+        :settings => prepare_to_json(case.settings)
     )
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
     println("Writing system data to JSON file at: ", file_path)
@@ -146,6 +146,10 @@ function prepare_to_json(data::Dict{DataType,Any})
     return Dict(Symbol(k) => v for (k, v) in data)
 end
 
+function prepare_to_json(data::NamedTuple)
+    return Dict(Symbol(k) => prepare_to_json(v) for (k, v) in pairs(data))
+end
+
 # TimeData field of MacroObjects are written as the commodity type
 function prepare_to_json(timedata::TimeData)
     return typesymbol(commodity_type(timedata))
@@ -164,8 +168,19 @@ function prepare_to_json(data::Dict{Symbol,TimeData})
         time_data[:HoursPerSubperiod][k] = length(v.subperiods[1]) # TODO: Check this
     end
     time_data[:TotalHoursModeled] = first(time_data[:HoursPerSubperiod]).second * time_data[:NumberOfSubperiods]
-
+    # Make subperiod map
+    (comm, comm_time_data) = first(data)
+    rep_period_map = Dict(p => idx for (idx,p) in enumerate(comm_time_data.subperiod_indices))
+    period_map = DataFrame([
+       Dict{Symbol,Int64}(:Period_Index => p, :Rep_Period => comm_time_data.subperiod_map[p], :Rep_Period_Index => rep_period_map[comm_time_data.subperiod_map[p]]) for p in 1:time_data[:NumberOfSubperiods]
+    ])
+    # Using JSONTables and JSON3 to automatically handle future formatting changes
+    time_data[:SubPeriodMap] = copy(JSON3.read(objecttable(period_map)))
     return time_data
+end
+
+function prepare_to_json(data::AbstractSolutionAlgorithm)
+    return string(nameof(typeof(data)))
 end
 
 function prepare_to_json(data::Missing)
