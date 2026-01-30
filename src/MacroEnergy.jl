@@ -1,6 +1,6 @@
 module MacroEnergy
 
-using CSV, JSON3, GZip, Parquet2
+using CSV, JSON3, GZip, Parquet2, JSONTables
 using Dates
 using DuckDB
 using DataFrames
@@ -140,6 +140,7 @@ include_all_in_folder("utilities")
 
 include("model/units.jl")
 include("model/time_management.jl")
+include("model/networks/utilities.jl")
 include("model/networks/vertex.jl")
 include("model/networks/node.jl")
 include("model/networks/storage.jl")
