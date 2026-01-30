@@ -22,6 +22,7 @@ macro AbstractVertexBaseAttributes()
                 Dict{Symbol,Dict{Symbol,Float64}}()
             constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
             operation_expr::Dict = Dict()
+            warm_starts::Dict{Symbol,Any} = Dict{Symbol,Any}()
         end,
     )
 end

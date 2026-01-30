@@ -9,14 +9,14 @@ macro AbstractEdgeBaseAttributes()
         can_expand::Bool = $edge_defaults[:can_expand]
         can_retire::Bool = $edge_defaults[:can_retire]
         can_retrofit::Bool = $edge_defaults[:can_retrofit]
-        capacity::Union{JuMPVariable,AffExpr,Float64} = AffExpr(0.0)
+        capacity::Union{JuMPVariable,AffExpr} = AffExpr(0.0)
         capacity_size::Float64 = $edge_defaults[:capacity_size]
         capital_recovery_period::Int64 = $edge_defaults[:capital_recovery_period]
         constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
         distance::Float64 = $edge_defaults[:distance]
-        existing_capacity::Union{JuMPVariable,AffExpr,Float64,Int64} = $edge_defaults[:existing_capacity]
+        existing_capacity::Union{JuMPVariable,AffExpr} = AffExpr(0.0)
         fixed_om_cost::Float64 = $edge_defaults[:fixed_om_cost]
-        flow::JuMPVariable = Vector{VariableRef}()
+        flow::JuMPVariable = VariableRef[]
         has_capacity::Bool = $edge_defaults[:has_capacity]
         integer_decisions::Bool = $edge_defaults[:integer_decisions]
         investment_cost::Float64 = $edge_defaults[:investment_cost]
@@ -29,19 +29,19 @@ macro AbstractEdgeBaseAttributes()
         min_retired_capacity::Float64 = $edge_defaults[:min_retired_capacity]
         min_retired_capacity_track::Float64 = 0.0
         min_flow_fraction::Float64 = $edge_defaults[:min_flow_fraction]
-        new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
+        new_capacity::AffExpr = AffExpr(0.0)
         new_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        new_units::Union{JuMPVariable,Float64} = 0.0
+        new_units::JuMPVariable = VariableRef[]
         ramp_down_fraction::Float64 = $edge_defaults[:ramp_down_fraction]
         ramp_up_fraction::Float64 = $edge_defaults[:ramp_up_fraction]
-        retired_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
+        retired_capacity::AffExpr = AffExpr(0.0)
         retired_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        retired_units::Union{JuMPVariable,Float64} = 0.0
+        retired_units::JuMPVariable = VariableRef[]
         retrofit_efficiency::Union{Missing,Float64} = $edge_defaults[:retrofit_efficiency]
         retrofit_id::Union{Missing, Vector{Symbol}} = $edge_defaults[:retrofit_id]
         retrofitted_capacity::AffExpr = AffExpr(0.0)
         retrofitted_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        retrofitted_units::Union{JuMPVariable,Float64} = 0.0
+        retrofitted_units::JuMPVariable = VariableRef[]
         unidirectional::Bool = $edge_defaults[:unidirectional]
         variable_om_cost::Float64 = $edge_defaults[:variable_om_cost]
         min_down_time::Int64 = $edge_defaults[:min_down_time]
@@ -52,6 +52,7 @@ macro AbstractEdgeBaseAttributes()
         retirement_period::Int64 = $edge_defaults[:retirement_period]
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $edge_defaults[:annualized_investment_cost]
+        warm_starts::Dict{Symbol,Any} = Dict{Symbol,Any}()
     end)
 end
 
@@ -139,19 +140,9 @@ function make_edge(
         error("Edge $id cannot be connected to its end vertex, $(end_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(end_vertex.id) is a $(commodity_type(end_vertex)) vertex.")
     end
 
-    edge_kwargs = Base.fieldnames(Edge)
-    filtered_data = Dict{Symbol, Any}(
-        k => v for (k,v) in data if k in edge_kwargs
-    )
-    remove_keys = [:id, :start_vertex, :end_vertex, :timedata]
-    for key in remove_keys
-        if haskey(filtered_data, key)
-            delete!(filtered_data, key)
-        end
-    end
-    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
-        filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end    
+    remove_keys = [:id, :start_vertex, :end_vertex, :timedata, :retrofit_id]
+    tracking_keys = [:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track]
+    filtered_data = filter_input_data(data, Edge, remove_keys, tracking_keys)
     _edge = Edge{commodity}(;
         id = id,
         timedata = time_data,
@@ -480,16 +471,9 @@ function make_edge_UC(
         error("Edge $id cannot be connected to its end vertex, $(end_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(end_vertex.id) is a $(commodity_type(end_vertex)) vertex.")
     end
 
-    edge_kwargs = Base.fieldnames(EdgeWithUC)
-    filtered_data = Dict{Symbol,Any}(
-        k => v for (k, v) in data if k in edge_kwargs
-    )
-    remove_keys = [:id, :start_vertex, :end_vertex, :timedata]
-    for key in remove_keys
-        if haskey(filtered_data, key)
-            delete!(filtered_data, key)
-        end
-    end
+    remove_keys = [:id, :start_vertex, :end_vertex, :timedata, :retrofit_id]
+    tracking_var_keys = [:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track]
+    filtered_data = filter_input_data(data, EdgeWithUC, remove_keys, tracking_var_keys)
     _edge = EdgeWithUC{commodity}(;
         id = id,
         timedata = time_data,

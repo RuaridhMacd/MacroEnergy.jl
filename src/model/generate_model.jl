@@ -237,7 +237,7 @@ function carry_over_capacities!(y::Union{AbstractEdge,AbstractStorage},y_prev::U
         if perfect_foresight
             y.existing_capacity = capacity(y_prev)
         else
-            y.existing_capacity = value(capacity(y_prev))
+            y.existing_capacity = AffExpr(value(capacity(y_prev)))
         end
         
         for prev_period in keys(new_capacity_track(y_prev))

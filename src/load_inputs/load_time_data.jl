@@ -38,6 +38,13 @@ function load_time_data(
     time_data::AbstractDict{Symbol,Any},
     commodities::Dict{Symbol,DataType}
 )
+    # Temporary fix till we revise this workflow
+    if isa(get(time_data, :SubPeriodMap, nothing), Dict{Symbol, Any})
+        load_subperiod_map!(
+            time_data::AbstractDict{Symbol,Any},
+            ""
+        )
+    end
     # validate the time data
     validate_time_data(time_data, commodities)
 
@@ -50,13 +57,25 @@ function load_subperiod_map!(
     rel_path::AbstractString
 )
     subperiod_map_data = time_data[:SubPeriodMap]
-    # if the period map is file path, load it
-    if haskey(subperiod_map_data, :path)
-        path = rel_or_abs_path(subperiod_map_data[:path], rel_path)
-        subperiod_map_data = load_subperiod_map(path)
+    if isa(subperiod_map_data, DataFrame)
+        # do nothing, already loaded
+        validate_subperiod_map(subperiod_map_data)
+        return nothing
+    elseif isa(subperiod_map_data, Dict{Symbol, Any})
+        if haskey(subperiod_map_data, :path)
+            # if the period map is file path, load it
+            path = rel_or_abs_path(subperiod_map_data[:path], rel_path)
+            subperiod_map_data = load_subperiod_map(path)
+        else
+            # Assumes the data is in JSONTables.jl format
+            subperiod_map_data = DataFrame(subperiod_map_data)
+        end
+    else
+        error("SubPeriodMap must be a DataFrame or a Dict{Symbol, Any}, got $(typeof(subperiod_map_data))")
     end
-    validate_subperiod_map(subperiod_map_data)
     time_data[:SubPeriodMap] = subperiod_map_data
+    validate_subperiod_map(subperiod_map_data)
+    return nothing
 end
 
 function load_subperiod_map(path::AbstractString)
@@ -64,11 +83,18 @@ function load_subperiod_map(path::AbstractString)
     return load_csv(path)
 end
 
+function validate_subperiod_map(subperiod_map_data::Dict{Symbol, Any})
+    subperiod_map_data = DataFrame(subperiod_map_data)
+    validate_subperiod_map(subperiod_map_data)
+    return nothing
+end
+
 function validate_subperiod_map(subperiod_map_data::DataFrame)
     @assert names(subperiod_map_data) == ["Period_Index", "Rep_Period", "Rep_Period_Index"]
-    @assert typeof(subperiod_map_data[!, :Period_Index]) == Vector{Union{Missing, Int}}
-    @assert typeof(subperiod_map_data[!, :Rep_Period]) == Vector{Union{Missing, Int}}
-    @assert typeof(subperiod_map_data[!, :Rep_Period_Index]) == Vector{Union{Missing, Int}}
+    @assert typeof(subperiod_map_data[!, :Period_Index]) in [Vector{Int64}, Vector{Union{Missing, Int}}]
+    @assert typeof(subperiod_map_data[!, :Rep_Period]) in [Vector{Int64}, Vector{Union{Missing, Int}}]
+    @assert typeof(subperiod_map_data[!, :Rep_Period_Index]) in [Vector{Int64}, Vector{Union{Missing, Int}}]
+    return nothing
 end
 
 function validate_and_set_default_total_hours_modeled!(time_data::AbstractDict{Symbol,Any})

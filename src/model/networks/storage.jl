@@ -6,11 +6,11 @@ macro AbstractStorageBaseAttributes()
         spillage_edge::Union{Nothing, AbstractEdge} = nothing
         can_expand::Bool = $storage_defaults[:can_expand]
         can_retire::Bool = $storage_defaults[:can_retire]
-        capacity::Union{JuMPVariable,AffExpr,Float64} = AffExpr(0.0)
+        capacity::Union{JuMPVariable,AffExpr} = AffExpr(0.0)
         capacity_size::Float64 = $storage_defaults[:capacity_size]
         capital_recovery_period::Int64 = $storage_defaults[:capital_recovery_period]
         charge_discharge_ratio::Float64 = $storage_defaults[:charge_discharge_ratio]
-        existing_capacity::Union{JuMPVariable,AffExpr,Float64,Int64} = $storage_defaults[:existing_capacity]
+        existing_capacity::Union{JuMPVariable,AffExpr} = AffExpr(0.0)
         fixed_om_cost::Float64 = $storage_defaults[:fixed_om_cost]
         investment_cost::Float64 = $storage_defaults[:investment_cost]
         lifetime::Int64 = $storage_defaults[:lifetime]
@@ -26,14 +26,14 @@ macro AbstractStorageBaseAttributes()
         min_retired_capacity::Float64 = $storage_defaults[:min_retired_capacity]
         min_retired_capacity_track::Float64 = 0.0
         min_storage_level::Float64 = $storage_defaults[:min_storage_level]
-        new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
+        new_capacity::AffExpr = AffExpr(0.0)
         new_capacity_track::Dict{Int64,AffExpr} = Dict(1=>AffExpr(0.0))
         new_units::Union{Missing, JuMPVariable} = missing
-        retired_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
+        retired_capacity::AffExpr = AffExpr(0.0)
         retired_capacity_track::Dict{Int64,AffExpr} = Dict(1=>AffExpr(0.0))
         retirement_period::Int64 = $storage_defaults[:retirement_period]
         retired_units::Union{Missing, JuMPVariable} = missing
-        storage_level::JuMPVariable = Vector{VariableRef}()
+        storage_level::JuMPVariable = VariableRef[]
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $storage_defaults[:annualized_investment_cost]
     end)
@@ -109,19 +109,9 @@ function make_storage(
     # We could instead filter on an explicit list of keys
     # As it is, this will add configure several additional
     # attributes than we had before, e.g. :constraints 
-    storage_kwargs = Base.fieldnames(Storage)
-    filtered_data = Dict{Symbol, Any}(
-        k => v for (k,v) in data if k in storage_kwargs
-    )
-    remove_keys = [:id, :timedata]
-    for key in remove_keys
-        if haskey(filtered_data, key)
-            delete!(filtered_data, key)
-        end
-    end
-    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
-        filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end 
+    remove_keys = [:id, :timedata, :retrofit_id, :charge_edge, :discharge_edge, :spillage_edge, :balance_data]
+    tracking_keys = [:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track]
+    filtered_data = filter_input_data(data, Storage, remove_keys, tracking_keys)
     _storage = Storage{commodity}(;
         id = id,
         timedata = time_data,
@@ -186,19 +176,20 @@ storage_level(g::AbstractStorage) = g.storage_level;
 storage_level(g::AbstractStorage, t::Int64) = storage_level(g)[t];
 wacc(g::AbstractStorage) = g.wacc;
 annualized_investment_cost(g::AbstractStorage) = g.annualized_investment_cost;
+warm_start(g::AbstractStorage, fieldname::Symbol) = haskey(g.warm_starts, fieldname) ? g.warm_starts[fieldname] : nothing;
 
 function add_linking_variables!(g::Storage, model::Model)
     if has_capacity(g)
-        g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
+        g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))", start = warm_start(g, :capacity))
     end
 end
 
 function define_available_capacity!(g::AbstractStorage, model::Model)
 
     if has_capacity(g)
-        g.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))")
+        g.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))", start = warm_start(g, :new_units))
 
-        g.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(g))_period$(period_index(g))")
+        g.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(g))_period$(period_index(g))", start = warm_start(g, :retired_units))
         
         g.new_capacity = @expression(model, capacity_size(g) * new_units(g))
         
@@ -283,18 +274,29 @@ function make_long_duration_storage(
 )
 
     storage_kwargs = Base.fieldnames(LongDurationStorage)
+    remove_keys = [:id, :timedata, :retrofit_id, :charge_edge, :discharge_edge, :spillage_edge, :balance_data]
+    tracking_keys = [:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track]
+    storage_kwargs = filter(x -> !(x in remove_keys) && !(x in tracking_keys), storage_kwargs)
     filtered_data = Dict{Symbol,Any}(
-        k => v for (k, v) in data if k in storage_kwargs
+        k => v for (k,v) in data if (k in storage_kwargs) && !(v == "")
     )
-    remove_keys = [:id, :timedata]
-    for key in remove_keys
-        if haskey(filtered_data, key)
-            delete!(filtered_data, key)
+    for k in tracking_keys
+        if haskey(data, k)
+            filtered_data[k] = Dict{Int64,AffExpr}(
+                parse(Int64,String(kk)) => AffExpr(vv) for (kk,vv) in data[k]
+            )
         end
     end
-    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
+    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{<:Real})
         filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end 
+    end
+    filtered_data[:warm_starts] = get(filtered_data, :warm_starts, Dict{Symbol,Any}())
+    for k in storage_kwargs
+        if haskey(filtered_data, k) && isa(filtered_data[k], Real) && fieldtype(LongDurationStorage, k) in [Union{JuMPVariable, AffExpr}, Union{Missing, JuMPVariable}, JuMPVariable, AffExpr]
+            filtered_data[:warm_starts][k] = filtered_data[k]
+            delete!(filtered_data, k)
+        end
+    end
     _storage = LongDurationStorage{commodity}(;
         id=id,
         timedata=time_data,
@@ -307,13 +309,13 @@ LongDurationStorage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, com
 
 function add_linking_variables!(g::LongDurationStorage, model::Model)
 
-    g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
+    g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))", start = warm_start(g, :capacity))
 
     g.storage_initial =
-    @variable(model, [r in modeled_subperiods(g)], lower_bound = 0.0, base_name = "vSTOR_INIT_$(g.id)_period$(period_index(g))")
+    @variable(model, [r in modeled_subperiods(g)], lower_bound = 0.0, base_name = "vSTOR_INIT_$(g.id)_period$(period_index(g))", start = warm_start(g, :storage_initial))
 
     g.storage_change =
-    @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))")
+    @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))", start = warm_start(g, :storage_change))
 
 end
 
