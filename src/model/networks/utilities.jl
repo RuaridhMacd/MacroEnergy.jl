@@ -14,6 +14,9 @@ function filter_input_data(data::AbstractDict{Symbol, Any}, type, keys_to_remove
     if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], AbstractVector)
         filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
     end
+    if haskey(filtered_data, :existing_capacity) && isa(filtered_data[:existing_capacity], Real)
+        filtered_data[:existing_capacity] = AffExpr(filtered_data[:existing_capacity])
+    end
     filtered_data[:warm_starts] = get(filtered_data, :warm_starts, Dict{Symbol,Any}())
     for k in kwargs
         if haskey(filtered_data, k) && isa(filtered_data[k], Real) && fieldtype(type, k) in [Union{JuMPVariable, AffExpr}, Union{Missing, JuMPVariable}, JuMPVariable, AffExpr]
