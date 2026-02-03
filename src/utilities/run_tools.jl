@@ -158,8 +158,8 @@ function run_case(
 
         # If Benders, delete processes
         if isa(solution_algorithm(case), Benders)
-            if case.settings.BendersSettings[:Distributed] && length(workers()) > 1
-                rmprocs.(workers())
+            if case.settings.BendersSettings[:Distributed] && nprocs() > 1
+                rmprocs(workers())
             end
         end
 
@@ -172,5 +172,6 @@ function run_case(
 end
 
 function case_cleanup()
-    rmprocs(workers())  # Ensure all processes are removed
+    # Only remove distributed processes (workers beyond the main process)
+    nprocs() > 1 && rmprocs(workers())
 end
