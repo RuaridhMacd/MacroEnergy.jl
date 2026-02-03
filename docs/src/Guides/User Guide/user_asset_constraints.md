@@ -471,7 +471,7 @@ To enable this constraint:
 ```
 
 !!! warning "Constraint Application Scope"
-    This constraint is applied to discharging edges only.
+    This constraint is applied to charging edges only.
 
 ## Storage Maximum/Minimum Duration Constraint
 This constraint limits the maximum/minimum energy capacity that can be stored relative to the discharging capacity. The limit is specified in the `max_duration`/`min_duration` attribute as a number of time steps.
