@@ -1,7 +1,8 @@
 ###### ###### ###### ###### ###### ######
 # Function to write the system data to a JSON file
 ###### ###### ###### ###### ###### ######
-function write_to_json(system::System, file_path::AbstractString="", compress::Bool=false)::Nothing
+function write_to_json(system::System, file_path::AbstractString="", compress::Bool=true)::Nothing
+    # TODO: add an option to write duals or not
     system_data = prepare_to_json(system)
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
     println("Writing system data to JSON file at: ", file_path)
@@ -9,7 +10,7 @@ function write_to_json(system::System, file_path::AbstractString="", compress::B
     return nothing
 end
 
-function write_to_json(case::Case, file_path::AbstractString="", compress::Bool=false)::Nothing
+function write_to_json(case::Case, file_path::AbstractString="", compress::Bool=true)::Nothing
     case_data = Dict{Symbol, Any}(
         :case => [prepare_to_json(system) for system in case.systems],
         :settings => prepare_to_json(case.settings)
@@ -130,7 +131,16 @@ end
 
 # Constraints are written as a dictionary of constraint names and true/false values
 function prepare_to_json(constraints::Vector{AbstractTypeConstraint})
-    return Dict(Symbol(typeof(constraint)) => true for constraint in constraints)
+    dict = Dict{Symbol,Any}()
+    for constraint in constraints
+        dual_value = dual.(constraint_ref(constraint))
+        if ismissing(dual_value)
+            dict[Symbol(typeof(constraint))] = true
+        else
+            dict[Symbol(typeof(constraint))] = prepare_to_json(dual_value)
+        end
+    end
+    return dict
 end
 
 function prepare_to_json(constraints::Dict{DataType, Union{JuMP.Containers.DenseAxisArray, JuMP.Containers.SparseAxisArray, Array, ConstraintRef}})

@@ -192,6 +192,16 @@ macro process_data(name, data, get_from_tuples)
         # Therefore, we recursive_merge! the constraints, and then
         # merge the rest of the data.
         if haskey($data, :constraints)
+            for (key, value) in $data[:constraints]
+                # If any value is not a Bool, set it as true
+                # These likely came from re-used JSON data where 
+                # a constraint bool has been replaced by their dual value(s)
+                # TODOL Once we expand the constraint input format, 
+                # we can move this to process_data()
+                if !isa(value, Bool)
+                    $data[:constraints][key] = true
+                end
+            end
             recursive_merge!($defaults_name[:constraints], $data[:constraints])
             $data[:constraints] = $defaults_name[:constraints]
         end

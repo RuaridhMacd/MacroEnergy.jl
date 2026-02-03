@@ -34,6 +34,10 @@ end
 function validate_constraints_data!(data::AbstractDict{Symbol,Any})
     valid_constraints = keys(constraint_types())
     constraints = get(data, :constraints, Dict{Symbol,Bool}())
+    
+    if isempty(constraints)
+        return nothing
+    end
 
     invalid_constraints = setdiff(keys(constraints), valid_constraints)
     if !isempty(invalid_constraints)
@@ -43,6 +47,16 @@ function validate_constraints_data!(data::AbstractDict{Symbol,Any})
             ),
         )
     end
+    # for (key, value) in constraints
+    #     println("Validating constraint: ", key, ". Value = ", value)
+    #     # If any value is not a Bool, set it as true
+    #     # These likely came from re-used JSON data where 
+    #     # a constraint bool has been replaced by their dual value(s)
+    #     if !isa(value, Bool)
+    #         constraints[key] = true
+    #     end
+    # end
+    # data[:constraints] = constraints
     return nothing
 end
 
