@@ -82,18 +82,12 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         variable_cost[period_idx] = model[:eVariableCost];
         unregister(model,:eVariableCost)
     
-        @expression(model, eFixedCostByPeriod[period_idx], discount_factor[period_idx] * fixed_cost[period_idx])
-
-        @expression(model, eInvestmentFixedCostByPeriod[period_idx], discount_factor[period_idx] * investment_cost[period_idx])
-
-        @expression(model, eOMFixedCostByPeriod[period_idx], discount_factor[period_idx] * om_fixed_cost[period_idx])
-    
+        @expression(model, eFixedCostByPeriod[period_idx in [period_idx]], discount_factor[period_idx] * fixed_cost[period_idx])
+        @expression(model, eInvestmentFixedCostByPeriod[period_idx in [period_idx]], discount_factor[period_idx] * investment_cost[period_idx])
+        @expression(model, eOMFixedCostByPeriod[period_idx in [period_idx]], discount_factor[period_idx] * om_fixed_cost[period_idx])
         @expression(model, eFixedCost, eFixedCostByPeriod[period_idx])
-        
-        @expression(model, eVariableCostByPeriod[period_idx], discount_factor[period_idx] * opexmult[period_idx] * variable_cost[period_idx])
-    
+        @expression(model, eVariableCostByPeriod[period_idx in [period_idx]], discount_factor[period_idx] * opexmult[period_idx] * variable_cost[period_idx])
         @expression(model, eVariableCost, eVariableCostByPeriod[period_idx])
-
         @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
 
         scale_constraints!(system, model)
