@@ -251,13 +251,10 @@ end
 function compute_variable_cost_discount_scaling(period_idx::Int, settings::NamedTuple)
     discount_rate = settings.DiscountRate
     period_lengths = settings.PeriodLengths
+    period_start_year = total_years(period_lengths[1:period_idx-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
     
-    cum_years = sum(@view(period_lengths[1:period_idx-1]); init=0)
-    
-    discount_factor = 1 / ((1 + discount_rate)^cum_years)
-    
-    period_length = period_lengths[period_idx]
-    opexmult = sum(1 / (1 + discount_rate)^i for i in 1:period_length)
+    opexmult = opex_multiplier(discount_rate, period_lengths[period_idx])
     
     return discount_factor * opexmult
 end
