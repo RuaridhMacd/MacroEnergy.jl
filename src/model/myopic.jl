@@ -24,11 +24,9 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
 
     discount_rate = get_settings(case).DiscountRate
 
-    cum_years = [sum(period_lengths[i] for i in 1:s-1; init=0) for s in 1:num_periods];
+    discount_factor = present_value_factor(discount_rate, period_lengths)
 
-    discount_factor = 1 ./ ( (1 + discount_rate) .^ cum_years)
-
-    opexmult = [sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[s]]) for s in 1:num_periods]
+    opexmult = opex_multiplier.(discount_rate, period_lengths)
 
     for (period_idx,system) in enumerate(periods)
         @info(" -- Generating model for period $(period_idx)")

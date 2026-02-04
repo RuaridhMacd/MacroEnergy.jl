@@ -70,9 +70,7 @@ function generate_model(case::Case)
 
     discount_rate = settings.DiscountRate
 
-    cum_years = [sum(period_lengths[i] for i in 1:s-1; init=0) for s in 1:num_periods];
-
-    discount_factor = 1 ./ ( (1 + discount_rate) .^ cum_years)
+    discount_factor = present_value_factor(discount_rate, period_lengths)
 
     @expression(model, eFixedCostByPeriod[s in 1:num_periods], discount_factor[s] * fixed_cost[s])
 
@@ -82,7 +80,7 @@ function generate_model(case::Case)
 
     @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in 1:num_periods))
 
-    opexmult = [sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[s]]) for s in 1:num_periods]
+    opexmult = opex_multiplier.(discount_rate, period_lengths)
 
     @expression(model, eVariableCostByPeriod[s in 1:num_periods], discount_factor[s] * opexmult[s] * variable_cost[s])
 
@@ -328,9 +326,9 @@ function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::
         nothing
     end
 
-    y.annualized_investment_cost = annualized_investment_cost(y) * sum(1 / (1 + settings.DiscountRate)^s for s in 1:payment_years_remaining; init=0);
+    y.annualized_investment_cost = annualized_investment_cost(y) / capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
     
-    opexmult = sum([1 / (1 + settings.DiscountRate)^(i) for i in 1:settings.PeriodLengths[period_index(y)]])
+    opexmult = opex_multiplier(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
 
     y.fixed_om_cost = fixed_om_cost(y) * opexmult
 
@@ -362,10 +360,10 @@ function undo_discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},setti
     # Include all annuities within the modeling horizon for all cases (including Myopic), since undiscounting only concerns reporting of results 
     payment_years_remaining = min(capital_recovery_period(y), model_years_remaining);
 
-    y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) / sum(1 / (1 + settings.DiscountRate)^s for s in 1:payment_years_remaining; init=0);
+    y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
 
-    opexmult = sum([1 / (1 + settings.DiscountRate)^(i) for i in 1:settings.PeriodLengths[period_index(y)]])
-    y.fixed_om_cost = settings.PeriodLengths[period_index(y)]*fixed_om_cost(y) / opexmult
+    opexmult = opex_multiplier(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
+    y.fixed_om_cost = settings.PeriodLengths[period_index(y)] * fixed_om_cost(y) / opexmult
 end
 function undo_discount_fixed_costs!(g::Transformation,settings::NamedTuple)
     return nothing

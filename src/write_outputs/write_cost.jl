@@ -167,8 +167,8 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
     period_index = system.time_data[:Electricity].period_index;
     discount_rate = settings.DiscountRate
     period_lengths = collect(settings.PeriodLengths)
-    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0)
-    discount_factor = 1/( (1 + discount_rate)^cum_years)
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
     
     unregister(model,:eDiscountedFixedCost)
 
@@ -209,10 +209,10 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
     compute_fixed_costs!(system, model)
     model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost] 
 
-    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
-    discount_factor = 1/( (1 + discount_rate)^cum_years)
-    opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+    opexmult = opex_multiplier(discount_rate, period_lengths[period_index])
 
-    model[:eVariableCost] = period_lengths[period_index]*model[:eVariableCostByPeriod][period_index]/(discount_factor * opexmult)
+    model[:eVariableCost] = period_lengths[period_index] * model[:eVariableCostByPeriod][period_index] / (discount_factor * opexmult)
 
 end
