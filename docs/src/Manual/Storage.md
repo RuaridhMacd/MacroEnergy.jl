@@ -387,7 +387,8 @@ As Assets with two `Edges` with capacity, the standard JSON inputs for Battery A
             },
             "discharge_constraints": {
                 "CapacityConstraint": true,
-                "StorageDischargeLimitConstraint": true
+                "StorageDischargeLimitConstraint": true,
+                "StorageChargeLimitConstraint": true
             }
         }
     ]
@@ -420,7 +421,8 @@ Using the advanced input format makes it easier to understand the structure of t
                     "can_retire": false,
                     "constraints": {
                         "CapacityConstraint": true,
-                        "StorageDischargeLimitConstraint": true
+                        "StorageDischargeLimitConstraint": true,
+                        "StorageChargeLimitConstraint": true
                     }
                 },
                 "charge_edge": {
@@ -487,7 +489,8 @@ Some users may find it more straightforward to use some elements of the advanced
                     "efficiency": 0.92,
                     "constraints": {
                         "CapacityConstraint": true,
-                        "StorageDischargeLimitConstraint": true
+                        "StorageDischargeLimitConstraint": true,
+                        "StorageChargeLimitConstraint": true
                     }
                 },
                 "charge_edge": {
