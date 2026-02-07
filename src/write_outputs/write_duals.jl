@@ -254,7 +254,7 @@ function compute_variable_cost_discount_scaling(period_idx::Int, settings::Named
     period_start_year = total_years(period_lengths[1:period_idx-1])
     discount_factor = present_value_factor(discount_rate, period_start_year)
     
-    opexmult = opex_multiplier(discount_rate, period_lengths[period_idx])
+    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_idx])
     
     return discount_factor * opexmult
 end

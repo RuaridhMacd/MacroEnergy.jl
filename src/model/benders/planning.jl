@@ -97,7 +97,7 @@ function generate_planning_problem(case::Case)
 
     @variable(model, vTHETA[w in subproblem_indices] .>= 0)
 
-    opexmult = opex_multiplier.(discount_rate, period_lengths)
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
 
     @expression(model, eVariableCostByPeriod[s in 1:number_of_periods], discount_factor[s] * opexmult[s] * sum(vTHETA[w] for w in period_to_subproblem_map[s]))
     @expression(model, eApproximateVariableCost, sum(eVariableCostByPeriod[s] for s in 1:number_of_periods))

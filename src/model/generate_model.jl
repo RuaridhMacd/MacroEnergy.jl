@@ -87,7 +87,7 @@ function generate_model(case::Case,opt::Optimizer)
 
     @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in 1:num_periods))
 
-    opexmult = opex_multiplier.(discount_rate, period_lengths)
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
 
     @expression(model, eVariableCostByPeriod[s in 1:num_periods], discount_factor[s] * opexmult[s] * variable_cost[s])
 
@@ -244,7 +244,7 @@ function carry_over_capacities!(y::Union{AbstractEdge,AbstractStorage},y_prev::U
         else
             y.existing_capacity = value(capacity(y_prev))
         end
-        
+
         for prev_period in keys(new_capacity_track(y_prev))
             if perfect_foresight
                 y.new_capacity_track[prev_period] = new_capacity_track(y_prev,prev_period)
@@ -294,8 +294,7 @@ function compute_annualized_costs!(y::Union{AbstractEdge,AbstractStorage},settin
         if ismissing(wacc(y))
             y.wacc = settings.DiscountRate;
         end
-        annualization_factor = wacc(y)>0 ? wacc(y) / (1 - (1 + wacc(y))^-capital_recovery_period(y))  : 1.0
-        y.annualized_investment_cost = investment_cost(y) * annualization_factor;
+        y.annualized_investment_cost = investment_cost(y) * capital_recovery_factor(wacc(y), capital_recovery_period(y));
     end
 end
 
@@ -335,10 +334,9 @@ function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::
 
     y.annualized_investment_cost = annualized_investment_cost(y) / capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
     
-    opexmult = opex_multiplier(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
+    opexmult = present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
 
     y.fixed_om_cost = fixed_om_cost(y) * opexmult
-
 end
 
 function discount_fixed_costs!(g::Transformation,settings::NamedTuple)
@@ -369,7 +367,7 @@ function undo_discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},setti
 
     y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
 
-    opexmult = opex_multiplier(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
+    opexmult = present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
     y.fixed_om_cost = settings.PeriodLengths[period_index(y)] * fixed_om_cost(y) / opexmult
 end
 function undo_discount_fixed_costs!(g::Transformation,settings::NamedTuple)
@@ -393,10 +391,10 @@ function add_costs_not_seen_by_myopic!(y::Union{AbstractEdge,AbstractStorage}, s
     # Need to get the coefficient used by the model
     payment_years_remaining_myopic = min(capital_recovery_period(y), settings.PeriodLengths[period_index(y)]);
 
-    total_mult = sum(1 / (1 + settings.DiscountRate)^s for s in 1:payment_years_remaining; init=0)
-    myopic_mult = sum(1 / (1 + settings.DiscountRate)^s for s in 1:payment_years_remaining_myopic; init=0)
-
-    y.annualized_investment_cost = annualized_investment_cost(y) * total_mult/myopic_mult;
+    total_mult = present_value_annuity_factor(settings.DiscountRate, payment_years_remaining)
+    myopic_mult = present_value_annuity_factor(settings.DiscountRate, payment_years_remaining_myopic)
+    
+    y.annualized_investment_cost = annualized_investment_cost(y) * total_mult / myopic_mult;
 end
 
 function add_costs_not_seen_by_myopic!(a::AbstractAsset,settings::NamedTuple)

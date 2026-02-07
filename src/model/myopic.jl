@@ -26,7 +26,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
 
     discount_factor = present_value_factor(discount_rate, period_lengths)
 
-    opexmult = opex_multiplier.(discount_rate, period_lengths)
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
 
     for (period_idx,system) in enumerate(periods)
         @info(" -- Generating model for period $(period_idx)")
