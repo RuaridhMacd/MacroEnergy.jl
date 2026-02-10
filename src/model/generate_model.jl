@@ -291,11 +291,16 @@ end
 
 function compute_annualized_costs!(y::Union{AbstractEdge,AbstractStorage},settings::NamedTuple)
     if isnothing(annualized_investment_cost(y))
+        if iszero(investment_cost(y))
+            y.annualized_investment_cost = 0.0
+            return nothing
+        end
         if ismissing(wacc(y))
             y.wacc = settings.DiscountRate;
         end
         y.annualized_investment_cost = investment_cost(y) * capital_recovery_factor(wacc(y), capital_recovery_period(y));
     end
+    return nothing
 end
 
 function compute_annualized_costs!(g::Transformation,settings::NamedTuple)
@@ -332,11 +337,9 @@ function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::
         nothing
     end
 
-    y.annualized_investment_cost = annualized_investment_cost(y) / capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
-    
-    opexmult = present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
+    y.pv_period_investment_cost = annualized_investment_cost(y) / capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
 
-    y.fixed_om_cost = fixed_om_cost(y) * opexmult
+    y.pv_period_fixed_om_cost = fixed_om_cost(y) * present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
 end
 
 function discount_fixed_costs!(g::Transformation,settings::NamedTuple)
@@ -367,9 +370,12 @@ function undo_discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},setti
 
     y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
 
-    opexmult = present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
-    y.fixed_om_cost = settings.PeriodLengths[period_index(y)] * fixed_om_cost(y) / opexmult
+    # y.cf_period_investment_cost = payment_years_remaining * annualized_investment_cost(y)
+    y.cf_period_investment_cost = payment_years_remaining * pv_period_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
+
+    y.cf_period_fixed_om_cost = settings.PeriodLengths[period_index(y)] * fixed_om_cost(y)
 end
+
 function undo_discount_fixed_costs!(g::Transformation,settings::NamedTuple)
     return nothing
 end
@@ -384,17 +390,15 @@ function add_costs_not_seen_by_myopic!(system::System, settings::NamedTuple)
 end
 
 function add_costs_not_seen_by_myopic!(y::Union{AbstractEdge,AbstractStorage}, settings::NamedTuple)
-    
-    model_years_remaining = sum(settings.PeriodLengths[period_index(y):end]; init = 0);
-    payment_years_remaining = min(capital_recovery_period(y), model_years_remaining);
+    model_years_remaining = sum(settings.PeriodLengths[period_index(y):end]; init = 0)
 
-    # Need to get the coefficient used by the model
-    payment_years_remaining_myopic = min(capital_recovery_period(y), settings.PeriodLengths[period_index(y)]);
+    k_total  = min(capital_recovery_period(y), model_years_remaining)
+    k_myopic = min(capital_recovery_period(y), settings.PeriodLengths[period_index(y)])
 
-    total_mult = present_value_annuity_factor(settings.DiscountRate, payment_years_remaining)
-    myopic_mult = present_value_annuity_factor(settings.DiscountRate, payment_years_remaining_myopic)
-    
-    y.annualized_investment_cost = annualized_investment_cost(y) * total_mult / myopic_mult;
+    total_mult  = present_value_annuity_factor(settings.DiscountRate, k_total)
+    myopic_mult = present_value_annuity_factor(settings.DiscountRate, k_myopic)
+
+    y.pv_period_investment_cost += annualized_investment_cost(y) * (total_mult - myopic_mult)
 end
 
 function add_costs_not_seen_by_myopic!(a::AbstractAsset,settings::NamedTuple)

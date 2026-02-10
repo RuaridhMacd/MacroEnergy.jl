@@ -36,6 +36,10 @@ macro AbstractStorageBaseAttributes()
         storage_level::JuMPVariable = Vector{VariableRef}()
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $storage_defaults[:annualized_investment_cost]
+        pv_period_investment_cost::Union{Nothing,Float64} = $storage_defaults[:pv_period_investment_cost]
+        pv_period_fixed_om_cost::Union{Nothing,Float64} = $storage_defaults[:pv_period_fixed_om_cost]
+        cf_period_investment_cost::Union{Nothing,Float64} = $storage_defaults[:cf_period_investment_cost]
+        cf_period_fixed_om_cost::Union{Nothing,Float64} = $storage_defaults[:cf_period_fixed_om_cost]
     end)
 end
 
@@ -188,6 +192,10 @@ storage_level(g::AbstractStorage) = g.storage_level;
 storage_level(g::AbstractStorage, t::Int64) = storage_level(g)[t];
 wacc(g::AbstractStorage) = g.wacc;
 annualized_investment_cost(g::AbstractStorage) = g.annualized_investment_cost;
+pv_period_investment_cost(g::AbstractStorage) = g.pv_period_investment_cost;
+cf_period_investment_cost(g::AbstractStorage) = g.cf_period_investment_cost;
+pv_period_fixed_om_cost(g::AbstractStorage) = g.pv_period_fixed_om_cost;
+cf_period_fixed_om_cost(g::AbstractStorage) = g.cf_period_fixed_om_cost;
 
 function add_linking_variables!(g::Storage, model::Model)
     if has_capacity(g)
@@ -398,33 +406,45 @@ function operation_model!(g::LongDurationStorage, model::Model)
 
 end
 
-function compute_investment_costs!(g::AbstractStorage, model::Model)
+function compute_investment_costs!(g::AbstractStorage, model::Model, cost_type::Function=pv_period_investment_cost)
     if has_capacity(g)
         if can_expand(g)
             add_to_expression!(
                     model[:eInvestmentFixedCost],
-                    annualized_investment_cost(g),
+                    cost_type(g),
                     new_capacity(g),
                 )
         end
     end
 end
 
-function compute_om_fixed_costs!(g::AbstractStorage, model::Model)
+function compute_om_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Function=pv_period_fixed_om_cost)
     if has_capacity(g)
         if fixed_om_cost(g) > 0
             add_to_expression!(
                 model[:eOMFixedCost],
-                fixed_om_cost(g),
+                cost_type(g),
                 capacity(g),
             )
         end
     end
 end
 
-function compute_fixed_costs!(g::AbstractStorage, model::Model)
-    compute_investment_costs!(g, model)
-    compute_om_fixed_costs!(g, model)
+function compute_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Symbol=:PV)
+    allowed_cost_types = [:PV, :CF]
+    if !(cost_type in allowed_cost_types)
+        error("Invalid cost type: $cost_type. Allowed types are: $(allowed_cost_types)")
+    end
+    invesment_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_investment_cost,
+        :CF => cf_period_investment_cost
+    )
+    fom_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_fixed_om_cost,
+        :CF => cf_period_fixed_om_cost
+    )
+    compute_investment_costs!(g, model, invesment_cost_function[cost_type])
+    compute_om_fixed_costs!(g, model, fom_cost_function[cost_type])
 end
 
 # Function to filter storages with capacity variables from a Vector of storages.

@@ -128,35 +128,35 @@ function prepare_discounted_costs(model::Union{Model,NamedTuple}, scaling::Float
     )
 end
 
-function compute_fixed_costs!(system::System, model::Model)
+function compute_fixed_costs!(system::System, model::Model, cost_type::Symbol=:PV)
     for a in system.assets
-        compute_fixed_costs!(a, model)
+        compute_fixed_costs!(a, model, cost_type)
     end
 end
 
-function compute_fixed_costs!(a::AbstractAsset, model::Model)
+function compute_fixed_costs!(a::AbstractAsset, model::Model, cost_type::Symbol=:PV)
     for t in fieldnames(typeof(a))
-        compute_fixed_costs!(getfield(a, t), model)
+        compute_fixed_costs!(getfield(a, t), model, cost_type)
     end
 end
 
-function compute_fixed_costs!(g::Union{Node,Transformation},model::Model)
+function compute_fixed_costs!(g::Union{Node,Transformation},model::Model, cost_type::Symbol=:PV)
     return nothing
 end
 
-function compute_investment_costs!(system::System, model::Model)
+function compute_investment_costs!(system::System, model::Model, cost_type::Function=pv_period_investment_cost)
     for a in system.assets
-        compute_investment_costs!(a, model)
+        compute_investment_costs!(a, model, cost_type)
     end
 end
 
-function compute_investment_costs!(a::AbstractAsset, model::Model)
+function compute_investment_costs!(a::AbstractAsset, model::Model, cost_type::Function=pv_period_investment_cost)
     for t in fieldnames(typeof(a))
-        compute_investment_costs!(getfield(a, t), model)
+        compute_investment_costs!(getfield(a, t), model, cost_type)
     end
 end
 
-function compute_investment_costs!(g::Union{Node,Transformation},model::Model)
+function compute_investment_costs!(g::Union{Node,Transformation}, model::Model, cost_type::Function=pv_period_investment_cost)
     return nothing
 end
 
@@ -176,7 +176,7 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
         add_costs_not_seen_by_myopic!(system, settings)
         unregister(model,:eInvestmentFixedCost)
         model[:eInvestmentFixedCost] = AffExpr(0.0)
-        compute_investment_costs!(system, model)
+        compute_investment_costs!(system, model, pv_period_investment_cost)
         
         model[:eDiscountedInvestmentFixedCost] = discount_factor * model[:eInvestmentFixedCost]
         
@@ -204,7 +204,7 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
     model[:eFixedCost] = AffExpr(0.0)
     model[:eOMFixedCost] = AffExpr(0.0)
     model[:eInvestmentFixedCost] = AffExpr(0.0)
-    compute_fixed_costs!(system, model)
+    compute_fixed_costs!(system, model, :CF)
     model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost] 
 
     period_start_year = total_years(period_lengths[1:period_index-1])
