@@ -8,34 +8,38 @@ function write_outputs(
 )
     num_periods = number_of_periods(case)
     periods = get_periods(case)
-    for (period_idx,period) in enumerate(periods)
+    settings = get_settings(case)
+    for (period_idx, period) in enumerate(periods)
         @info("Writing results for period $period_idx")
-        
-        create_discounted_cost_expressions!(model, period, get_settings(case))
-
-        compute_undiscounted_costs!(model, period, get_settings(case))
-
-        ## Create results directory to store the results
-        if num_periods > 1
-            # Create a directory for each period
-            results_dir = joinpath(case_path, "results_period_$period_idx")
-        else
-            # Create a directory for the single period
-            results_dir = joinpath(case_path, "results")
-        end
-        mkpath(results_dir)
-
-        write_outputs(results_dir, period_idx, period, model, get_settings(case))
+        results_dir = mkpath_for_period(case_path, num_periods, period_idx)
+        write_period_outputs(results_dir, period_idx, period, model, settings)
     end
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
 end
 
 """
-Write results when using Myopic as solution algorithm. 
+Write results when using Myopic as solution algorithm.
+Wraps one iteration of the same period writer used by Monolithic (setup + optional LP, then write_period_outputs).
 """
-function write_outputs(case_path::AbstractString, case::Case, myopic_results::MyopicResults)
-    @debug("Outputs were already written during iteration.")
+function write_outputs_myopic(
+    output_path::AbstractString, 
+    case::Case, 
+    model::Model, 
+    system::System, 
+    period_idx::Int
+)
+    num_periods = number_of_periods(case)
+    settings = get_settings(case)
+    # Create results directory to store outputs for this period
+    results_dir = mkpath_for_period(output_path, num_periods, period_idx)
+
+    if settings.MyopicSettings[:WriteModelLP]
+        @info(" -- Writing LP file for period $(period_idx)")
+        write_to_file(model, joinpath(results_dir, "model_period_$(period_idx).lp"))
+    end
+
+    write_period_outputs(results_dir, period_idx, system, model, settings)
     return nothing
 end
 
@@ -125,12 +129,16 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 end
 
 """
-    Fallback function to write outputs for a single period.
+    write_period_outputs(results_dir, period_idx, system, model, settings)
+
+Write all outputs for a single period (one iteration of the Monolithic/Myopic loop).
+Sets up cost expressions, then writes capacity, costs, flows, NSD, storage, and duals.
+Used by Monolithic in its loop and by Myopic after setup.
 """
-function write_outputs(
-    results_dir::AbstractString, 
+function write_period_outputs(
+    results_dir::AbstractString,
     period_idx::Int,
-    system::System, 
+    system::System,
     model::Model,
     settings::NamedTuple
 )
@@ -139,18 +147,17 @@ function write_outputs(
     write_capacity(joinpath(results_dir, "capacity.csv"), system)
     
     # Cost results (system level)
+    create_discounted_cost_expressions!(model, system, settings)
+    compute_undiscounted_costs!(model, system, settings)
     write_costs(joinpath(results_dir, "costs.csv"), system, model)
     write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), system, model)
-    
     # Cost results (detailed breakdown by type and zone, discounted and undiscounted)
     write_detailed_costs(results_dir, system, model, settings)
 
     # Flow results
     write_flow(joinpath(results_dir, "flows.csv"), system)
-
     # Non-served demand results
     write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system)
-
     # Storage level results
     write_storage_level(joinpath(results_dir, "storage_level.csv"), system)
 
@@ -158,7 +165,7 @@ function write_outputs(
     if system.settings.DualExportsEnabled
         ensure_duals_available!(model)
         # Scaling factor for variable cost portion of objective function
-        discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)        
+        discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)
         write_duals(results_dir, system, discount_scaling)
     end
 
