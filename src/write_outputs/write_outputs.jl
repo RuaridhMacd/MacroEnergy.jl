@@ -1,7 +1,11 @@
 """
 Write results when using Monolithic as solution algorithm.
 """
-function write_outputs(case_path::AbstractString, case::Case, model::Model)
+function write_outputs(
+    case_path::AbstractString, 
+    case::Case, 
+    model::Model
+)
     num_periods = number_of_periods(case)
     periods = get_periods(case)
     for (period_idx,period) in enumerate(periods)
@@ -21,10 +25,7 @@ function write_outputs(case_path::AbstractString, case::Case, model::Model)
         end
         mkpath(results_dir)
 
-        # Scaling factor for variable cost portion of objective function
-        discount_scaling = compute_variable_cost_discount_scaling(period_idx, get_settings(case))
-
-        write_outputs(results_dir, period, model, discount_scaling)
+        write_outputs(results_dir, period_idx, period, model, get_settings(case))
     end
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
@@ -126,18 +127,23 @@ end
 """
     Fallback function to write outputs for a single period.
 """
-function write_outputs(results_dir::AbstractString, 
+function write_outputs(
+    results_dir::AbstractString, 
+    period_idx::Int,
     system::System, 
-    model::Model, 
-    scaling::Float64=1.0
+    model::Model,
+    settings::NamedTuple
 )
     
     # Capacity results
     write_capacity(joinpath(results_dir, "capacity.csv"), system)
     
-    # Cost results
+    # Cost results (system level)
     write_costs(joinpath(results_dir, "costs.csv"), system, model)
     write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), system, model)
+    
+    # Cost results (detailed breakdown by type and zone, discounted and undiscounted)
+    write_detailed_costs(results_dir, system, model, settings)
 
     # Flow results
     write_flow(joinpath(results_dir, "flows.csv"), system)
@@ -150,8 +156,10 @@ function write_outputs(results_dir::AbstractString,
 
     # Write dual values (if enabled)
     if system.settings.DualExportsEnabled
-        ensure_duals_available!(model)        
-        write_duals(results_dir, system, scaling)
+        ensure_duals_available!(model)
+        # Scaling factor for variable cost portion of objective function
+        discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)        
+        write_duals(results_dir, system, discount_scaling)
     end
 
     return nothing
