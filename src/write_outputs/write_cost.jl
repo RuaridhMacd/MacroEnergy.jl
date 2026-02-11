@@ -432,6 +432,60 @@ function write_detailed_costs(
 end
 
 """
+    write_detailed_costs_benders(
+        results_dir::AbstractString,
+        system::System,
+        planning_problem_costs::NamedTuple,
+        operational_costs_df::Vector{DataFrame},
+        settings::NamedTuple;
+        scaling::Float64=1.0
+    )
+
+Write detailed cost breakdown files for Benders decomposition.
+Combines fixed costs from the planning problem with operational costs from subproblems.
+
+# Arguments
+- `results_dir::AbstractString`: Directory to write output files
+- `system::System`: The system (with capacity values from planning solution)
+- `planning_problem_costs::NamedTuple`: The planning problem costs (for objective value validation). It should contain four fields: :eDiscountedFixedCost, :eDiscountedVariableCost, :eFixedCost, :eVariableCost.
+- `operational_costs_df::Vector{DataFrame}`: Operational costs from subproblems for this period
+- `settings::NamedTuple`: Case settings
+- `scaling::Float64=1.0`: Scaling factor
+"""
+function write_detailed_costs_benders(
+    results_dir::AbstractString,
+    system::System,
+    planning_problem_costs::NamedTuple,
+    operational_costs_df::Vector{DataFrame},
+    settings::NamedTuple;
+    scaling::Float64=1.0
+)
+    @debug "Writing detailed cost breakdown files (Benders)"
+
+    # Aggregate operational costs from subproblems in the current period
+    period_operational_costs = aggregate_operational_costs(operational_costs_df)
+
+    layout = get_output_layout(system, :Costs)
+    costs = get_detailed_costs_benders(system, period_operational_costs, settings; scaling)
+
+    # Write discounted costs by type and zone
+    write_cost_breakdown_files!(results_dir, costs.discounted, layout; 
+        prefix="costs",
+        validate_model=planning_problem_costs,
+        discounted=true,
+        scaling)
+
+    # Write undiscounted costs by type and zone
+    write_cost_breakdown_files!(results_dir, costs.undiscounted, layout; 
+        prefix="undiscounted_costs",
+        validate_model=planning_problem_costs,
+        discounted=false,
+        scaling)
+
+    return nothing
+end
+
+"""
     write_cost_breakdown_files!(
         results_dir::AbstractString,
         detailed_costs::DataFrame,
@@ -624,23 +678,135 @@ function get_detailed_costs(system::System, settings::NamedTuple; scaling::Float
     )
 end
 
-# Utilities for discounting, aggregation, and validation
 """
-    compute_discount_factors(system::System, settings::NamedTuple)
+    get_detailed_costs_benders(
+        system::System,
+        operational_costs::DataFrame,
+        settings::NamedTuple;
+        scaling::Float64=1.0
+    )
 
-Compute the discount factor and opexmult for the current period.
-Returns (discount_factor, opexmult) tuple.
-
-# Arguments
-- `period_index::Int`: The period index
-- `settings::NamedTuple`: Case settings containing DiscountRate and PeriodLengths
+Combine fixed costs from the planning problem with operational costs from subproblems.
+Returns (discounted=df, undiscounted=df).
 """
-function compute_discount_factors(period_index::Int, settings::NamedTuple)
-    discount_factor = compute_discount_factor(period_index, settings)
-    opexmult = compute_opexmult(period_index, settings)
-    return (discount_factor, opexmult)
+function get_detailed_costs_benders(
+    system::System,
+    operational_costs::DataFrame,
+    settings::NamedTuple;
+    scaling::Float64=1.0
+)
+    # Get fixed costs (Investment, FixedOM) from system
+    fixed_costs = get_fixed_costs_benders(system, settings; scaling)
+
+    # Apply discounting to operational costs if needed
+    period_index = system.time_data[:Electricity].period_index
+    discount_rate = settings.DiscountRate
+    period_lengths = settings.PeriodLengths
+    period_length = period_lengths[period_index]
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
+
+    if isempty(operational_costs)
+        return (discounted=fixed_costs.discounted, undiscounted=fixed_costs.undiscounted)
+    end
+
+    # Apply discounting to operational costs
+    op_discounted = operational_costs
+    op_undiscounted = deepcopy(operational_costs)
+    # Discounted: Variable costs are raw sums; they get the full opex multiplier
+    op_discounted.value .*= discount_factor * opexmult
+    # Undiscounted: Variable costs need to be multiplied by period length to get CF terms
+    op_undiscounted.value .*= period_length
+
+    # Combine fixed costs with operational costs and return the result
+    return (
+        discounted = vcat(fixed_costs.discounted, op_discounted),
+        undiscounted = vcat(fixed_costs.undiscounted, op_undiscounted)
+    )
 end
 
+"""
+    get_fixed_costs_benders(system::System, settings::NamedTuple; scaling::Float64=1.0)
+
+Compute fixed costs (Investment, FixedOM) from the planning problem.
+Returns (discounted=df, undiscounted=df) for Benders decomposition.
+"""
+function get_fixed_costs_benders(system::System, settings::NamedTuple; scaling::Float64=1.0)
+    # Ensure cf_period_* attributes are available for undiscounted cost calculations
+    undo_discount_fixed_costs!(system, settings)
+
+    zones = String[]
+    types = String[]
+    categories = Symbol[]
+    values_discounted = Float64[]
+    values_undiscounted = Float64[]
+
+    edges, edge_asset_map = get_edges(system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(system, return_ids_map=true)
+
+    # Collect fixed costs from edges (Investment/FixedOM are both discounted and undiscounted at period start)
+    for e in edges
+        inv_pv, inv_cf = compute_investment_cost(e)
+        fom_pv, fom_cf = compute_fixed_om_cost(e)
+
+        (inv_pv == 0 && inv_cf == 0 && fom_pv == 0 && fom_cf == 0) && continue
+
+        zone = get_zone_name(e)
+        asset_type = get_type(edge_asset_map[id(e)])
+
+        for (category, cost_pv, cost_cf) in [(:Investment, inv_pv, inv_cf), (:FixedOM, fom_pv, fom_cf)]
+            (cost_pv == 0 && cost_cf == 0) && continue
+            push!(zones, zone)
+            push!(types, asset_type)
+            push!(categories, category)
+            push!(values_discounted, cost_pv)
+            push!(values_undiscounted, cost_cf)
+        end
+    end
+
+    # Collect fixed costs from storages (Investment/FixedOM are both discounted and undiscounted at period start)
+    for g in storages
+        inv_pv, inv_cf = compute_investment_cost(g)
+        fom_pv, fom_cf = compute_fixed_om_cost(g)
+
+        (inv_pv == 0 && inv_cf == 0 && fom_pv == 0 && fom_cf == 0) && continue
+
+        zone = get_zone_name(g)
+        asset_type = get_type(storage_asset_map[id(g)])
+
+        for (category, cost_pv, cost_cf) in [(:Investment, inv_pv, inv_cf), (:FixedOM, fom_pv, fom_cf)]
+            (cost_pv == 0 && cost_cf == 0) && continue
+            push!(zones, zone)
+            push!(types, asset_type)
+            push!(categories, category)
+            push!(values_discounted, cost_pv)
+            push!(values_undiscounted, cost_cf)
+        end
+    end
+
+    # Apply discounting to fixed costs
+    period_index = system.time_data[:Electricity].period_index
+    discount_rate = settings.DiscountRate
+    period_lengths = settings.PeriodLengths
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+
+    # Investment/FixedOM values hold pv_period_* * capacity (PV at period start)
+    values_discounted .*= discount_factor
+
+    if scaling != 1.0
+        values_discounted .*= scaling^2
+        values_undiscounted .*= scaling^2
+    end
+
+    return (
+        discounted = DataFrame(zone=zones, type=types, category=categories, value=values_discounted),
+        undiscounted = DataFrame(zone=zones, type=types, category=categories, value=values_undiscounted)
+    )
+end
+
+# Utilities for aggregation and validation
 """
     aggregate_costs_by_type(costs_df::DataFrame)
 
@@ -665,6 +831,23 @@ function aggregate_costs_by_zone(costs_df::DataFrame)
         return DataFrame(zone=String[], category=Symbol[], value=Float64[])
     end
     return combine(groupby(costs_df, [:zone, :category]), :value => sum => :value)
+end
+
+"""
+    aggregate_operational_costs(cost_dfs::Vector{DataFrame})
+
+Aggregate operational costs from multiple subproblems into a single DataFrame.
+Sums values across subproblems for each (zone, type, category) combination.
+
+Used for Benders decomposition where operational costs is distributed across multiple subproblems.
+"""
+function aggregate_operational_costs(cost_dfs::Vector{DataFrame})
+    if all(isempty, cost_dfs)
+        return DataFrame(zone=String[], type=String[], category=Symbol[], value=Float64[])
+    end
+    
+    combined = reduce(vcat, filter(!isempty, cost_dfs))
+    return combine(groupby(combined, [:zone, :type, :category]), :value => sum => :value)
 end
 
 """

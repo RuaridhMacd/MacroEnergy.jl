@@ -54,14 +54,15 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
     period_to_subproblem_map, _ = get_period_to_subproblem_mapping(periods)
 
-    # get the flow results from the operational subproblems
-    flow_df = collect_flow_results(case, bd_results)
-
-    # get the non-served demand results from the operational subproblems
-    nsd_df = collect_non_served_demand_results(case, bd_results)
-
-    # get the storage level results from the operational subproblems
-    storage_level_df = collect_storage_level_results(case, bd_results)
+    # Collect subproblem data (flows, NSD, storage levels, operational costs)
+    @info "Collecting subproblem results..."
+    subproblems_data = collect_data_from_subproblems(case, bd_results)
+    
+    # Extract individual result types from the unified extraction
+    flow_df = flows(subproblems_data)
+    nsd_df = non_served_demand(subproblems_data)
+    storage_level_df = storage_levels(subproblems_data)
+    operational_costs_df = operational_costs(subproblems_data)
     
     # get the policy slack variables from the operational subproblems
     slack_vars = collect_distributed_policy_slack_vars(bd_results)
@@ -72,15 +73,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
 
     for (period_idx, period) in enumerate(periods)
         @info("Writing results for period $period_idx")
+
         ## Create results directory to store the results
-        if num_periods > 1
-            # Create a directory for each period
-            results_dir = joinpath(case_path, "results_period_$period_idx")
-        else
-            # Create a directory for the single period
-            results_dir = joinpath(case_path, "results")
-        end
-        mkpath(results_dir)
+        results_dir = mkpath_for_period(case_path, num_periods, period_idx)
 
         # subproblem indices for the current period
         subop_indices_period = period_to_subproblem_map[period_idx]
@@ -98,10 +93,13 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         # Storage level results
         write_storage_level(joinpath(results_dir, "storage_level.csv"), period, storage_level_df[subop_indices_period])
         
-        # Cost results
+        # Cost results (system level)
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
         write_costs(joinpath(results_dir, "costs.csv"), period, costs)
         write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
+        
+        # Detailed cost breakdown (assets and zones level)
+        write_detailed_costs_benders(results_dir, period, costs, operational_costs_df[subop_indices_period], settings)
 
         # Write dual values (if enabled)
         if period.settings.DualExportsEnabled
