@@ -1,21 +1,24 @@
-const USER_ADDITIONS_NAME = "UserAdditions"
 const USER_ADDITIONS_PATH = joinpath("tmp")
-const USER_ADDITIONS_FILE = USER_ADDITIONS_NAME * ".jl"
+const USER_ADDITIONS_MARKER_FILE = "UserAdditions.jl"
 const USER_SUBCOMMODITIES_FILE = "usersubcommodities.jl"
 const USER_ASSETS_FILE = "userassets.jl"
 
 user_additions_path(path::AbstractString) = joinpath(path, USER_ADDITIONS_PATH)
-user_additions_module_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_FILE)
+user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_MARKER_FILE)
+
+# Backward compatibility alias. Keep for downstream code still using the old name.
+user_additions_module_path(path::AbstractString) = user_additions_marker_path(path)
 user_additions_subcommodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_SUBCOMMODITIES_FILE)
 user_additions_assets_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_FILE)
 
-function load_user_additions(module_file_path::AbstractString, user_additions_name::AbstractString=USER_ADDITIONS_NAME)
+function load_user_additions(user_additions_marker_path::AbstractString)
     """
-    Load user additions from the specified case additions path.
+    Load user additions from the case `tmp` folder into `MacroEnergy`.
 
-    This function attempts to load a module named `UserAdditions` from the specified case additions path. If the module is not found, it logs a warning.
+    Supported files are `usersubcommodities.jl` and `userassets.jl`.
+    The `user_additions_marker_path` argument is used to infer the case path.
     """
-    additions_dir = dirname(module_file_path)
+    additions_dir = dirname(user_additions_marker_path)
     commodities_path = user_additions_subcommodities_path(dirname(additions_dir))
     assets_path = user_additions_assets_path(dirname(additions_dir))
 
