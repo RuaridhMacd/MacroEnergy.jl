@@ -4,7 +4,7 @@ function default_settings()
         EnableJuMPDirectModel = false,
         EnableJuMPStringNames = false,
         AllowImplicitTopLevelCommodities = true,
-        WriteSubcommodities = false,
+        WriteSubcommodities = true,
         OverwriteResults = false,
         OutputDir = "results",
         OutputLayout = "long",
