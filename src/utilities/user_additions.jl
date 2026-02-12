@@ -17,6 +17,22 @@ function list_asset_definition_files(assets_dir::AbstractString)
     return sort(collect(joinpath(assets_dir, file) for file in readdir(assets_dir) if endswith(file, ".jl")))
 end
 
+function parse_asset_type_definitions(file_path::AbstractString)
+    asset_names = Symbol[]
+    if !isfile(file_path)
+        return asset_names
+    end
+
+    pattern = r"^\s*(?:mutable\s+)?struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*<:\s*(?:MacroEnergy\.)?AbstractAsset\b"
+    for line in eachline(file_path)
+        m = match(pattern, line)
+        if !isnothing(m)
+            push!(asset_names, Symbol(m.captures[1]))
+        end
+    end
+    return asset_names
+end
+
 function load_asset_definition_files!(asset_paths::AbstractVector{<:AbstractString})
     loaded_any = false
     for asset_path in asset_paths
@@ -51,6 +67,8 @@ function load_user_additions(user_additions_marker_path::AbstractString)
     @info(" ++ Loading user additions from $(relpath(additions_dir))")
 
     loaded_any = false
+    existing_asset_types = Set(keys(all_subtypes(MacroEnergy, :AbstractAsset)))
+    declared_asset_types = Symbol[]
 
     if isfile(commodities_path)
         try
@@ -62,12 +80,17 @@ function load_user_additions(user_additions_marker_path::AbstractString)
     end
 
     if isfile(assets_path)
+        append!(declared_asset_types, parse_asset_type_definitions(assets_path))
         try
             Base.include(MacroEnergy, assets_path)
             loaded_any = true
         catch e
             @warn("Could not load user assets from $(relpath(assets_path)): $e")
         end
+    end
+
+    for asset_file in asset_files
+        append!(declared_asset_types, parse_asset_type_definitions(asset_file))
     end
 
     loaded_any = load_asset_definition_files!(asset_files) || loaded_any
@@ -77,6 +100,14 @@ function load_user_additions(user_additions_marker_path::AbstractString)
     else
         @debug("No user additions files found in $(relpath(additions_dir))")
     end
+
+    updated_asset_types = Set(keys(all_subtypes(MacroEnergy, :AbstractAsset)))
+    added_asset_types = sort(collect(setdiff(updated_asset_types, existing_asset_types)))
+    declared_asset_types = sort!(unique!(declared_asset_types))
+    @info(" ++ Added user assets: $(length(declared_asset_types))")
+    !isempty(declared_asset_types) && @debug(" -- Declared user assets from files: $(declared_asset_types)")
+    !isempty(added_asset_types) && @debug(" -- Newly added user assets in this session: $(added_asset_types)")
+
     return nothing
 end
 
