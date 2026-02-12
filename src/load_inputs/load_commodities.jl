@@ -167,9 +167,9 @@ function add_top_level_commodity!(
     commodity_keys,
     subcommodities_lines::AbstractVector{String};
     write_subcommodities::Bool=false,
-)
+ )::Bool
     if commodity_name in commodity_keys
-        return nothing
+        return false
     end
     @debug("Adding top-level user commodity $(commodity_name)")
     commodity_line = make_commodity(commodity_name)
@@ -178,7 +178,7 @@ function add_top_level_commodity!(
         @debug("Will write top-level user commodity $(commodity_name) to file")
         push!(subcommodities_lines, commodity_line)
     end
-    return nothing
+    return true
 end
 
 function add_top_level_commodities!(
@@ -186,21 +186,26 @@ function add_top_level_commodities!(
     subcommodities_lines::AbstractVector{String};
     write_subcommodities::Bool=false,
 )
+    added_top_level = Symbol[]
     commodity_keys = keys(commodity_types())
     for commodity_name in top_level_user_commodities
-        add_top_level_commodity!(
+        was_added = add_top_level_commodity!(
             commodity_name,
             commodity_keys,
             subcommodities_lines;
             write_subcommodities=write_subcommodities,
         )
+        if was_added
+            push!(added_top_level, commodity_name)
+        end
     end
-    return nothing
+    return added_top_level
 end
 
 function add_subcommodity!(
     commodity::AbstractDict{Symbol,Any},
     commodity_keys,
+    added_subcommodities::AbstractVector{Symbol},
     subcommodities_lines::AbstractVector{String};
     write_subcommodities::Bool=false,
 )::Bool
@@ -220,6 +225,7 @@ function add_subcommodity!(
     @debug("Adding subcommodity $(new_name), which acts like commodity $(parent_name)")
     commodity_line = make_commodity(new_name, parent_name)
     COMMODITY_TYPES[new_name] = Base.invokelatest(getfield, MacroEnergy, new_name)
+    push!(added_subcommodities, new_name)
     if write_subcommodities
         @debug("Will write subcommodity $(new_name) to file")
         push!(subcommodities_lines, commodity_line)
@@ -232,6 +238,7 @@ function resolve_subcommodities!(
     subcommodities_lines::AbstractVector{String};
     write_subcommodities::Bool=false,
 )
+    added_subcommodities = Symbol[]
     unresolved = collect(user_subcommodities)
 
     while !isempty(unresolved)
@@ -243,6 +250,7 @@ function resolve_subcommodities!(
             was_resolved = add_subcommodity!(
                 commodity,
                 commodity_keys,
+                added_subcommodities,
                 subcommodities_lines;
                 write_subcommodities=write_subcommodities,
             )
@@ -261,7 +269,7 @@ function resolve_subcommodities!(
         unresolved = next_unresolved
     end
 
-    return nothing
+    return added_subcommodities
 end
 
 function load_commodities(
@@ -277,12 +285,20 @@ function load_commodities(
         parse_commodity_inputs(commodities, macro_commodities, allow_implicit_top_level_commodities)
 
     subcommodities_lines = String[]
-    add_top_level_commodities!(
+    added_top_level_commodities = add_top_level_commodities!(
         top_level_user_commodities,
         subcommodities_lines;
         write_subcommodities=write_subcommodities,
     )
-    resolve_subcommodities!(all_sub_commodities, subcommodities_lines; write_subcommodities=write_subcommodities)
+    added_subcommodities = resolve_subcommodities!(
+        all_sub_commodities,
+        subcommodities_lines;
+        write_subcommodities=write_subcommodities,
+    )
+
+    @info(" ++ Added user commodities: $(length(added_top_level_commodities)) top-level, $(length(added_subcommodities)) subcommodities")
+    !isempty(added_top_level_commodities) && @debug(" -- Added top-level commodities: $(added_top_level_commodities)")
+    !isempty(added_subcommodities) && @debug(" -- Added subcommodities: $(added_subcommodities)")
     @debug(" -- Done adding subcommodities")
 
     if write_subcommodities && !isempty(subcommodities_lines)
