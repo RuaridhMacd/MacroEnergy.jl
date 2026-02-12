@@ -20,13 +20,13 @@ end
 
 function make_commodity(new_commodity::Union{String,Symbol}, m::Module = MacroEnergy)::String
     s = "abstract type $new_commodity <: $m.Commodity end"
-    eval(Meta.parse(s))
+    Core.eval(m, Meta.parse(s))
     return s
 end
 
 function make_commodity(new_commodity::Union{String,Symbol}, parent_type::Union{String,Symbol}, m::Module = MacroEnergy)::String
     s = "abstract type $new_commodity <: $m.$parent_type end"
-    eval(Meta.parse(s))
+    Core.eval(m, Meta.parse(s))
     return s
 end
 
@@ -105,10 +105,6 @@ function load_commodities(commodities::AbstractVector{<:Any}, rel_path::Abstract
         @debug("Iterating over user-defined subcommodities")
         new_name = Symbol(commodity[:name])
         parent_name = Symbol(commodity[:acts_like])
-        if write_subcommodities
-            @debug("Will write subcommodity $(new_name) to file")
-            push!(subcommodities_lines, make_commodity(new_name, parent_name))
-        end
         if new_name in keys(commodity_types())
             @debug("Commodity $(commodity[:name]) already exists")
             continue
@@ -116,7 +112,12 @@ function load_commodities(commodities::AbstractVector{<:Any}, rel_path::Abstract
         commodity_keys = keys(commodity_types())
         if parent_name ∈ commodity_keys
             @debug("Adding subcommodity $(new_name), which acts like commodity $(parent_name)")
-            COMMODITY_TYPES[new_name] = getfield(MacroEnergy, new_name)
+            commodity_line = make_commodity(new_name, parent_name)
+            COMMODITY_TYPES[new_name] = Base.invokelatest(getfield, MacroEnergy, new_name)
+            if write_subcommodities
+                @debug("Will write subcommodity $(new_name) to file")
+                push!(subcommodities_lines, commodity_line)
+            end
         else
             error("Unknown parent commodity: $parent_name")
         end
