@@ -36,57 +36,119 @@ end
 
 ###### ###### ###### ######
 
-function load_commodities_from_file(path::AbstractString, rel_path::AbstractString; write_subcommodities::Bool=false)
+function load_commodities_from_file(
+    path::AbstractString,
+    rel_path::AbstractString;
+    write_subcommodities::Bool=false,
+    allow_implicit_top_level_commodities::Bool=true,
+)
     path = rel_or_abs_path(path, rel_path)
     if isdir(path)
         path = joinpath(path, "commodities.json")
     end
     # read in the list of commodities from the data directory
     isfile(path) || error("Commodity data not found at $(abspath(path))")
-    return load_commodities(copy(read_json(path)), rel_path; write_subcommodities=write_subcommodities)
+    return load_commodities(
+        copy(read_json(path)),
+        rel_path;
+        write_subcommodities=write_subcommodities,
+        allow_implicit_top_level_commodities=allow_implicit_top_level_commodities,
+    )
 end
 
-function load_commodities(data::AbstractDict{Symbol,Any}, rel_path::AbstractString; write_subcommodities::Bool=false)
+function load_commodities(
+    data::AbstractDict{Symbol,Any},
+    rel_path::AbstractString;
+    write_subcommodities::Bool=false,
+    allow_implicit_top_level_commodities::Bool=true,
+)
     if haskey(data, :path)
         path = rel_or_abs_path(data[:path], rel_path)
-        return load_commodities_from_file(path, rel_path; write_subcommodities=write_subcommodities)
+        return load_commodities_from_file(
+            path,
+            rel_path;
+            write_subcommodities=write_subcommodities,
+            allow_implicit_top_level_commodities=allow_implicit_top_level_commodities,
+        )
     elseif haskey(data, :commodities)
-        return load_commodities(data[:commodities], rel_path; write_subcommodities=write_subcommodities)
+        return load_commodities(
+            data[:commodities],
+            rel_path;
+            write_subcommodities=write_subcommodities,
+            allow_implicit_top_level_commodities=allow_implicit_top_level_commodities,
+        )
     end
     return nothing
 end
 
-function load_commodities(data::AbstractVector{Dict{Symbol,Any}}, rel_path::AbstractString; write_subcommodities::Bool=false)
+function load_commodities(
+    data::AbstractVector{Dict{Symbol,Any}},
+    rel_path::AbstractString;
+    write_subcommodities::Bool=false,
+    allow_implicit_top_level_commodities::Bool=true,
+)
     for item in data
         if isa(item, AbstractDict{Symbol,Any}) && haskey(item, :commodities)
-            return load_commodities(item, rel_path; write_subcommodities=write_subcommodities)
+            return load_commodities(
+                item,
+                rel_path;
+                write_subcommodities=write_subcommodities,
+                allow_implicit_top_level_commodities=allow_implicit_top_level_commodities,
+            )
         end
     end
     error("Commodity data not found or incorrectly formatted in system_data")
 end
 
-function load_commodities(data::AbstractVector{<:AbstractString}, rel_path::AbstractString; write_subcommodities::Bool=false)
+function load_commodities(
+    data::AbstractVector{<:AbstractString},
+    rel_path::AbstractString;
+    write_subcommodities::Bool=false,
+    allow_implicit_top_level_commodities::Bool=true,
+)
     # Probably means we have a vector of commdity types
-    return load_commodities(Symbol.(data); write_subcommodities=write_subcommodities)
+    return load_commodities(
+        Symbol.(data),
+        rel_path;
+        write_subcommodities=write_subcommodities,
+        allow_implicit_top_level_commodities=allow_implicit_top_level_commodities,
+    )
 end
 
 function parse_commodity_inputs(
     commodities::AbstractVector{<:Any},
     macro_commodities::AbstractDict{Symbol,DataType},
+    allow_implicit_top_level_commodities::Bool,
 )
     user_subcommodities = Dict{Symbol,Any}[]
+    top_level_user_commodities = Symbol[]
+    top_level_seen = Set{Symbol}()
     system_commodities = Symbol[]
 
     for commodity in commodities
         if isa(commodity, Symbol)
             if commodity ∉ keys(macro_commodities)
-                error("Unknown commodity: $commodity")
+                if !allow_implicit_top_level_commodities
+                    error("Unknown commodity: $commodity")
+                end
+                if commodity ∉ top_level_seen
+                    @debug("Unknown commodity $(commodity) treated as new top-level commodity (<: Commodity). Check for typos if this was not intended.")
+                    push!(top_level_user_commodities, commodity)
+                    push!(top_level_seen, commodity)
+                end
             end
             push!(system_commodities, commodity)
         elseif isa(commodity, AbstractString)
             commodity_symbol = Symbol(commodity)
             if commodity_symbol ∉ keys(macro_commodities)
-                error("Unknown commodity: $commodity")
+                if !allow_implicit_top_level_commodities
+                    error("Unknown commodity: $commodity")
+                end
+                if commodity_symbol ∉ top_level_seen
+                    @debug("Unknown commodity $(commodity) treated as new top-level commodity (<: Commodity). Check for typos if this was not intended.")
+                    push!(top_level_user_commodities, commodity_symbol)
+                    push!(top_level_seen, commodity_symbol)
+                end
             end
             push!(system_commodities, commodity_symbol)
         elseif isa(commodity, Dict) && haskey(commodity, :name) && haskey(commodity, :acts_like)
@@ -97,7 +159,43 @@ function parse_commodity_inputs(
         end
     end
 
-    return user_subcommodities, system_commodities
+    return user_subcommodities, top_level_user_commodities, system_commodities
+end
+
+function add_top_level_commodity!(
+    commodity_name::Symbol,
+    commodity_keys,
+    subcommodities_lines::AbstractVector{String};
+    write_subcommodities::Bool=false,
+)
+    if commodity_name in commodity_keys
+        return nothing
+    end
+    @debug("Adding top-level user commodity $(commodity_name)")
+    commodity_line = make_commodity(commodity_name)
+    COMMODITY_TYPES[commodity_name] = Base.invokelatest(getfield, MacroEnergy, commodity_name)
+    if write_subcommodities
+        @debug("Will write top-level user commodity $(commodity_name) to file")
+        push!(subcommodities_lines, commodity_line)
+    end
+    return nothing
+end
+
+function add_top_level_commodities!(
+    top_level_user_commodities::AbstractVector{Symbol},
+    subcommodities_lines::AbstractVector{String};
+    write_subcommodities::Bool=false,
+)
+    commodity_keys = keys(commodity_types())
+    for commodity_name in top_level_user_commodities
+        add_top_level_commodity!(
+            commodity_name,
+            commodity_keys,
+            subcommodities_lines;
+            write_subcommodities=write_subcommodities,
+        )
+    end
+    return nothing
 end
 
 function add_subcommodity!(
@@ -166,13 +264,24 @@ function resolve_subcommodities!(
     return nothing
 end
 
-function load_commodities(commodities::AbstractVector{<:Any}, rel_path::AbstractString=""; write_subcommodities::Bool=false)
+function load_commodities(
+    commodities::AbstractVector{<:Any},
+    rel_path::AbstractString="";
+    write_subcommodities::Bool=false,
+    allow_implicit_top_level_commodities::Bool=true,
+)
     register_commodity_types!()
 
     macro_commodities = commodity_types()
-    all_sub_commodities, system_commodities = parse_commodity_inputs(commodities, macro_commodities)
+    all_sub_commodities, top_level_user_commodities, system_commodities =
+        parse_commodity_inputs(commodities, macro_commodities, allow_implicit_top_level_commodities)
 
     subcommodities_lines = String[]
+    add_top_level_commodities!(
+        top_level_user_commodities,
+        subcommodities_lines;
+        write_subcommodities=write_subcommodities,
+    )
     resolve_subcommodities!(all_sub_commodities, subcommodities_lines; write_subcommodities=write_subcommodities)
     @debug(" -- Done adding subcommodities")
 

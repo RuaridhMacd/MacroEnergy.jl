@@ -13,6 +13,7 @@ using Test
 import MacroEnergy:
     load_commodities,
     commodity_types,
+    Commodity,
     register_commodity_types!,
     write_user_subcommodities,
     user_additions_subcommodities_path
@@ -58,6 +59,60 @@ function test_chained_subcommodities_out_of_order()
     @test macro_commodities[diesel] <: liquid_fuels
     @test macro_commodities[clean_diesel] <: macro_commodities[diesel]
     @test macro_commodities[dirty_diesel] <: macro_commodities[diesel]
+end
+
+"""
+Verify that unknown plain commodity names are interpreted as top-level user commodities.
+
+Expected behavior:
+- unknown string/symbol commodity entries are created as `<: Commodity`,
+- subcommodities can inherit from those newly created top-level commodities.
+"""
+function test_implicit_top_level_commodities()
+    register_commodity_types!()
+
+    top_level = unique_test_symbol("TestTopLevel")
+    child = unique_test_symbol("TestTopLevelChild")
+
+    commodities = Any[
+        "Electricity",
+        String(top_level),
+        Dict{Symbol,Any}(:name => String(child), :acts_like => String(top_level)),
+    ]
+
+    loaded = load_commodities(commodities, ""; write_subcommodities=false)
+    macro_commodities = commodity_types()
+
+    @test haskey(loaded, top_level)
+    @test haskey(loaded, child)
+    @test macro_commodities[top_level] <: Commodity
+    @test macro_commodities[child] <: macro_commodities[top_level]
+
+    symbol_top_level = unique_test_symbol("TestTopLevelSymbol")
+    loaded_symbols = load_commodities(Any[symbol_top_level], ""; write_subcommodities=false)
+    @test haskey(loaded_symbols, symbol_top_level)
+    @test commodity_types()[symbol_top_level] <: Commodity
+end
+
+"""
+Verify strict mode rejects unknown plain commodities.
+
+Expected behavior:
+- when implicit top-level commodity creation is disabled,
+- unknown commodity names throw the legacy unknown-commodity error.
+"""
+function test_disallow_implicit_top_level_commodities()
+    register_commodity_types!()
+
+    unknown_commodity = unique_test_symbol("TestStrictUnknown")
+    commodities = Any[String(unknown_commodity)]
+
+    @test_throws "Unknown commodity" load_commodities(
+        commodities,
+        "";
+        write_subcommodities=false,
+        allow_implicit_top_level_commodities=false,
+    )
 end
 
 """
@@ -144,6 +199,14 @@ function test_user_additions()
 
     @testset "Circular dependency handling" begin
         test_circular_subcommodities_error()
+    end
+
+    @testset "Implicit top-level commodities" begin
+        test_implicit_top_level_commodities()
+    end
+
+    @testset "Strict top-level commodity mode" begin
+        test_disallow_implicit_top_level_commodities()
     end
 
     @testset "Deterministic subcommodity writes" begin

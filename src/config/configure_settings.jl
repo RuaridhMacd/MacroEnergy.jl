@@ -3,6 +3,7 @@ function default_settings()
         ConstraintScaling = false,
         EnableJuMPDirectModel = false,
         EnableJuMPStringNames = false,
+        AllowImplicitTopLevelCommodities = true,
         WriteSubcommodities = false,
         OverwriteResults = false,
         OutputDir = "results",
@@ -55,6 +56,7 @@ end
 
 function validate_settings(settings::NamedTuple)
     @assert settings[:ConstraintScaling] ∈ (false, true)
+    @assert settings[:AllowImplicitTopLevelCommodities] isa Bool
     @assert settings[:DualExportsEnabled] isa Bool
     @assert settings[:OutputLayout] isa Union{String, NamedTuple}
     if settings[:OutputLayout] isa String
