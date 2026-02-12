@@ -18,8 +18,7 @@ function load_user_additions(module_file_path::AbstractString, user_additions_na
     if isfile(module_file_path)
         @info(" ++ Loading user additions from $(relpath(module_file_path))")
         try
-            push!(LOAD_PATH, dirname(module_file_path))
-            Base.require(Base.PkgId(user_additions_name))
+            Base.include(@__MODULE__, module_file_path)
             @info(" ++ Successfully loaded $(user_additions_name) module.")
         catch e
             @warn("Could not load $(user_additions_name) module: $e")
