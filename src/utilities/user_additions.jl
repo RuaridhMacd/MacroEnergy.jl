@@ -54,23 +54,51 @@ function create_user_additions_module(case_path::AbstractString=pwd())
     close(io)
 end
 
-function write_user_subcommodities(case_path::AbstractString, subcommodities_lines::Set{String})
-    user_subcommodities_path = user_additions_subcommodities_path(case_path)
-    @debug(" -- Writing subcommodities to file $(user_subcommodities_path)")
-    mkpath(dirname(user_subcommodities_path))
-    # Read each lines from the file into a Set{String} to avoid duplicates
-    existing_lines = Set{String}()
-    if isfile(user_subcommodities_path)
-        for line in eachline(user_subcommodities_path) 
-            if !isempty(strip(line))
-                push!(existing_lines, line)
+function read_unique_nonempty_lines(file_path::AbstractString)
+    lines = String[]
+    seen = Set{String}()
+    if isfile(file_path)
+        for line in eachline(file_path)
+            clean = strip(line)
+            if !isempty(clean) && !(clean in seen)
+                push!(lines, clean)
+                push!(seen, clean)
             end
         end
     end
-    union!(subcommodities_lines, existing_lines)
-    io = open(user_subcommodities_path, "w")
-    for line in subcommodities_lines
-        println(io, line)
+    return lines
+end
+
+function append_unique_lines(
+    base_lines::AbstractVector{<:AbstractString},
+    new_lines::AbstractVector{<:AbstractString},
+)
+    merged_lines = String[strip(line) for line in base_lines if !isempty(strip(line))]
+    merged_set = Set{String}(merged_lines)
+    for line in new_lines
+        clean = strip(line)
+        if !isempty(clean) && !(clean in merged_set)
+            push!(merged_lines, clean)
+            push!(merged_set, clean)
+        end
     end
-    close(io)
+    return merged_lines
+end
+
+function write_lines(file_path::AbstractString, lines::AbstractVector{<:AbstractString})
+    open(file_path, "w") do io
+        for line in lines
+            println(io, line)
+        end
+    end
+    return nothing
+end
+
+function write_user_subcommodities(case_path::AbstractString, subcommodities_lines::AbstractVector{<:AbstractString})
+    user_subcommodities_path = user_additions_subcommodities_path(case_path)
+    @debug(" -- Writing subcommodities to file $(user_subcommodities_path)")
+    mkpath(dirname(user_subcommodities_path))
+    existing_lines = read_unique_nonempty_lines(user_subcommodities_path)
+    merged_lines = append_unique_lines(existing_lines, subcommodities_lines)
+    write_lines(user_subcommodities_path, merged_lines)
 end

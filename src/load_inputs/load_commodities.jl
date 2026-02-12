@@ -70,58 +70,110 @@ function load_commodities(data::AbstractVector{<:AbstractString}, rel_path::Abst
     return load_commodities(Symbol.(data); write_subcommodities=write_subcommodities)
 end
 
-function load_commodities(commodities::AbstractVector{<:Any}, rel_path::AbstractString=""; write_subcommodities::Bool=false)
-    register_commodity_types!()
-
-    macro_commodities = commodity_types()
-    all_sub_commodities = Vector{Dict{Symbol,Any}}()
-    system_commodities = Vector{Symbol}();
-    commodity_keys = unique!([MacroEnergy.typesymbol(commodity) for commodity in values(macro_commodities)])
+function parse_commodity_inputs(
+    commodities::AbstractVector{<:Any},
+    macro_commodities::AbstractDict{Symbol,DataType},
+)
+    user_subcommodities = Dict{Symbol,Any}[]
+    system_commodities = Symbol[]
 
     for commodity in commodities
         if isa(commodity, Symbol)
             if commodity ∉ keys(macro_commodities)
                 error("Unknown commodity: $commodity")
-            else
-                push!(system_commodities, commodity)
             end
+            push!(system_commodities, commodity)
         elseif isa(commodity, AbstractString)
-            if Symbol(commodity) ∉ keys(macro_commodities)
+            commodity_symbol = Symbol(commodity)
+            if commodity_symbol ∉ keys(macro_commodities)
                 error("Unknown commodity: $commodity")
-            else
-                push!(system_commodities, Symbol(commodity))
             end
+            push!(system_commodities, commodity_symbol)
         elseif isa(commodity, Dict) && haskey(commodity, :name) && haskey(commodity, :acts_like)
-            push!(all_sub_commodities, commodity)
+            push!(user_subcommodities, commodity)
             push!(system_commodities, Symbol(commodity[:name]))
         else
             error("Invalid commodity format: $commodity")
         end
     end
 
-    subcommodities_lines = Set{String}()
+    return user_subcommodities, system_commodities
+end
 
-    for commodity in all_sub_commodities
-        @debug("Iterating over user-defined subcommodities")
-        new_name = Symbol(commodity[:name])
-        parent_name = Symbol(commodity[:acts_like])
-        if new_name in keys(commodity_types())
-            @debug("Commodity $(commodity[:name]) already exists")
-            continue
-        end
-        commodity_keys = keys(commodity_types())
-        if parent_name ∈ commodity_keys
-            @debug("Adding subcommodity $(new_name), which acts like commodity $(parent_name)")
-            commodity_line = make_commodity(new_name, parent_name)
-            COMMODITY_TYPES[new_name] = Base.invokelatest(getfield, MacroEnergy, new_name)
-            if write_subcommodities
-                @debug("Will write subcommodity $(new_name) to file")
-                push!(subcommodities_lines, commodity_line)
-            end
-        else
-            error("Unknown parent commodity: $parent_name")
-        end
+function add_subcommodity!(
+    commodity::AbstractDict{Symbol,Any},
+    commodity_keys,
+    subcommodities_lines::AbstractVector{String};
+    write_subcommodities::Bool=false,
+)::Bool
+    @debug("Iterating over user-defined subcommodities")
+    new_name = Symbol(commodity[:name])
+    parent_name = Symbol(commodity[:acts_like])
+
+    if new_name in commodity_keys
+        @debug("Commodity $(commodity[:name]) already exists")
+        return true
     end
+
+    if parent_name ∉ commodity_keys
+        return false
+    end
+
+    @debug("Adding subcommodity $(new_name), which acts like commodity $(parent_name)")
+    commodity_line = make_commodity(new_name, parent_name)
+    COMMODITY_TYPES[new_name] = Base.invokelatest(getfield, MacroEnergy, new_name)
+    if write_subcommodities
+        @debug("Will write subcommodity $(new_name) to file")
+        push!(subcommodities_lines, commodity_line)
+    end
+    return true
+end
+
+function resolve_subcommodities!(
+    user_subcommodities::AbstractVector{<:AbstractDict{Symbol,Any}},
+    subcommodities_lines::AbstractVector{String};
+    write_subcommodities::Bool=false,
+)
+    unresolved = collect(user_subcommodities)
+
+    while !isempty(unresolved)
+        progress = false
+        next_unresolved = Dict{Symbol,Any}[]
+        commodity_keys = keys(commodity_types())
+
+        for commodity in unresolved
+            was_resolved = add_subcommodity!(
+                commodity,
+                commodity_keys,
+                subcommodities_lines;
+                write_subcommodities=write_subcommodities,
+            )
+            if was_resolved
+                progress = true
+            else
+                push!(next_unresolved, commodity)
+            end
+        end
+
+        if !progress
+            unknown_parents = unique(Symbol(c[:acts_like]) for c in unresolved)
+            error("Unknown or circular parent commodities: $unknown_parents")
+        end
+
+        unresolved = next_unresolved
+    end
+
+    return nothing
+end
+
+function load_commodities(commodities::AbstractVector{<:Any}, rel_path::AbstractString=""; write_subcommodities::Bool=false)
+    register_commodity_types!()
+
+    macro_commodities = commodity_types()
+    all_sub_commodities, system_commodities = parse_commodity_inputs(commodities, macro_commodities)
+
+    subcommodities_lines = String[]
+    resolve_subcommodities!(all_sub_commodities, subcommodities_lines; write_subcommodities=write_subcommodities)
     @debug(" -- Done adding subcommodities")
 
     if write_subcommodities && !isempty(subcommodities_lines)
