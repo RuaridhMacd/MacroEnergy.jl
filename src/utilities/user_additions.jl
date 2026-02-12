@@ -15,17 +15,43 @@ function load_user_additions(module_file_path::AbstractString, user_additions_na
 
     This function attempts to load a module named `UserAdditions` from the specified case additions path. If the module is not found, it logs a warning.
     """
-    if isfile(module_file_path)
-        @info(" ++ Loading user additions from $(relpath(module_file_path))")
-        try
-            Base.include(@__MODULE__, module_file_path)
-            @info(" ++ Successfully loaded $(user_additions_name) module.")
-        catch e
-            @warn("Could not load $(user_additions_name) module: $e")
-        end
-    else
-        @warn("User additions file not found at $(relpath(module_file_path))")
+    additions_dir = dirname(module_file_path)
+    commodities_path = user_additions_subcommodities_path(dirname(additions_dir))
+    assets_path = user_additions_assets_path(dirname(additions_dir))
+
+    if !isdir(additions_dir)
+        @warn("User additions directory not found at $(relpath(additions_dir))")
+        return nothing
     end
+
+    @info(" ++ Loading user additions from $(relpath(additions_dir))")
+
+    loaded_any = false
+
+    if isfile(commodities_path)
+        try
+            Base.include(MacroEnergy, commodities_path)
+            loaded_any = true
+        catch e
+            @warn("Could not load user subcommodities from $(relpath(commodities_path)): $e")
+        end
+    end
+
+    if isfile(assets_path)
+        try
+            Base.include(MacroEnergy, assets_path)
+            loaded_any = true
+        catch e
+            @warn("Could not load user assets from $(relpath(assets_path)): $e")
+        end
+    end
+
+    if loaded_any
+        @info(" ++ Successfully loaded user additions.")
+    else
+        @debug("No user additions files found in $(relpath(additions_dir))")
+    end
+    return nothing
 end
 
 function create_user_additions_module(case_path::AbstractString=pwd())
@@ -33,26 +59,8 @@ function create_user_additions_module(case_path::AbstractString=pwd())
     Setup user additions by loading the user additions module.
     This function is called to ensure that the user additions are loaded before running any cases.
     """
-    module_path = user_additions_module_path(case_path)
-    commodities_file = user_additions_subcommodities_path(case_path)
-    assets_file = user_additions_assets_path(case_path)
-    mkpath(dirname(module_path))
-    io = open(module_path, "w")
-    println(io, "module $(USER_ADDITIONS_NAME)")
-    println(io, "using $(@__MODULE__)")
-    println(io, "")
-    println(io, "commodities_path = raw\"$commodities_file\"")
-    println(io, "if isfile(commodities_path)")
-    println(io, "    Base.include(MacroEnergy, commodities_path)")
-    println(io, "end")
-    println(io, "")
-    println(io, "assets_path = raw\"$assets_file\"")
-    println(io, "if isfile(assets_path)")
-    println(io, "    Base.include(MacroEnergy, assets_path)")
-    println(io, "end")
-    println(io, "")
-    println(io, "end")
-    close(io)
+    mkpath(user_additions_path(case_path))
+    return nothing
 end
 
 function read_unique_nonempty_lines(file_path::AbstractString)
