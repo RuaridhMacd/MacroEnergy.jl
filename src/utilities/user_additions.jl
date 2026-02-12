@@ -6,9 +6,6 @@ const USER_ASSETS_DIR = "assets"
 
 user_additions_path(path::AbstractString) = joinpath(path, USER_ADDITIONS_PATH)
 user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_MARKER_FILE)
-
-# Backward compatibility alias. Keep for downstream code still using the old name.
-user_additions_module_path(path::AbstractString) = user_additions_marker_path(path)
 user_additions_subcommodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_SUBCOMMODITIES_FILE)
 user_additions_assets_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_FILE)
 user_additions_assets_dir(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_DIR)
