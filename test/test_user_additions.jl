@@ -113,6 +113,28 @@ function test_subcommodities_file_write_order()
 end
 
 """
+Verify that persisted subcommodity definitions are dependency ordered.
+
+Expected behavior:
+- if a child line is seen before its parent line,
+- writer rewrites file so parent definition appears first.
+"""
+function test_subcommodities_dependency_write_order()
+    case_path = mktempdir()
+
+    write_user_subcommodities(case_path, [
+        "abstract type TestChildFuel <: MacroEnergy.TestParentFuel end",
+        "abstract type TestParentFuel <: MacroEnergy.LiquidFuels end",
+    ])
+
+    lines = readlines(user_additions_subcommodities_path(case_path))
+    @test lines == [
+        "abstract type TestParentFuel <: MacroEnergy.LiquidFuels end",
+        "abstract type TestChildFuel <: MacroEnergy.TestParentFuel end",
+    ]
+end
+
+"""
 Run all user additions tests.
 """
 function test_user_additions()
@@ -126,6 +148,10 @@ function test_user_additions()
 
     @testset "Deterministic subcommodity writes" begin
         test_subcommodities_file_write_order()
+    end
+
+    @testset "Dependency-ordered subcommodity writes" begin
+        test_subcommodities_dependency_write_order()
     end
 
     return nothing
