@@ -15,6 +15,10 @@ import MacroEnergy:
     commodity_types,
     Commodity,
     register_commodity_types!,
+    create_user_additions_module,
+    load_user_additions,
+    user_additions_assets_path,
+    user_additions_module_path,
     write_user_subcommodities,
     user_additions_subcommodities_path
 
@@ -190,6 +194,31 @@ function test_subcommodities_dependency_write_order()
 end
 
 """
+Verify user-defined assets are loaded into MacroEnergy scope.
+
+Expected behavior:
+- `userassets.jl` can reference `System` unqualified,
+- custom asset type is defined in `MacroEnergy`, not only in `UserAdditions`.
+"""
+function test_user_asset_load_scope()
+    case_path = mktempdir()
+    asset_name = unique_test_symbol("TestUserAsset")
+    assets_path = user_additions_assets_path(case_path)
+    mkpath(dirname(assets_path))
+
+    open(assets_path, "w") do io
+        println(io, "struct $(asset_name) <: AbstractAsset end")
+        println(io, "make(::Type{<:$(asset_name)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
+    end
+
+    create_user_additions_module(case_path)
+    load_user_additions(user_additions_module_path(case_path))
+
+    macroenergy_module = parentmodule(load_commodities)
+    @test isdefined(macroenergy_module, asset_name)
+end
+
+"""
 Run all user additions tests.
 """
 function test_user_additions()
@@ -215,6 +244,10 @@ function test_user_additions()
 
     @testset "Dependency-ordered subcommodity writes" begin
         test_subcommodities_dependency_write_order()
+    end
+
+    @testset "User asset loading scope" begin
+        test_user_asset_load_scope()
     end
 
     return nothing
