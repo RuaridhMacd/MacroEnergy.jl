@@ -1,7 +1,8 @@
-const USER_ADDITIONS_PATH = joinpath("tmp")
+const USER_ADDITIONS_PATH = joinpath("user_additions")
 const USER_ADDITIONS_MARKER_FILE = "UserAdditions.jl"
 const USER_SUBCOMMODITIES_FILE = "usersubcommodities.jl"
 const USER_ASSETS_FILE = "userassets.jl"
+const USER_ASSETS_DIR = "assets"
 
 user_additions_path(path::AbstractString) = joinpath(path, USER_ADDITIONS_PATH)
 user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_MARKER_FILE)
@@ -10,17 +11,40 @@ user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(
 user_additions_module_path(path::AbstractString) = user_additions_marker_path(path)
 user_additions_subcommodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_SUBCOMMODITIES_FILE)
 user_additions_assets_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_FILE)
+user_additions_assets_dir(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_DIR)
+
+function list_asset_definition_files(assets_dir::AbstractString)
+    if !isdir(assets_dir)
+        return String[]
+    end
+    return sort(collect(joinpath(assets_dir, file) for file in readdir(assets_dir) if endswith(file, ".jl")))
+end
+
+function load_asset_definition_files!(asset_paths::AbstractVector{<:AbstractString})
+    loaded_any = false
+    for asset_path in asset_paths
+        try
+            Base.include(MacroEnergy, asset_path)
+            loaded_any = true
+        catch e
+            @warn("Could not load user asset file $(relpath(asset_path)): $e")
+        end
+    end
+    return loaded_any
+end
 
 function load_user_additions(user_additions_marker_path::AbstractString)
     """
-    Load user additions from the case `tmp` folder into `MacroEnergy`.
+    Load user additions from the case `user_additions` folder into `MacroEnergy`.
 
-    Supported files are `usersubcommodities.jl` and `userassets.jl`.
+    Supported files are `usersubcommodities.jl`, `userassets.jl`, and `assets/*.jl`.
     The `user_additions_marker_path` argument is used to infer the case path.
     """
     additions_dir = dirname(user_additions_marker_path)
-    commodities_path = user_additions_subcommodities_path(dirname(additions_dir))
-    assets_path = user_additions_assets_path(dirname(additions_dir))
+    case_path = dirname(additions_dir)
+    commodities_path = user_additions_subcommodities_path(case_path)
+    assets_path = user_additions_assets_path(case_path)
+    asset_files = list_asset_definition_files(user_additions_assets_dir(case_path))
 
     if !isdir(additions_dir)
         @warn("User additions directory not found at $(relpath(additions_dir))")
@@ -49,6 +73,8 @@ function load_user_additions(user_additions_marker_path::AbstractString)
         end
     end
 
+    loaded_any = load_asset_definition_files!(asset_files) || loaded_any
+
     if loaded_any
         @info(" ++ Successfully loaded user additions.")
     else
@@ -63,6 +89,7 @@ function create_user_additions_module(case_path::AbstractString=pwd())
     This function is called to ensure that the user additions are loaded before running any cases.
     """
     mkpath(user_additions_path(case_path))
+    mkpath(user_additions_assets_dir(case_path))
     return nothing
 end
 

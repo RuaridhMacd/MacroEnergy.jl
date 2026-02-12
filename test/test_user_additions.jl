@@ -17,7 +17,8 @@ import MacroEnergy:
     register_commodity_types!,
     create_user_additions_module,
     load_user_additions,
-    user_additions_assets_path,
+    user_additions_path,
+    user_additions_assets_dir,
     user_additions_marker_path,
     write_user_subcommodities,
     user_additions_subcommodities_path
@@ -202,20 +203,58 @@ Expected behavior:
 """
 function test_user_asset_load_scope()
     case_path = mktempdir()
-    asset_name = unique_test_symbol("TestUserAsset")
-    assets_path = user_additions_assets_path(case_path)
-    mkpath(dirname(assets_path))
+    asset_name_a = unique_test_symbol("TestUserAssetA")
+    asset_name_b = unique_test_symbol("TestUserAssetB")
+    assets_dir = user_additions_assets_dir(case_path)
+    mkpath(assets_dir)
 
-    open(assets_path, "w") do io
-        println(io, "struct $(asset_name) <: AbstractAsset end")
-        println(io, "make(::Type{<:$(asset_name)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
+    open(joinpath(assets_dir, "asset_a.jl"), "w") do io
+        println(io, "struct $(asset_name_a) <: AbstractAsset end")
+        println(io, "make(::Type{<:$(asset_name_a)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
+    end
+
+    open(joinpath(assets_dir, "asset_b.jl"), "w") do io
+        println(io, "struct $(asset_name_b) <: AbstractAsset end")
+        println(io, "make(::Type{<:$(asset_name_b)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
     end
 
     create_user_additions_module(case_path)
     load_user_additions(user_additions_marker_path(case_path))
 
     macroenergy_module = parentmodule(load_commodities)
-    @test isdefined(macroenergy_module, asset_name)
+    @test isdefined(macroenergy_module, asset_name_a)
+    @test isdefined(macroenergy_module, asset_name_b)
+end
+
+"""
+Verify both userassets.jl and assets/*.jl are loaded when both are present.
+"""
+function test_user_asset_file_and_folder_load_together()
+    case_path = mktempdir()
+    asset_name_single = unique_test_symbol("TestUserAssetSingle")
+    asset_name_folder = unique_test_symbol("TestUserAssetFolder")
+
+    single_asset_path = joinpath(user_additions_path(case_path), "userassets.jl")
+    assets_dir = user_additions_assets_dir(case_path)
+    mkpath(dirname(single_asset_path))
+    mkpath(assets_dir)
+
+    open(single_asset_path, "w") do io
+        println(io, "struct $(asset_name_single) <: AbstractAsset end")
+        println(io, "make(::Type{<:$(asset_name_single)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
+    end
+
+    open(joinpath(assets_dir, "asset_folder.jl"), "w") do io
+        println(io, "struct $(asset_name_folder) <: AbstractAsset end")
+        println(io, "make(::Type{<:$(asset_name_folder)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
+    end
+
+    create_user_additions_module(case_path)
+    load_user_additions(user_additions_marker_path(case_path))
+
+    macroenergy_module = parentmodule(load_commodities)
+    @test isdefined(macroenergy_module, asset_name_single)
+    @test isdefined(macroenergy_module, asset_name_folder)
 end
 
 """
@@ -248,6 +287,10 @@ function test_user_additions()
 
     @testset "User asset loading scope" begin
         test_user_asset_load_scope()
+    end
+
+    @testset "User asset file+folder loading" begin
+        test_user_asset_file_and_folder_load_together()
     end
 
     return nothing
