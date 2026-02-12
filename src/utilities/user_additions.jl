@@ -34,21 +34,22 @@ function create_user_additions_module(case_path::AbstractString=pwd())
     This function is called to ensure that the user additions are loaded before running any cases.
     """
     module_path = user_additions_module_path(case_path)
-    user_files = [
-        ("commodities", user_additions_subcommodities_path(case_path)),
-        ("assets", user_additions_assets_path(case_path))
-    ]
+    commodities_file = user_additions_subcommodities_path(case_path)
+    assets_file = user_additions_assets_path(case_path)
     mkpath(dirname(module_path))
     io = open(module_path, "w")
     println(io, "module $(USER_ADDITIONS_NAME)")
     println(io, "using $(@__MODULE__)")
-    for (name, file) in user_files
-        println(io, "")
-        println(io, "$(name)_path = raw\"$file\"")
-        println(io, "if isfile($(name)_path)")
-        println(io, "    include($(name)_path)")
-        println(io, "end")
-    end
+    println(io, "")
+    println(io, "commodities_path = raw\"$commodities_file\"")
+    println(io, "if isfile(commodities_path)")
+    println(io, "    Base.include(MacroEnergy, commodities_path)")
+    println(io, "end")
+    println(io, "")
+    println(io, "assets_path = raw\"$assets_file\"")
+    println(io, "if isfile(assets_path)")
+    println(io, "    include(assets_path)")
+    println(io, "end")
     println(io, "")
     println(io, "end")
     close(io)
@@ -85,6 +86,65 @@ function append_unique_lines(
     return merged_lines
 end
 
+function parse_subcommodity_definition(line::AbstractString)
+    m = match(r"^abstract\s+type\s+([A-Za-z_][A-Za-z0-9_]*)\s*<:\s*([A-Za-z_][A-Za-z0-9_\.]*)\s+end$", strip(line))
+    if isnothing(m)
+        return nothing
+    end
+    name = Symbol(m.captures[1])
+    parent_expr = m.captures[2]
+    parent_name = Symbol(split(parent_expr, ".")[end])
+    return (name=name, parent_name=parent_name)
+end
+
+function order_subcommodity_lines(lines::AbstractVector{<:AbstractString})
+    remaining = collect(lines)
+    ordered = String[]
+    resolved_names = Set{Symbol}()
+
+    parsed_lines = Dict{String,NamedTuple{(:name, :parent_name),Tuple{Symbol,Symbol}}}()
+    for line in lines
+        parsed = parse_subcommodity_definition(line)
+        if !isnothing(parsed)
+            parsed_lines[String(line)] = parsed
+        end
+    end
+    names_defined_in_file = Set(info.name for info in values(parsed_lines))
+
+    while !isempty(remaining)
+        progress = false
+        next_remaining = String[]
+
+        for line in remaining
+            parsed = get(parsed_lines, String(line), nothing)
+            if isnothing(parsed)
+                push!(ordered, String(line))
+                progress = true
+                continue
+            end
+
+            parent_is_file_defined = parsed.parent_name in names_defined_in_file
+            if !parent_is_file_defined || (parsed.parent_name in resolved_names)
+                push!(ordered, String(line))
+                push!(resolved_names, parsed.name)
+                progress = true
+            else
+                push!(next_remaining, String(line))
+            end
+        end
+
+        if !progress
+            append!(ordered, next_remaining)
+            @warn("Could not fully order user subcommodity definitions by dependency; keeping remaining lines in original order")
+            break
+        end
+
+        remaining = next_remaining
+    end
+
+    return ordered
+end
+
 function write_lines(file_path::AbstractString, lines::AbstractVector{<:AbstractString})
     open(file_path, "w") do io
         for line in lines
@@ -100,5 +160,6 @@ function write_user_subcommodities(case_path::AbstractString, subcommodities_lin
     mkpath(dirname(user_subcommodities_path))
     existing_lines = read_unique_nonempty_lines(user_subcommodities_path)
     merged_lines = append_unique_lines(existing_lines, subcommodities_lines)
-    write_lines(user_subcommodities_path, merged_lines)
+    ordered_lines = order_subcommodity_lines(merged_lines)
+    write_lines(user_subcommodities_path, ordered_lines)
 end
