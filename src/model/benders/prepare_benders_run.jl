@@ -57,7 +57,6 @@ function start_distributed_processes!(number_of_processes::Int64,case_path::Abst
 
     if haskey(ENV,"SLURM_NTASKS")
         parse(Int, ENV["SLURM_NTASKS"]) > number_of_processes ? @warn("SLURM_NTASKS is greater than the number of processes specified. Only $number_of_processes processes will be used.") : nothing
-        ntasks = min(number_of_processes,parse(Int, ENV["SLURM_NTASKS"]));
         cpus_per_task = parse(Int, ENV["SLURM_CPUS_PER_TASK"]);
         addprocs(SlurmClusterManager.SlurmManager(); exeflags=["-t $cpus_per_task"])
     else
