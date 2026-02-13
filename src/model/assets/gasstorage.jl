@@ -135,6 +135,7 @@ end
 
 function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
+    location = as_symbol_or_missing(get(data, :location, missing))
 
     @setup_data(asset_type, data, id)
 
@@ -152,7 +153,7 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
     pump_transform = Transformation(;
         id = Symbol(id, "_", pump_transform_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
-        location = asset_location,
+        location = location,
         constraints = transform_data[:constraints],
     )
 
@@ -179,7 +180,7 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
         storage_data,
         system.time_data[commodity_symbol],
         commodity,
-        asset_location
+        location
     )
     if long_duration
         lds_constraints = [LongDurationStorageImplicitMinMaxConstraint()]

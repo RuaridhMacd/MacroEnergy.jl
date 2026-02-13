@@ -72,6 +72,7 @@ end
 """
 function make(asset_type::Type{<:VRE}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
+    location = as_symbol_or_missing(get(data, :location, missing))
 
     # if id == :SE_utilitypv_class1_moderate_70_0_2_1
     #     @info data
@@ -101,7 +102,7 @@ function make(asset_type::Type{<:VRE}, data::AbstractDict{Symbol,Any}, system::S
     vre_transform = Transformation(;
         id = Symbol(id, "_", energy_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
-        location = asset_location,
+        location = location,
     )
 
     elec_edge_key = :edge

@@ -96,6 +96,8 @@ end
 
 function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
+    location = as_symbol_or_missing(get(data, :location, missing))
+
     @setup_data(asset_type, data, id)
 
     dreafccs_key = :transforms 
@@ -103,7 +105,7 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
     dreafccs_transform = Transformation(;
         id = Symbol(id, "_", dreafccs_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
-        location = asset_location,
+        location = location,
         constraints = get(transform_data, :constraints, [BalanceConstraint()]),
     )
 

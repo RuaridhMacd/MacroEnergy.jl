@@ -74,7 +74,7 @@ function make_node(data::AbstractDict{Symbol,Any}, time_data::TimeData, commodit
         id = id,
         timedata = time_data,
         demand = get(data, :demand, Vector{Float64}()),
-        location = haskey(data, :location) ? Symbol(data[:location]) : missing,
+        location = as_symbol_or_missing(get(data, :location, missing)),
         max_nsd = get(data, :max_nsd, [0.0]),
         max_supply = get(data, :max_supply, [0.0]),
         price = get(data, :price, Vector{Float64}()),

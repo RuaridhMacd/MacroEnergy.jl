@@ -112,6 +112,7 @@ end
 """
 function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
+    location = as_symbol_or_missing(get(data, :location, missing))
 
     @setup_data(asset_type, data, id)
 
@@ -139,7 +140,7 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
         storage_data,
         system.time_data[commodity_symbol],
         commodity,
-        asset_location
+        location
     )
 
     # If storage is long duration, add the implicit min-max constraint

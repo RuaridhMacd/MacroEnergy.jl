@@ -2,6 +2,7 @@ macro AbstractEdgeBaseAttributes()
     edge_defaults = edge_default_data()
     esc(quote
         id::Symbol
+        location::Union{Missing, Symbol} = $edge_defaults[:location]
         timedata::TimeData{T}
         start_vertex::AbstractVertex
         end_vertex::AbstractVertex
