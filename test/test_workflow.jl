@@ -45,6 +45,7 @@ import MacroEnergy:
     write_detailed_costs,
     get_detailed_costs,
     write_flow,
+    write_curtailment,
     typesymbol
 
 
@@ -303,6 +304,7 @@ function test_writing_outputs(case,model)
     @test_nowarn write_costs("test_costs.csv", system, model)
     @test_nowarn write_undiscounted_costs("test_undiscountedcosts.csv", system, model)
     @test_nowarn write_flow("test_flow.csv", system)
+    @test_nowarn write_curtailment("test_curtailment.csv", system)
     # Detailed cost breakdown (monolithic)
     @test_nowarn write_detailed_costs(".", system, model, settings)
     costs_result = get_detailed_costs(system, settings)
@@ -329,6 +331,7 @@ function test_writing_outputs(case,model)
     rm("test_costs.csv")        # clean up
     rm("test_undiscountedcosts.csv")        # clean up
     rm("test_flow.csv")         # clean up
+    isfile("test_curtailment.csv") && rm("test_curtailment.csv")  # clean up
     return nothing
 end 
 
