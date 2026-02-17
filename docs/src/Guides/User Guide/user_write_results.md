@@ -207,6 +207,7 @@ or
   "OutputLayout": {
     "Capacity": "wide",
     "Costs": "long",
+    "Curtailment": "long",
     "Flow": "long",
     "NonServedDemand": "long",
     "StorageLevel": "wide"
@@ -217,7 +218,7 @@ or
 Available options:
 - `"OutputLayout": "long"` (applies to all outputs)
 - `"OutputLayout": "wide"` (applies to all outputs)
-- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Flow": "long", "NonServedDemand": "long", "StorageLevel": "wide"}` (individual layout settings)
+- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Curtailment": "long", "Flow": "long", "NonServedDemand": "long", "StorageLevel": "wide"}` (individual layout settings)
 
 ## Output Files Location
 
