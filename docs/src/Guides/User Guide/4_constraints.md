@@ -88,6 +88,10 @@ MacroEnergy.add_model_constraint!(ct::StorageCapacityConstraint, g::AbstractStor
 ```@docs
 MacroEnergy.add_model_constraint!(ct::StorageDischargeLimitConstraint, e::Edge, model::Model)
 ```
+## [Storage charge limit constraint](@id storage_charge_limit_constraint_ref)
+```@docs
+MacroEnergy.add_model_constraint!(ct::StorageChargeLimitConstraint, e::Edge, model::Model)
+```
 ## [Storage symmetric capacity constraint](@id storage_symmetric_capacity_constraint_ref)
 ```@docs
 MacroEnergy.add_model_constraint!(ct::StorageSymmetricCapacityConstraint, g::AbstractStorage, model::Model)

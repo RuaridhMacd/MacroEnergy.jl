@@ -15,7 +15,7 @@ using MacroEnergySolvers
 using Pkg
 using DistributedArrays
 using Distributed
-using ClusterManagers
+using SlurmClusterManager
 using GitHub
 using Markdown
 using Logging
@@ -153,8 +153,8 @@ include("model/networks/asset.jl")
 include("model/system.jl")
 include("model/case.jl")
 include("model/networks/macroobject.jl")
-include("model/generate_model.jl")
 include("model/optimizer.jl")
+include("model/generate_model.jl")
 include("model/retrofit.jl")
 include("model/scaling.jl")
 include("model/solver.jl")
@@ -311,6 +311,7 @@ export AbstractAsset,
     StorageMinDurationConstraint,
     StorageSymmetricCapacityConstraint,
     StorageDischargeLimitConstraint,
+    StorageChargeLimitConstraint,
     SyntheticNaturalGas,
     SyntheticLiquidFuels,
     ThermalHydrogen,

@@ -1,5 +1,14 @@
 
-function generate_model(case::Case)
+function generate_model(case::Case,opt::Optimizer)
+
+    if case.systems[1].settings.EnableJuMPDirectModel
+        model = create_direct_model_with_optimizer(opt)
+    else
+        model = Model()
+        set_optimizer(model, opt)
+    end
+
+    set_string_names_on_creation(model,case.systems[1].settings.EnableJuMPStringNames)
 
     periods = get_periods(case)
     settings = get_settings(case)
@@ -8,8 +17,6 @@ function generate_model(case::Case)
     @info("Generating model")
 
     start_time = time();
-
-    model = Model()
 
     @variable(model, vREF == 1)
 
@@ -164,7 +171,7 @@ function add_age_based_retirements!(a::AbstractAsset,model::Model)
     for t in fieldnames(typeof(a))
         y = getfield(a, t)
         if isa(y,AbstractEdge) || isa(y,AbstractStorage)
-            if y.retirement_period > 0 || y.min_retired_capacity > 0.0
+            if retirement_period(y) > 0 || min_retired_capacity_track(y) > 0.0 ### Otherwise the constraint is trivially satisfied because the left hand side is zero
                 push!(y.constraints, AgeBasedRetirementConstraint())
                 add_model_constraint!(y.constraints[end], y, model)
             end
@@ -418,4 +425,24 @@ function validate_existing_capacity(asset::AbstractAsset)
             end
         end
     end
+end
+
+function create_direct_model_with_optimizer(opt::Optimizer)
+    
+    if !isnothing(opt.optimizer_env)
+        @debug("Setting optimizer with environment $(opt.optimizer_env)")
+        try 
+            model = direct_model(MOI.instantiate(() -> opt.optimizer(opt.optimizer_env)));
+        catch e
+            error("Error creating direct_model with optimizer and optimizer environment: $e")
+        end
+    else
+        @debug("Setting optimizer $(opt.optimizer)")
+        model = direct_model(MOI.instantiate(opt.optimizer));
+    end
+    @debug("Setting optimizer attributes $(opt.attributes)")
+    
+    set_optimizer_attributes(model, opt)
+
+    return model
 end

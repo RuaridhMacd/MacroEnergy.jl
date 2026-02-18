@@ -3,6 +3,7 @@ module TestWorkflow
 using Test
 using HiGHS
 using Pkg
+using JuMP
 try Pkg.add("Gurobi"); using Gurobi; catch e end
 using CSV, DataFrames, JSON3
 import MacroEnergy:
@@ -23,6 +24,7 @@ import MacroEnergy:
     load_case,
     read_file,
     generate_model,
+    create_optimizer,
     set_optimizer,
     optimize!,
     objective_value,
@@ -265,8 +267,8 @@ end
 
 function test_model_generation_and_optimization()
     case = load_case(test_path)
-    model = generate_model(case)
-    set_optimizer(model, optim)
+    optimizer = create_optimizer(optim)
+    model = generate_model(case,optimizer)
     optimize!(model)
     macro_objval = objective_value(model)
 
