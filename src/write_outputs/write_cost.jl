@@ -40,7 +40,7 @@ function write_costs(
     layout = get_output_layout(system, :Costs)
 
     if layout == "wide"
-        default_drop_cols = ["case_name", "year", "commodity", "commodity_subtype", "zone", "resource_id", "component_id", "type"]
+        default_drop_cols = ["case_name", "year", "commodity", "zone", "resource_id", "component_id", "type"]
         # Only use default_drop_cols if user didn't specify any
         drop_cols = isempty(drop_cols) ? default_drop_cols : drop_cols
         costs = reshape_wide(costs)
@@ -64,7 +64,7 @@ function write_undiscounted_costs(
     layout = get_output_layout(system, :Costs)
 
     if layout == "wide"
-        default_drop_cols = ["case_name", "year", "commodity", "commodity_subtype", "zone", "resource_id", "component_id", "type"]
+        default_drop_cols = ["case_name", "year", "commodity", "zone", "resource_id", "component_id", "type"]
         # Only use default_drop_cols if user didn't specify any
         drop_cols = isempty(drop_cols) ? default_drop_cols : drop_cols
         costs = reshape_wide(costs)
@@ -101,7 +101,6 @@ function prepare_undiscounted_costs(model::Union{Model,NamedTuple}, scaling::Flo
     return DataFrame(
         case_name = fill(:missing, 3),
         commodity = fill(:all, 3),
-        commodity_subtype = fill(:cost, 3),
         zone = fill(:all, 3),
         resource_id = fill(:all, 3),
         component_id = fill(:all, 3),
@@ -119,7 +118,6 @@ function prepare_discounted_costs(model::Union{Model,NamedTuple}, scaling::Float
     return DataFrame(
         case_name = fill(:missing, 3),
         commodity = fill(:all, 3),
-        commodity_subtype = fill(:cost, 3),
         zone = fill(:all, 3),
         resource_id = fill(:all, 3),
         component_id = fill(:all, 3),

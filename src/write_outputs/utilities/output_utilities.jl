@@ -199,13 +199,13 @@ function filter_edges_by_commodity!(
 end
 
 """
-    filter_edges_by_asset_type!(edges::Vector{AbstractEdge}, asset_type::Union{Symbol,Vector{Symbol}}, edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}})
+    filter_edges_by_asset_type!(edges::Vector{AbstractEdge}, asset_type::Union{Symbol,String,Vector{Symbol},Vector{String}}, edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}})
 
 Filter edges and their associated assets by asset type.
 
 # Arguments
 - `edges::Vector{AbstractEdge}`: Edges to filter
-- `asset_type::Union{Symbol,Vector{Symbol}}`: Target asset type(s)
+- `asset_type::Union{Symbol,String,Vector{Symbol},Vector{String}}`: Target asset type(s)
 - `edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}`: Mapping of edges to assets
 
 # Effects
@@ -218,29 +218,30 @@ Filter edges and their associated assets by asset type.
 # Example
 ```julia
 filter_edges_by_asset_type!(edges, :Battery, edge_asset_map)
+filter_edges_by_asset_type!(edges, "Battery", edge_asset_map)
 ```
 """
 function filter_edges_by_asset_type!(
     edges::Vector{AbstractEdge},
-    asset_type::Union{Symbol,Vector{Symbol}},
+    asset_type::Union{Symbol,String,Vector{Symbol},Vector{String}},
     edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}
 )
     @debug "Filtering edges by asset type $asset_type"
 
-    # convert asset_type to vector if it is a symbol
-    asset_type = isa(asset_type, Symbol) ? [asset_type] : asset_type
+    # convert asset_type to vector of strings for comparison with get_type (which returns String)
+    asset_type_strings = isa(asset_type, Union{Symbol,String}) ? [string(asset_type)] : string.(asset_type)
 
     # check if the asset_type is available in the system
     available_types = unique(get_type(asset) for asset in values(edge_asset_map))
-    if !any(t -> t ∈ available_types, asset_type)
+    if !any(t -> t ∈ available_types, asset_type_strings)
         throw(ArgumentError(
-            "Asset type(s) $asset_type not found in the system.\n" *
+            "Asset type(s) $asset_type_strings not found in the system.\n" *
             "Available types are $available_types"
         ))
     end
 
     # filter asset map by type (done first as it's used for edge filtering)
-    filter!(pair -> get_type(pair[2]) in asset_type, edge_asset_map)
+    filter!(pair -> get_type(pair[2]) in asset_type_strings, edge_asset_map)
 
     # filter edges according to new edge_asset_map
     filter!(e -> id(e) in keys(edge_asset_map), edges)
@@ -339,8 +340,8 @@ Search for asset types in a list of available assets, supporting wildcards and p
 
 # Returns
 Tuple of two vectors:
-1. `Vector{Symbol}`: Found asset types
-2. `Vector{Symbol}`: Missing asset types (only if no matches found)
+1. `Vector{String}`: Found asset types
+2. `Vector{String}`: Missing asset types (only if no matches found)
 
 # Pattern Matching
 Supports three types of matches:
@@ -355,19 +356,19 @@ assets = ["Battery", "ThermalPower{Coal}", "ThermalPower{Gas}"]
 
 # Exact match
 found, missing = search_assets("Battery", assets)
-# found = [:Battery], missing = []
+# found = ["Battery"], missing = []
 
 # Parametric match
 found, missing = search_assets("ThermalPower", assets)
-# found = [:ThermalPower{Coal}, :ThermalPower{Gas}], missing = []
+# found = ["ThermalPower{Coal}", "ThermalPower{Gas}"], missing = []
 
 # Wildcard match
 found, missing = search_assets("ThermalPower*", assets)
-# found = [:ThermalPower{Coal}, :ThermalPower{Gas}], missing = []
+# found = ["ThermalPower{Coal}", "ThermalPower{Gas}"], missing = []
 
 # Multiple types
 found, missing = search_assets(["Battery", "Solar"], assets)
-# found = [:Battery], missing = [:Solar]
+# found = ["Battery"], missing = ["Solar"]
 ```
 """
 function search_assets(
@@ -375,8 +376,8 @@ function search_assets(
     available_types::Vector{<:AbstractString}
 )
     asset_type = isa(asset_type, AbstractString) ? [asset_type] : asset_type
-    final_asset_types = Set{Symbol}()
-    missed_asset_types = Set{Symbol}()
+    final_asset_types = Set{String}()
+    missed_asset_types = Set{String}()
     
     for a in asset_type
         found_any = false
@@ -385,26 +386,26 @@ function search_assets(
         if wildcard_search
             a = a[1:end-1]
             # Find all asset types which start with the part before the wildcard
-            matches = Symbol.(available_types[startswith.(available_types, Ref(a))])
+            matches = available_types[startswith.(available_types, Ref(a))]
             # Add the asset types, accounting for parametric commodities
             union!(final_asset_types, matches)
             found_any = !isempty(matches)
         end
         
         # Add the parametric types
-        parametric_matches = Symbol.(available_types[startswith.(available_types, Ref(a * "{"))])
+        parametric_matches = available_types[startswith.(available_types, Ref(a * "{"))]
         union!(final_asset_types, parametric_matches)
         found_any = found_any || !isempty(parametric_matches)
         
         # Add the asset types itself, if they're in the dataframe
         if a in available_types
-            push!(final_asset_types, Symbol(a))
+            push!(final_asset_types, a)
             found_any = true
         end
         
         # Only add to missed if we found no matches at all
         if !found_any && !wildcard_search
-            push!(missed_asset_types, Symbol(a))
+            push!(missed_asset_types, a)
         end
     end
     

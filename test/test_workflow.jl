@@ -31,7 +31,6 @@ import MacroEnergy:
     commodity_type,
     AssetId,
     VariableRef,
-    collect_results, 
     get_optimal_capacity,
     get_optimal_new_capacity,
     get_optimal_retired_capacity,
@@ -44,7 +43,6 @@ import MacroEnergy:
     write_costs,
     write_undiscounted_costs,
     write_flow,
-    write_results,
     typesymbol
 
 
@@ -284,7 +282,6 @@ end
 function test_writing_outputs(case,model)
     system = case.systems[1];
     settings = case.settings;
-    @test_nowarn collect_results(system, model, settings)
     @test_nowarn get_optimal_capacity(system)
     @test_nowarn get_optimal_new_capacity(system)
     @test_nowarn get_optimal_retired_capacity(system)

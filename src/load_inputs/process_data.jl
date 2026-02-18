@@ -117,3 +117,11 @@ function check_and_convert_symbol!(data::AbstractDict{Symbol,Any}, key::Symbol)
     end
     return nothing
 end
+
+# Convert string to Symbol if not missing, otherwise return missing
+function as_symbol_or_missing(x::Union{Missing, AbstractString})::Union{Missing, Symbol}
+    if ismissing(x)
+        return missing
+    end
+    return Symbol(x)
+end

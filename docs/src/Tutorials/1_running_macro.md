@@ -106,8 +106,8 @@ result_dir = joinpath(case_path, "results")
 mkpath(result_dir)
 
 write_capacity(joinpath(result_dir, "capacity.csv"), system)
-write_costs(joinpath(result_dir, "costs.csv"), system, solution)
-write_flow(joinpath(result_dir, "flows.csv"), system)
+write_costs(joinpath(result_dir, "costs.csv"), system, model)
+write_flow(joinpath(result_dir, "flow.csv"), system)
 ```
 
 ### Viewing Results

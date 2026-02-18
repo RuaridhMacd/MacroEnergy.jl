@@ -273,7 +273,7 @@ get_assets_sametype(system::System, asset_type::T) where T<:Type{<:AbstractAsset
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.
 get_nodes(system::System) = system.locations
 get_edges(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractEdge) : get_macro_objs(system, AbstractEdge)
-get_storage(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, Storage) : get_macro_objs(system, Storage)
+get_storages(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractStorage) : get_macro_objs(system, AbstractStorage)
 get_transformations(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, Transformation) : get_macro_objs(system, Transformation)
 
 # Function to extract the edges with capacity variables from a system.
@@ -293,10 +293,8 @@ end
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.  
 function storages_with_capacity_variables(system::System; return_ids_map::Bool=false)
     if return_ids_map
-        storages_with_capacity, storages_with_capacity_asset_map = get_storage(system, return_ids_map=true)
-        ### Note: we do not need the below as every storage has capacity variables
-        ##### storages_with_capacity = storages_with_capacity_variables(storages)
-        ##### storages_with_capacity_asset_map = filter(storage -> storage[1] in id.(storages_with_capacity), storage_asset_map)
+        ### Note: we do not need to filter storages as every storage has capacity variables
+        storages_with_capacity, storages_with_capacity_asset_map = get_storages(system, return_ids_map=true)
         return storages_with_capacity, storages_with_capacity_asset_map
     else
         return storages_with_capacity_variables(system.assets)
