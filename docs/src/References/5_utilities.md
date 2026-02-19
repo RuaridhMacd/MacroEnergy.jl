@@ -184,14 +184,29 @@ MacroEnergy.timestepbefore
 MacroEnergy.collect_flow_results
 ```
 
-## `collect_local_flows`
+## `collect_non_served_demand_results`
 ```@docs
-MacroEnergy.collect_local_flows
+MacroEnergy.collect_non_served_demand_results
 ```
 
-## `collect_distributed_flows`
+## `collect_storage_level_results`
 ```@docs
-MacroEnergy.collect_distributed_flows
+MacroEnergy.collect_storage_level_results
+```
+
+## `collect_subproblem_results`
+```@docs
+MacroEnergy.collect_subproblem_results
+```
+
+## `collect_local_results`
+```@docs
+MacroEnergy.collect_local_results
+```
+
+## `collect_distributed_results`
+```@docs
+MacroEnergy.collect_distributed_results
 ```
 
 ## `evaluate_vtheta_in_expression`
