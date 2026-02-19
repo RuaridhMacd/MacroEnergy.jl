@@ -39,9 +39,11 @@ get_flow_sign(n1::Node, n2::Node) = 1.0
 get_flow_sign(n::Node, s::AbstractStorage) = -1.0
 get_flow_sign(n::Node, t::Transformation) = -1.0
 get_flow_sign(s::AbstractStorage, n::Node) = 1.0
-get_flow_sign(t::Transformation, n::Node) = 1.0
+get_flow_sign(s1::AbstractStorage, s2::AbstractStorage) = 1.0
 get_flow_sign(s::AbstractStorage, t::Transformation) = 1.0
+get_flow_sign(t::Transformation, n::Node) = 1.0
 get_flow_sign(t::Transformation, s::AbstractStorage) = -1.0
+get_flow_sign(t1::Transformation, t2::Transformation) = 1.0
 # Get flow sign based on which vertex is the start and which is the end
 get_flow_sign(e::AbstractEdge) = get_flow_sign(e.start_vertex, e.end_vertex)
 
