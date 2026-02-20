@@ -123,8 +123,7 @@ function run_case(
         @info("Running case at $(case_path)")
 
         create_user_additions_module(case_path)
-        additions_path = user_additions_marker_path(case_path)
-        load_user_additions(additions_path)
+        load_user_additions(case_path)
 
         case = load_case(case_path; lazy_load=lazy_load)
 

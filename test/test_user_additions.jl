@@ -19,7 +19,6 @@ import MacroEnergy:
     load_user_additions,
     user_additions_path,
     user_additions_assets_dir,
-    user_additions_marker_path,
     write_user_commodities,
     user_additions_commodities_path
 
@@ -219,7 +218,7 @@ function test_user_asset_load_scope()
     end
 
     create_user_additions_module(case_path)
-    load_user_additions(user_additions_marker_path(case_path))
+    load_user_additions(case_path)
 
     macroenergy_module = parentmodule(load_commodities)
     @test isdefined(macroenergy_module, asset_name_a)
@@ -250,7 +249,7 @@ function test_user_asset_file_and_folder_load_together()
     end
 
     create_user_additions_module(case_path)
-    load_user_additions(user_additions_marker_path(case_path))
+    load_user_additions(case_path)
 
     macroenergy_module = parentmodule(load_commodities)
     @test isdefined(macroenergy_module, asset_name_single)

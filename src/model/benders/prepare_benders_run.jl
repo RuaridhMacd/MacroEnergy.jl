@@ -97,7 +97,6 @@ function create_worker_process(pid,project,case_path::AbstractString)
 
     Distributed.remotecall_eval(Main, pid, :(using MacroEnergySolvers))
 
-    additions_path = user_additions_marker_path(case_path)
-    Distributed.remotecall_eval(MacroEnergy, pid, :(MacroEnergy.load_user_additions($additions_path)))
+    Distributed.remotecall_eval(MacroEnergy, pid, :(MacroEnergy.load_user_additions($case_path)))
 
 end
