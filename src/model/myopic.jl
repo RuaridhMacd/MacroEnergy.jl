@@ -196,7 +196,7 @@ end
 function carry_over_capacities!(system::System, prev_results::Dict{Int64,DataFrame}, last_period::Int)
 
     all_edges = get_edges(system)
-    storages = get_storage(system)
+    storages = get_storages(system)
     edges_with_capacity = edges_with_capacity_variables(all_edges)
     components_with_capacity = vcat(edges_with_capacity, storages)
     for y in components_with_capacity
