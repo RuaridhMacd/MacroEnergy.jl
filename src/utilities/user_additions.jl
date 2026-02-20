@@ -32,6 +32,19 @@ function parse_asset_type_definitions(file_path::AbstractString)
     return asset_names
 end
 
+function is_capitalized_type_name(type_name::Symbol)
+    name = String(type_name)
+    return !isempty(name) && isuppercase(first(name))
+end
+
+function warn_if_noncapitalized_user_asset_names(file_path::AbstractString, asset_names::AbstractVector{Symbol})
+    noncapitalized = sort!(unique!([name for name in asset_names if !is_capitalized_type_name(name)]))
+    if !isempty(noncapitalized)
+        @info(" ++ WARNING: Asset names should be capitalized (e.g., `MyAsset`). Found uncapitalized names in $(relpath(file_path)): $(noncapitalized). This may be required in a future version.")
+    end
+    return nothing
+end
+
 function load_asset_definition_files!(asset_paths::AbstractVector{<:AbstractString})
     loaded_any = false
     for asset_path in asset_paths
@@ -78,7 +91,9 @@ function load_user_additions(case_path::AbstractString)
     end
 
     if isfile(assets_path)
-        append!(declared_asset_types, parse_asset_type_definitions(assets_path))
+        parsed_asset_types = parse_asset_type_definitions(assets_path)
+        append!(declared_asset_types, parsed_asset_types)
+        warn_if_noncapitalized_user_asset_names(assets_path, parsed_asset_types)
         try
             Base.include(MacroEnergy, assets_path)
             loaded_any = true
@@ -88,7 +103,9 @@ function load_user_additions(case_path::AbstractString)
     end
 
     for asset_file in asset_files
-        append!(declared_asset_types, parse_asset_type_definitions(asset_file))
+        parsed_asset_types = parse_asset_type_definitions(asset_file)
+        append!(declared_asset_types, parsed_asset_types)
+        warn_if_noncapitalized_user_asset_names(asset_file, parsed_asset_types)
     end
 
     loaded_any = load_asset_definition_files!(asset_files) || loaded_any
