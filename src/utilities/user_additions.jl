@@ -1,11 +1,9 @@
 const USER_ADDITIONS_PATH = joinpath("user_additions")
-const USER_ADDITIONS_MARKER_FILE = "UserAdditions.jl"
 const USER_COMMODITIES_FILE = "usercommodities.jl"
 const USER_ASSETS_FILE = "userassets.jl"
 const USER_ASSETS_DIR = "assets"
 
 user_additions_path(path::AbstractString) = joinpath(path, USER_ADDITIONS_PATH)
-user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_MARKER_FILE)
 user_additions_commodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_COMMODITIES_FILE)
 user_additions_subcommodities_path(path::AbstractString) = user_additions_commodities_path(path)
 user_additions_assets_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_FILE)
@@ -47,15 +45,14 @@ function load_asset_definition_files!(asset_paths::AbstractVector{<:AbstractStri
     return loaded_any
 end
 
-function load_user_additions(user_additions_marker_path::AbstractString)
+function load_user_additions(case_path::AbstractString)
     """
     Load user additions from the case `user_additions` folder into `MacroEnergy`.
 
     Supported files are `usercommodities.jl`, `userassets.jl`, and `assets/*.jl`.
-    The `user_additions_marker_path` argument is used to infer the case path.
+    The `case_path` argument points to the case directory.
     """
-    additions_dir = dirname(user_additions_marker_path)
-    case_path = dirname(additions_dir)
+    additions_dir = user_additions_path(case_path)
     commodities_path = user_additions_commodities_path(case_path)
     assets_path = user_additions_assets_path(case_path)
     asset_files = list_asset_definition_files(user_additions_assets_dir(case_path))

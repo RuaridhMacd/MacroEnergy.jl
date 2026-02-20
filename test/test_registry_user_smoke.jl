@@ -22,7 +22,7 @@ function test_registry_user_smoke()
     case_path = raw\"$case_path\"
 
     MacroEnergy.create_user_additions_module(case_path)
-    MacroEnergy.load_user_additions(MacroEnergy.user_additions_marker_path(case_path))
+    MacroEnergy.load_user_additions(case_path)
     MacroEnergy.load_case(case_path)
     """
 
