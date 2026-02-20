@@ -120,7 +120,7 @@ function parse_commodity_inputs(
     macro_commodities::AbstractDict{Symbol,DataType},
     allow_implicit_top_level_commodities::Bool,
 )
-    user_subcommodities = Dict{Symbol,Any}[]
+    user_commodities = Dict{Symbol,Any}[]
     top_level_user_commodities = Symbol[]
     top_level_seen = Set{Symbol}()
     system_commodities = Symbol[]
@@ -152,14 +152,14 @@ function parse_commodity_inputs(
             end
             push!(system_commodities, commodity_symbol)
         elseif isa(commodity, Dict) && haskey(commodity, :name) && haskey(commodity, :acts_like)
-            push!(user_subcommodities, commodity)
+            push!(user_commodities, commodity)
             push!(system_commodities, Symbol(commodity[:name]))
         else
             error("Invalid commodity format: $commodity")
         end
     end
 
-    return user_subcommodities, top_level_user_commodities, system_commodities
+    return user_commodities, top_level_user_commodities, system_commodities
 end
 
 function add_top_level_commodity!(
@@ -234,12 +234,12 @@ function add_subcommodity!(
 end
 
 function resolve_subcommodities!(
-    user_subcommodities::AbstractVector{<:AbstractDict{Symbol,Any}},
+    user_commodities::AbstractVector{<:AbstractDict{Symbol,Any}},
     subcommodities_lines::AbstractVector{String};
     write_subcommodities::Bool=false,
 )
     added_subcommodities = Symbol[]
-    unresolved = collect(user_subcommodities)
+    unresolved = collect(user_commodities)
 
     while !isempty(unresolved)
         progress = false
@@ -302,7 +302,7 @@ function load_commodities(
     @debug(" -- Done adding subcommodities")
 
     if write_subcommodities && !isempty(subcommodities_lines)
-        write_user_subcommodities(rel_path, subcommodities_lines)
+        write_user_commodities(rel_path, subcommodities_lines)
         @debug(" -- Done writing subcommodities")
     end
     # get the list of all commodities available
