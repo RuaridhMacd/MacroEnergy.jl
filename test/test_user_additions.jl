@@ -10,7 +10,10 @@ These tests verify that custom subcommodity definitions:
 
 using Test
 
+import MacroEnergy
+
 import MacroEnergy:
+    all_subtypes,
     load_commodities,
     commodity_types,
     Commodity,
@@ -138,6 +141,44 @@ function test_circular_subcommodities_error()
     ]
 
     @test_throws "Unknown or circular parent commodities" load_commodities(commodities, ""; write_subcommodities=false)
+end
+
+"""
+Verify `all_subtypes(MacroEnergy, :Commodity)` includes user-defined top-level commodities and subcommodities.
+
+Expected behavior:
+- newly created top-level user commodities appear in all_subtypes output,
+- user subcommodities also appear,
+- discovered subtype hierarchy matches the declared parent relationships.
+"""
+function test_all_subtypes_includes_user_commodities()
+    register_commodity_types!()
+
+    top_level_a = unique_test_symbol("TestSubtypeTopLevelA")
+    top_level_b = unique_test_symbol("TestSubtypeTopLevelB")
+    child_a = unique_test_symbol("TestSubtypeChildA")
+    child_b = unique_test_symbol("TestSubtypeChildB")
+
+    commodities = Any[
+        String(top_level_a),
+        Symbol(top_level_b),
+        Dict{Symbol,Any}(:name => String(child_a), :acts_like => String(top_level_a)),
+        Dict{Symbol,Any}(:name => String(child_b), :acts_like => String(top_level_b)),
+    ]
+
+    load_commodities(commodities, ""; write_subcommodities=false)
+
+    all_commodity_subtypes = Base.invokelatest(all_subtypes, MacroEnergy, :Commodity)
+
+    @test haskey(all_commodity_subtypes, top_level_a)
+    @test haskey(all_commodity_subtypes, top_level_b)
+    @test haskey(all_commodity_subtypes, child_a)
+    @test haskey(all_commodity_subtypes, child_b)
+
+    @test all_commodity_subtypes[top_level_a] <: Commodity
+    @test all_commodity_subtypes[top_level_b] <: Commodity
+    @test all_commodity_subtypes[child_a] <: all_commodity_subtypes[top_level_a]
+    @test all_commodity_subtypes[child_b] <: all_commodity_subtypes[top_level_b]
 end
 
 """
@@ -270,6 +311,10 @@ function test_user_additions()
 
     @testset "Implicit top-level commodities" begin
         test_implicit_top_level_commodities()
+    end
+
+    @testset "all_subtypes with user commodities" begin
+        test_all_subtypes_includes_user_commodities()
     end
 
     @testset "Strict top-level commodity mode" begin
