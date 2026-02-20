@@ -39,7 +39,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
             @info("Restarting myopic iteration from period $(restart_period_idx) using capacities results in $(restart_folder)")
             capacity_results = Dict{Int,DataFrame}()
             for period_idx in 1:restart_period_idx-1
-                capacity_results[period_idx] = load_previous_capacity_results(restart_folder * "/results_period_$(period_idx)/capacity.csv")
+                capacity_results[period_idx] = load_previous_capacity_results(joinpath(restart_folder, "results_period_$(period_idx)", "capacity.csv"))
             end
             carry_over_capacities!(periods[restart_period_idx], capacity_results,restart_period_idx-1)
         end
