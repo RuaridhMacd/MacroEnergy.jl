@@ -2,6 +2,25 @@
     return sum(period_lengths; init=0)
 end
 
+@inline function years_remaining(period_idx::Int, period_lengths::Vector{Int})
+    total = 0
+    for i in period_idx:lastindex(period_lengths)
+        total += period_lengths[i]
+    end
+    return total
+end
+
+function period_start_years(period_lengths::Vector{Int}, n::Int)
+    if isempty(period_lengths)
+        return 0
+    end
+    result = 0
+    @inbounds for i in 2:n
+        result += period_lengths[i-1]
+    end
+    return result
+end
+
 function period_start_years(period_lengths::Vector{Int})
     if isempty(period_lengths)
         return [0]
