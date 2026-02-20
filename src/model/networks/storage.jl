@@ -34,12 +34,15 @@ macro AbstractStorageBaseAttributes()
         retirement_period::Int64 = $storage_defaults[:retirement_period]
         retired_units::Union{Missing, JuMPVariable} = missing
         storage_level::JuMPVariable = Vector{VariableRef}()
+        variable_om_cost::Float64 = $storage_defaults[:variable_om_cost]
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $storage_defaults[:annualized_investment_cost]
         pv_period_investment_cost::Union{Nothing,Float64} = $storage_defaults[:pv_period_investment_cost]
         pv_period_fixed_om_cost::Union{Nothing,Float64} = $storage_defaults[:pv_period_fixed_om_cost]
+        pv_period_variable_om_cost::Union{Nothing,Float64} = $storage_defaults[:pv_period_variable_om_cost]
         cf_period_investment_cost::Union{Nothing,Float64} = $storage_defaults[:cf_period_investment_cost]
         cf_period_fixed_om_cost::Union{Nothing,Float64} = $storage_defaults[:cf_period_fixed_om_cost]
+        cf_period_variable_om_cost::Union{Nothing,Float64} = $storage_defaults[:cf_period_variable_om_cost]
     end)
 end
 
@@ -196,6 +199,9 @@ pv_period_investment_cost(g::AbstractStorage) = g.pv_period_investment_cost;
 cf_period_investment_cost(g::AbstractStorage) = g.cf_period_investment_cost;
 pv_period_fixed_om_cost(g::AbstractStorage) = g.pv_period_fixed_om_cost;
 cf_period_fixed_om_cost(g::AbstractStorage) = g.cf_period_fixed_om_cost;
+variable_om_cost(g::AbstractStorage) = g.variable_om_cost;
+pv_period_variable_om_cost(g::AbstractStorage) = g.pv_period_variable_om_cost;
+cf_period_variable_om_cost(g::AbstractStorage) = g.cf_period_variable_om_cost;
 
 function add_linking_variables!(g::Storage, model::Model)
     if has_capacity(g)

@@ -57,6 +57,8 @@ macro AbstractEdgeBaseAttributes()
         cf_period_investment_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_investment_cost]
         pv_period_fixed_om_cost::Union{Nothing,Float64} = $edge_defaults[:pv_period_fixed_om_cost]
         cf_period_fixed_om_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_fixed_om_cost]
+        pv_period_variable_om_cost::Union{Nothing,Float64} = $edge_defaults[:pv_period_variable_om_cost]
+        cf_period_variable_om_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_variable_om_cost]
     end)
 end
 
@@ -261,6 +263,7 @@ pv_period_investment_cost(e::AbstractEdge) = e.pv_period_investment_cost;
 cf_period_investment_cost(e::AbstractEdge) = e.cf_period_investment_cost;
 pv_period_fixed_om_cost(e::AbstractEdge) = e.pv_period_fixed_om_cost;
 cf_period_fixed_om_cost(e::AbstractEdge) = e.cf_period_fixed_om_cost;
+pv_period_variable_om_cost(e::AbstractEdge) = e.pv_period_variable_om_cost;
 
 ##### End of Edge interface #####
 
@@ -409,10 +412,11 @@ function operation_model!(e::Edge, model::Model)
 
     for t in time_interval(e)
         w = current_subperiod(e,t)
-        if variable_om_cost(e) > 0
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
             add_to_expression!(
                 model[:eVariableCost],
-                subperiod_weight(e, w) * variable_om_cost(e),
+                subperiod_weight(e, w) * vom_cost,
                 flow(e, t),
             )
         end
@@ -595,10 +599,11 @@ function operation_model!(e::EdgeWithUC, model::Model)
     for t in time_interval(e)
 
         w = current_subperiod(e,t)
-        if variable_om_cost(e) > 0
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
             add_to_expression!(
                 model[:eVariableCost],
-                subperiod_weight(e, w) * variable_om_cost(e),
+                subperiod_weight(e, w) * vom_cost,
                 flow(e, t),
             )
         end

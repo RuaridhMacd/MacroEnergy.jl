@@ -47,7 +47,9 @@ function edge_default_data()
         :pv_period_investment_cost => nothing,
         :cf_period_investment_cost => nothing,
         :pv_period_fixed_om_cost => nothing,
-        :cf_period_fixed_om_cost => nothing
+        :cf_period_fixed_om_cost => nothing,
+        :pv_period_variable_om_cost => nothing,
+        :cf_period_variable_om_cost => nothing
     )
 end
 
@@ -97,7 +99,9 @@ function storage_default_data()
         :pv_period_investment_cost => nothing,
         :cf_period_investment_cost => nothing,
         :pv_period_fixed_om_cost => nothing,
-        :cf_period_fixed_om_cost => nothing
+        :cf_period_fixed_om_cost => nothing,
+        :pv_period_variable_om_cost => nothing,
+        :cf_period_variable_om_cost => nothing
     )
 end
 
