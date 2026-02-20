@@ -1,12 +1,13 @@
 const USER_ADDITIONS_PATH = joinpath("user_additions")
 const USER_ADDITIONS_MARKER_FILE = "UserAdditions.jl"
-const USER_SUBCOMMODITIES_FILE = "usersubcommodities.jl"
+const USER_COMMODITIES_FILE = "usercommodities.jl"
 const USER_ASSETS_FILE = "userassets.jl"
 const USER_ASSETS_DIR = "assets"
 
 user_additions_path(path::AbstractString) = joinpath(path, USER_ADDITIONS_PATH)
 user_additions_marker_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ADDITIONS_MARKER_FILE)
-user_additions_subcommodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_SUBCOMMODITIES_FILE)
+user_additions_commodities_path(path::AbstractString) = joinpath(user_additions_path(path), USER_COMMODITIES_FILE)
+user_additions_subcommodities_path(path::AbstractString) = user_additions_commodities_path(path)
 user_additions_assets_path(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_FILE)
 user_additions_assets_dir(path::AbstractString) = joinpath(user_additions_path(path), USER_ASSETS_DIR)
 
@@ -50,12 +51,12 @@ function load_user_additions(user_additions_marker_path::AbstractString)
     """
     Load user additions from the case `user_additions` folder into `MacroEnergy`.
 
-    Supported files are `usersubcommodities.jl`, `userassets.jl`, and `assets/*.jl`.
+    Supported files are `usercommodities.jl`, `userassets.jl`, and `assets/*.jl`.
     The `user_additions_marker_path` argument is used to infer the case path.
     """
     additions_dir = dirname(user_additions_marker_path)
     case_path = dirname(additions_dir)
-    commodities_path = user_additions_subcommodities_path(case_path)
+    commodities_path = user_additions_commodities_path(case_path)
     assets_path = user_additions_assets_path(case_path)
     asset_files = list_asset_definition_files(user_additions_assets_dir(case_path))
 
@@ -75,7 +76,7 @@ function load_user_additions(user_additions_marker_path::AbstractString)
             Base.include(MacroEnergy, commodities_path)
             loaded_any = true
         catch e
-            @warn("Could not load user subcommodities from $(relpath(commodities_path)): $e")
+            @warn("Could not load user commodities from $(relpath(commodities_path)): $e")
         end
     end
 
@@ -220,12 +221,15 @@ function write_lines(file_path::AbstractString, lines::AbstractVector{<:Abstract
     return nothing
 end
 
-function write_user_subcommodities(case_path::AbstractString, subcommodities_lines::AbstractVector{<:AbstractString})
-    user_subcommodities_path = user_additions_subcommodities_path(case_path)
-    @debug(" -- Writing subcommodities to file $(user_subcommodities_path)")
-    mkpath(dirname(user_subcommodities_path))
-    existing_lines = read_unique_nonempty_lines(user_subcommodities_path)
+function write_user_commodities(case_path::AbstractString, subcommodities_lines::AbstractVector{<:AbstractString})
+    user_commodities_path = user_additions_commodities_path(case_path)
+    @debug(" -- Writing user commodities to file $(user_commodities_path)")
+    mkpath(dirname(user_commodities_path))
+    existing_lines = read_unique_nonempty_lines(user_commodities_path)
     merged_lines = append_unique_lines(existing_lines, subcommodities_lines)
     ordered_lines = order_subcommodity_lines(merged_lines)
-    write_lines(user_subcommodities_path, ordered_lines)
+    write_lines(user_commodities_path, ordered_lines)
 end
+
+write_user_subcommodities(case_path::AbstractString, subcommodities_lines::AbstractVector{<:AbstractString}) =
+    write_user_commodities(case_path, subcommodities_lines)

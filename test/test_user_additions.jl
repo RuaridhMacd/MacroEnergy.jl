@@ -20,8 +20,8 @@ import MacroEnergy:
     user_additions_path,
     user_additions_assets_dir,
     user_additions_marker_path,
-    write_user_subcommodities,
-    user_additions_subcommodities_path
+    write_user_commodities,
+    user_additions_commodities_path
 
 """
 Generate a unique symbol for dynamically-defined test commodity types.
@@ -152,19 +152,19 @@ Expected behavior:
 function test_subcommodities_file_write_order()
     case_path = mktempdir()
 
-    write_user_subcommodities(case_path, [
+    write_user_commodities(case_path, [
         "abstract type TestA <: MacroEnergy.LiquidFuels end",
         "abstract type TestB <: MacroEnergy.LiquidFuels end",
         "abstract type TestA <: MacroEnergy.LiquidFuels end",
     ])
 
-    write_user_subcommodities(case_path, [
+    write_user_commodities(case_path, [
         "",
         "abstract type TestB <: MacroEnergy.LiquidFuels end",
         "abstract type TestC <: MacroEnergy.LiquidFuels end",
     ])
 
-    lines = readlines(user_additions_subcommodities_path(case_path))
+    lines = readlines(user_additions_commodities_path(case_path))
     @test lines == [
         "abstract type TestA <: MacroEnergy.LiquidFuels end",
         "abstract type TestB <: MacroEnergy.LiquidFuels end",
@@ -182,12 +182,12 @@ Expected behavior:
 function test_subcommodities_dependency_write_order()
     case_path = mktempdir()
 
-    write_user_subcommodities(case_path, [
+    write_user_commodities(case_path, [
         "abstract type TestChildFuel <: MacroEnergy.TestParentFuel end",
         "abstract type TestParentFuel <: MacroEnergy.LiquidFuels end",
     ])
 
-    lines = readlines(user_additions_subcommodities_path(case_path))
+    lines = readlines(user_additions_commodities_path(case_path))
     @test lines == [
         "abstract type TestParentFuel <: MacroEnergy.LiquidFuels end",
         "abstract type TestChildFuel <: MacroEnergy.TestParentFuel end",
