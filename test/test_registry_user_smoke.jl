@@ -11,7 +11,6 @@ developing MacroEnergy from the local checkout, loading user additions, and load
 """
 function test_registry_user_smoke()
     repo_root = abspath(joinpath(@__DIR__, ".."))
-    case_path = joinpath(repo_root, "examples", "multisector_3zone")
 
     smoke_script = """
     using Pkg
@@ -19,7 +18,10 @@ function test_registry_user_smoke()
     Pkg.develop(path=raw\"$repo_root\")
 
     using MacroEnergy
-    case_path = raw\"$case_path\"
+    examples_dir = mktempdir()
+    MacroEnergy.download_example("multisector_3zone", examples_dir)
+    case_path = joinpath(examples_dir, "multisector_3zone")
+    isdir(case_path) || error("Downloaded case path not found: " * case_path)
 
     MacroEnergy.create_user_additions_module(case_path)
     MacroEnergy.load_user_additions(case_path)
