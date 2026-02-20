@@ -324,12 +324,17 @@ end
 
 function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::NamedTuple)
     
+    period_lengths = settings.PeriodLengths
+    discount_rate = settings.DiscountRate
+    period_idx = period_index(y)
+    period_length = period_lengths[period_idx]
+
     # Number of years of payments that are remaining
-    model_years_remaining = sum(settings.PeriodLengths[period_index(y):end]; init = 0);
+    model_years_remaining = years_remaining(period_idx, period_lengths)
 
     # Myopic only considers costs within modeled period. Costs that are consequently omitted will be added after the model run when reporting results
     if isa(solution_algorithm(settings[:SolutionAlgorithm]), Myopic)
-        payment_years_remaining = min(capital_recovery_period(y), settings.PeriodLengths[period_index(y)]);
+        payment_years_remaining = min(capital_recovery_period(y), period_length);
     elseif isa(solution_algorithm(settings[:SolutionAlgorithm]), Monolithic) || isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders)
         payment_years_remaining = min(capital_recovery_period(y), model_years_remaining);
     else
@@ -337,9 +342,12 @@ function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::
         nothing
     end
 
-    y.pv_period_investment_cost = annualized_investment_cost(y) / capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
-
-    y.pv_period_fixed_om_cost = fixed_om_cost(y) * present_value_annuity_factor(settings.DiscountRate, settings.PeriodLengths[period_index(y)])
+    # This PV is relative to the start of the Case, not the start of the period
+    y.pv_period_investment_cost = annualized_investment_cost(y) * present_value_annuity_factor(discount_rate, payment_years_remaining)
+    
+    period_pv_annuity_factor = present_value_annuity_factor(discount_rate, period_length)
+    y.pv_period_fixed_om_cost = fixed_om_cost(y) * period_pv_annuity_factor
+    y.pv_period_variable_om_cost = variable_om_cost(y) * period_pv_annuity_factor
 end
 
 function discount_fixed_costs!(g::Transformation,settings::NamedTuple)
@@ -362,18 +370,23 @@ function undo_discount_fixed_costs!(a::AbstractAsset,settings::NamedTuple)
 end
 
 function undo_discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::NamedTuple)
+    
+    period_lengths = settings.PeriodLengths
+    discount_rate = settings.DiscountRate
+    period_idx = period_index(y)
+
     # Number of years of payments that are remaining
-    model_years_remaining = sum(settings.PeriodLengths[period_index(y):end]; init = 0);
+    model_years_remaining = years_remaining(period_idx, period_lengths)
     
     # Include all annuities within the modeling horizon for all cases (including Myopic), since undiscounting only concerns reporting of results 
     payment_years_remaining = min(capital_recovery_period(y), model_years_remaining);
 
-    y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
+    # y.annualized_investment_cost = payment_years_remaining * annualized_investment_cost(y) * capital_recovery_factor(discount_rate, payment_years_remaining)
 
     # y.cf_period_investment_cost = payment_years_remaining * annualized_investment_cost(y)
-    y.cf_period_investment_cost = payment_years_remaining * pv_period_investment_cost(y) * capital_recovery_factor(settings.DiscountRate, payment_years_remaining)
-
-    y.cf_period_fixed_om_cost = settings.PeriodLengths[period_index(y)] * fixed_om_cost(y)
+    y.cf_period_investment_cost = payment_years_remaining * pv_period_investment_cost(y) * capital_recovery_factor(discount_rate, payment_years_remaining)
+    y.cf_period_fixed_om_cost = period_lengths[period_idx] * fixed_om_cost(y)
+    y.cf_period_variable_om_cost = period_lengths[period_idx] * variable_om_cost(y)
 end
 
 function undo_discount_fixed_costs!(g::Transformation,settings::NamedTuple)
@@ -390,14 +403,20 @@ function add_costs_not_seen_by_myopic!(system::System, settings::NamedTuple)
 end
 
 function add_costs_not_seen_by_myopic!(y::Union{AbstractEdge,AbstractStorage}, settings::NamedTuple)
-    model_years_remaining = sum(settings.PeriodLengths[period_index(y):end]; init = 0)
+    
+    period_lengths = settings.PeriodLengths
+    discount_rate = settings.DiscountRate
+    period_idx = period_index(y)
+
+    model_years_remaining = years_remaining(period_idx, period_lengths)
 
     k_total  = min(capital_recovery_period(y), model_years_remaining)
-    k_myopic = min(capital_recovery_period(y), settings.PeriodLengths[period_index(y)])
+    k_myopic = min(capital_recovery_period(y), period_lengths[period_idx])
 
-    total_mult  = present_value_annuity_factor(settings.DiscountRate, k_total)
-    myopic_mult = present_value_annuity_factor(settings.DiscountRate, k_myopic)
+    total_mult  = present_value_annuity_factor(discount_rate, k_total)
+    myopic_mult = present_value_annuity_factor(discount_rate, k_myopic)
 
+    # TODO: We can reorganize this to not need to mutate the pv investment cost
     y.pv_period_investment_cost += annualized_investment_cost(y) * (total_mult - myopic_mult)
 end
 
