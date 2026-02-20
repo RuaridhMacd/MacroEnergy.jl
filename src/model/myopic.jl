@@ -30,9 +30,32 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
 
     opexmult = [sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[s]]) for s in 1:num_periods]
 
-    for (period_idx,system) in enumerate(periods)
-        @info(" -- Generating model for period $(period_idx)")
+    if myopic_settings[:Restart][:enabled]
+        if myopic_settings[:Restart][:from_period] == 1
+            @warn("Restarting from the first period; no previous period to load, proceeding with normal iteration.")
+        else
+            restart_folder = joinpath(case.systems[1].data_dirpath,myopic_settings[:Restart][:folder])
+            restart_period_idx = myopic_settings[:Restart][:from_period]
+            @info("Restarting myopic iteration from period $(restart_period_idx) using capacities results in $(restart_folder)")
+            capacity_results = Dict{Int,DataFrame}()
+            for period_idx in 1:restart_period_idx-1
+                capacity_results[period_idx] = load_previous_capacity_results(joinpath(restart_folder, "results_period_$(period_idx)", "capacity.csv"))
+            end
+            carry_over_capacities!(periods[restart_period_idx], capacity_results,restart_period_idx-1)
+        end
+    end
 
+    for (period_idx,system) in enumerate(periods)
+        if myopic_settings[:Restart][:enabled] && (period_idx < myopic_settings[:Restart][:from_period])
+            continue
+        end
+        
+        if period_idx > myopic_settings[:StopAfterPeriod]
+            @info("Reached specified period termination at period $(myopic_settings[:StopAfterPeriod]). Ending myopic iteration.")
+            break
+        end
+
+        @info(" -- Generating model for period $(period_idx)")
         if system.settings.EnableJuMPDirectModel
             model = create_direct_model_with_optimizer(opt)
         else
@@ -148,4 +171,46 @@ function write_period_outputs(output_path::AbstractString, case::Case, system::S
 
     # Write all outputs for this period
     write_outputs(results_dir, system, model, discount_scaling)
+end
+
+
+function load_previous_capacity_results(path::AbstractString)
+    df = load_dataframe(path)
+    if all(["component_id", "capacity", "new_capacity", "retired_capacity"] .∈ Ref(names(df)))
+        #### The dataframe has wide format
+        return df
+    elseif all(["component_id", "variable", "value"] .∈ Ref(names(df)))
+        #### The dataframe has long format, reshape to wide
+        return reshape_wide(df, :variable, :value)
+    else
+        error("The capacity results file at $(path) does not have the expected format. It should contain either (component_id, capacity, new_capacity, retired_capacity) columns in wide format or (component_id, variable, value) columns in long format.")
+    end
+end
+
+function carry_over_capacities!(system::System, prev_results::Dict{Int64,DataFrame}, last_period::Int)
+
+    all_edges = get_edges(system)
+    storages = get_storages(system)
+    edges_with_capacity = edges_with_capacity_variables(all_edges)
+    components_with_capacity = vcat(edges_with_capacity, storages)
+    for y in components_with_capacity
+        df_restart = prev_results[last_period]
+        component_row = findfirst(df_restart.component_id .== String(id(y)))
+        if isnothing(component_row)
+            @info("Skipping component $(id(y)) as it was not present in the previous period")
+        else
+            y.existing_capacity = df_restart.capacity[component_row]
+            for prev_period in keys(prev_results)
+                df = prev_results[prev_period];
+                component_row = findfirst(df.component_id .== String(id(y)))
+                if !isnothing(component_row)
+                    y.new_capacity_track[prev_period] = df.new_capacity[component_row]
+                    y.retired_capacity_track[prev_period] = df.retired_capacity[component_row]
+                    if isa(y, AbstractEdge) && "retrofitted_capacity" ∈ names(df)
+                        y.retrofitted_capacity_track[prev_period] = df.retrofitted_capacity[component_row]
+                    end
+                end
+            end
+        end
+    end
 end
