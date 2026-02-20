@@ -54,7 +54,7 @@ By default, Macro solves the model with perfect foresight (either monolithically
             "folder": "results",
             "from_period": 2
         },
-        "StopAfterPeriod": 3,
+        "StopAfterPeriod": 3
     }
 ```julia
 
