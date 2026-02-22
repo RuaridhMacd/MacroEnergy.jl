@@ -189,8 +189,11 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
         nothing
     end
 
-    unregister(model,:eDiscountedVariableCost)
-    model[:eDiscountedVariableCost] = model[:eVariableCostByPeriod][period_index]
+    if !isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders)
+        ### For Benders, variable costs are discounted within the subproblems
+        unregister(model,:eDiscountedVariableCost)
+        model[:eDiscountedVariableCost] = model[:eVariableCostByPeriod][period_index]
+    end
 end
 
 function compute_undiscounted_costs!(model::Model, system::System, settings::NamedTuple)
@@ -207,10 +210,12 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
     compute_fixed_costs!(system, model)
     model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost] 
 
-    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
-    discount_factor = 1/( (1 + discount_rate)^cum_years)
-    opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
+    if !isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders) 
+        ### For Benders, variable costs are discounted within the subproblems
+        cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
+        discount_factor = 1/( (1 + discount_rate)^cum_years)
+        opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
 
-    model[:eVariableCost] = period_lengths[period_index]*model[:eVariableCostByPeriod][period_index]/(discount_factor * opexmult)
-
+        model[:eVariableCost] = period_lengths[period_index]*model[:eVariableCostByPeriod][period_index]/(discount_factor * opexmult)
+    end
 end

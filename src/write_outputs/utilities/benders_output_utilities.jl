@@ -17,9 +17,12 @@ function prepare_costs_benders(system::System,
     # Evaluate the discounted fixed cost expression on the Benders planning solutions
     discounted_fixed_cost = value(x -> planning_variable_values[name(x)], planning_problem[:eDiscountedFixedCost])
 
+    #### Get variables costs from subproblem solutions and apply undiscounting
+    variable_cost, discounted_variable_cost = compute_benders_variable_costs(subop_sol, subop_indices, system, settings)
+
     # evaluate the variable cost expressions using the subproblem solutions
-    variable_cost = evaluate_vtheta_in_expression(planning_problem, :eVariableCost, subop_sol, subop_indices)
-    discounted_variable_cost = evaluate_vtheta_in_expression(planning_problem, :eDiscountedVariableCost, subop_sol, subop_indices)
+    # variable_cost = evaluate_vtheta_in_expression(planning_problem, :eVariableCost, subop_sol, subop_indices)
+    # discounted_variable_cost = evaluate_vtheta_in_expression(planning_problem, :eDiscountedVariableCost, subop_sol, subop_indices)
 
     return (
         eFixedCost = fixed_cost,
@@ -27,6 +30,23 @@ function prepare_costs_benders(system::System,
         eDiscountedFixedCost = discounted_fixed_cost,
         eDiscountedVariableCost = discounted_variable_cost
     )
+end
+
+function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, system::System, settings::NamedTuple)
+
+    period_lengths = collect(settings.PeriodLengths)
+    discount_rate = settings.DiscountRate
+    period_index = system.time_data[:Electricity].period_index;
+    
+    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
+    discount_factor = 1/( (1 + discount_rate)^cum_years)
+    opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
+
+    discounted_variable_cost = sum(subop_sol[w].op_cost for w in subop_indices)
+
+    variable_cost = period_lengths[period_index]*sum(subop_sol[w].op_cost for w in subop_indices)/(discount_factor * opexmult)
+
+    return variable_cost, discounted_variable_cost
 end
     
 """
