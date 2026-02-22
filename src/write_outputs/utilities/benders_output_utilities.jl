@@ -20,10 +20,6 @@ function prepare_costs_benders(system::System,
     #### Get variables costs from subproblem solutions and apply undiscounting
     variable_cost, discounted_variable_cost = compute_benders_variable_costs(subop_sol, subop_indices, system, settings)
 
-    # evaluate the variable cost expressions using the subproblem solutions
-    # variable_cost = evaluate_vtheta_in_expression(planning_problem, :eVariableCost, subop_sol, subop_indices)
-    # discounted_variable_cost = evaluate_vtheta_in_expression(planning_problem, :eDiscountedVariableCost, subop_sol, subop_indices)
-
     return (
         eFixedCost = fixed_cost,
         eVariableCost = variable_cost,

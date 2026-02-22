@@ -209,11 +209,6 @@ MacroEnergy.collect_local_results
 MacroEnergy.collect_distributed_results
 ```
 
-## `evaluate_vtheta_in_expression`
-```@docs
-MacroEnergy.evaluate_vtheta_in_expression
-```
-
 # Benders Utility Functions
 
 ## `populate_slack_vars_from_subproblems!`
