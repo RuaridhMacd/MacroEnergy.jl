@@ -53,6 +53,12 @@ macro AbstractEdgeBaseAttributes()
         retirement_period::Int64 = $edge_defaults[:retirement_period]
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $edge_defaults[:annualized_investment_cost]
+        pv_period_investment_cost::Union{Nothing,Float64} = $edge_defaults[:pv_period_investment_cost]
+        cf_period_investment_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_investment_cost]
+        pv_period_fixed_om_cost::Union{Nothing,Float64} = $edge_defaults[:pv_period_fixed_om_cost]
+        cf_period_fixed_om_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_fixed_om_cost]
+        pv_period_variable_om_cost::Union{Nothing,Float64} = $edge_defaults[:pv_period_variable_om_cost]
+        cf_period_variable_om_cost::Union{Nothing,Float64} = $edge_defaults[:cf_period_variable_om_cost]
     end)
 end
 
@@ -253,6 +259,12 @@ start_vertex(e::AbstractEdge)::AbstractVertex = e.start_vertex;
 variable_om_cost(e::AbstractEdge) = e.variable_om_cost;
 wacc(e::AbstractEdge) = e.wacc;
 annualized_investment_cost(e::AbstractEdge) = e.annualized_investment_cost;
+pv_period_investment_cost(e::AbstractEdge) = e.pv_period_investment_cost;
+cf_period_investment_cost(e::AbstractEdge) = e.cf_period_investment_cost;
+pv_period_fixed_om_cost(e::AbstractEdge) = e.pv_period_fixed_om_cost;
+cf_period_fixed_om_cost(e::AbstractEdge) = e.cf_period_fixed_om_cost;
+pv_period_variable_om_cost(e::AbstractEdge) = e.pv_period_variable_om_cost;
+
 ##### End of Edge interface #####
 
 function add_linking_variables!(e::AbstractEdge, model::Model)
@@ -342,33 +354,45 @@ function planning_model!(e::AbstractEdge, model::Model)
 
 end
 
-function compute_investment_costs!(e::AbstractEdge, model::Model)
+function compute_investment_costs!(e::AbstractEdge, model::Model, cost_type::Function=pv_period_investment_cost)
     if has_capacity(e)
         if can_expand(e)
             add_to_expression!(
-                    model[:eInvestmentFixedCost],
-                    annualized_investment_cost(e),
-                    new_capacity(e),
-                )
+                model[:eInvestmentFixedCost],
+                cost_type(e),
+                new_capacity(e),
+            )
         end
     end
 end
 
-function compute_om_fixed_costs!(e::AbstractEdge, model::Model)
+function compute_om_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Function=pv_period_fixed_om_cost)
     if has_capacity(e)
         if fixed_om_cost(e) > 0
             add_to_expression!(
                 model[:eOMFixedCost],
-                fixed_om_cost(e),
+                cost_type(e),
                 capacity(e),
             )
         end
     end
 end
 
-function compute_fixed_costs!(e::AbstractEdge, model::Model)
-    compute_investment_costs!(e, model)
-    compute_om_fixed_costs!(e, model)
+function compute_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Symbol=:PV)
+    allowed_cost_types = [:PV, :CF]
+    if !(cost_type in allowed_cost_types)
+        error("Invalid cost type: $cost_type. Allowed types are: $(allowed_cost_types)")
+    end
+    invesment_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_investment_cost,
+        :CF => cf_period_investment_cost
+    )
+    fom_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_fixed_om_cost,
+        :CF => cf_period_fixed_om_cost
+    )
+    compute_investment_costs!(e, model, invesment_cost_function[cost_type])
+    compute_om_fixed_costs!(e, model, fom_cost_function[cost_type])
 end
 
 function operation_model!(e::Edge, model::Model)
@@ -388,10 +412,11 @@ function operation_model!(e::Edge, model::Model)
 
     for t in time_interval(e)
         w = current_subperiod(e,t)
-        if variable_om_cost(e) > 0
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
             add_to_expression!(
                 model[:eVariableCost],
-                subperiod_weight(e, w) * variable_om_cost(e),
+                subperiod_weight(e, w) * vom_cost,
                 flow(e, t),
             )
         end
@@ -574,10 +599,11 @@ function operation_model!(e::EdgeWithUC, model::Model)
     for t in time_interval(e)
 
         w = current_subperiod(e,t)
-        if variable_om_cost(e) > 0
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
             add_to_expression!(
                 model[:eVariableCost],
-                subperiod_weight(e, w) * variable_om_cost(e),
+                subperiod_weight(e, w) * vom_cost,
                 flow(e, t),
             )
         end
