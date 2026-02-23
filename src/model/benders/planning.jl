@@ -95,6 +95,10 @@ function generate_planning_problem(case::Case)
 
     @expression(model, eOMFixedCostByPeriod[s in 1:number_of_periods], discount_factor[s] * om_fixed_cost[s])
 
+    _, number_of_subperiods = get_period_to_subproblem_mapping(periods);
+
+    @expression(model, eLowerBoundOperatingCost[w in 1:number_of_subperiods], AffExpr(0.0))
+
     @objective(model, Min, model[:eFixedCost])
 
     @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")

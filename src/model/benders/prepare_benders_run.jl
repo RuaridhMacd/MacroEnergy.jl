@@ -47,7 +47,7 @@ function get_period_to_subproblem_mapping(periods::Vector{System})
             end
         end
     end
-    return period_to_subproblem_map, collect(1:subperiod_count)
+    return period_to_subproblem_map, subperiod_count
     
 end
 
