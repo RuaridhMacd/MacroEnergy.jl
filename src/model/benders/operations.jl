@@ -14,7 +14,7 @@ function generate_operation_subproblem(system::System,case_settings::NamedTuple,
 
     operation_model!(system, model)
 
-    if include_subproblem_slacks == true
+    if include_subproblem_slacks == true && !haskey(model, :myslack_max)
         @info("Adding slack variables to ensure subproblems are always feasible")
         slack_penalty = 2*maximum(coefficient(model[:eVariableCost],v) for v in all_variables(model))
         eq_cons_to_be_relaxed =  get_all_balance_constraints(system);
