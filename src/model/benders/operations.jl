@@ -31,11 +31,9 @@ function generate_operation_subproblem(system::System,case_settings::NamedTuple,
 
     discount_rate = case_settings.DiscountRate
 
-    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
-
-    discount_factor = 1/((1 + discount_rate)^cum_years)
-
-    opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
+    discount_factor = present_value_factor(discount_rate, period_lengths)
+    
+    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
 
     @objective(model, Min, discount_factor * opexmult * model[:eVariableCost])
 
