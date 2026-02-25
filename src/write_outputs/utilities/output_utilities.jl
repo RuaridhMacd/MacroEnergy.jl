@@ -1,4 +1,16 @@
 """
+    mkpath_for_period(case_path::AbstractString, num_periods::Int, period_idx::Int)
+
+Return the results directory path for the given period and create it (mkpath).
+Single-period cases use `results`, multi-period use `results_period_(period_idx)`.
+"""
+function mkpath_for_period(case_path::AbstractString, num_periods::Int, period_idx::Int)
+    results_dir = num_periods > 1 ? joinpath(case_path, "results_period_$period_idx") : joinpath(case_path, "results")
+    mkpath(results_dir)
+    return results_dir
+end
+
+"""
     create_output_path(system::System, path::String=system.data_dirpath)
 
 Create and return the path to the output directory for storing results based on system settings.

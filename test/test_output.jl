@@ -6,13 +6,31 @@ using MacroEnergy
 using DataFrames
 import MacroEnergy:
     TimeData,
+    compute_annualized_costs!,
+    discount_fixed_costs!,
+    get_detailed_costs,
     capacity,
+    variable_om_cost,
+    fixed_om_cost,
+    annualized_investment_cost,
+    capital_recovery_period,
+    current_subperiod,
+    subperiod_weight,
+    time_interval,
+    start_vertex,
+    price,
+    total_years,
+    present_value_factor,
+    present_value_annuity_factor,
+    capital_recovery_factor,
     new_capacity,
     retired_capacity,
     flow,
     new_capacity,
     storage_level,
     non_served_demand,
+    segments_non_served_demand,
+    price_non_served_demand,
     max_non_served_demand,
     edges_with_capacity_variables,
     get_commodity_name,
@@ -27,8 +45,6 @@ import MacroEnergy:
     get_node_out,
     get_type,
     get_unit,
-    get_optimal_vars,
-    get_optimal_vars_timeseries,
     get_optimal_capacity_by_field,
     get_optimal_flow,
     get_optimal_non_served_demand,
@@ -61,7 +77,13 @@ function test_writing_output()
             subperiod_indices=[1, 2, 3],
             subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
         ),
-        max_nsd=[0.0, 1.0, 2.0]
+        price = [10.0, 11.0, 12.0],
+        price_supply = [100.0, 110.0, 120.0],
+        max_supply = [100.0, 110.0, 120.0],
+        supply_flow = zeros(3, 3),  # 3 segments × 3 time steps
+        non_served_demand = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0],
+        max_nsd=[10.0, 11.0, 12.0],
+        price_nsd = [100.0, 110.0, 120.0],
     )
     node2 = Node{Electricity}(;
         id=:node2,
@@ -279,18 +301,18 @@ function test_writing_output()
         @test get_component_id(edge_storage_transformation) == :edge6
 
         # Test get_zone_name for a vertex
-        @test get_zone_name(node1) == :node1
-        @test get_zone_name(node2) == :node2
-        @test get_zone_name(storage) == :storage1
-        @test get_zone_name(transformation) == :transformation1
+        @test get_zone_name(node1) == "node1"
+        @test get_zone_name(node2) == "node2"
+        @test get_zone_name(storage) == "storage1"
+        @test get_zone_name(transformation) == "transformation1"
 
         # Test get_zone_name for an edge
-        @test get_zone_name(edge_between_nodes) == :node1_node2
-        @test get_zone_name(edge_to_storage) == :node1_storage1
-        @test get_zone_name(edge_to_transformation) == :node1_transformation1
-        @test get_zone_name(edge_from_storage) == :storage1_node2
-        @test get_zone_name(edge_from_transformation) == :transformation1_node2
-        @test get_zone_name(edge_storage_transformation) == :storage1_transformation1
+        @test get_zone_name(edge_between_nodes) == "node1_node2"
+        @test get_zone_name(edge_to_storage) == "node1_storage1"
+        @test get_zone_name(edge_to_transformation) == "node1_transformation1"
+        @test get_zone_name(edge_from_storage) == "storage1_node2"
+        @test get_zone_name(edge_from_transformation) == "transformation1_node2"
+        @test get_zone_name(edge_storage_transformation) == "storage1_transformation1"
 
         # Test new location functions for flow outputs
         @test get_node_in(edge_between_nodes) == :node1
@@ -333,129 +355,6 @@ function test_writing_output()
         :edge6 => asset_ref
     )
 
-    @testset "get_optimal_vars Tests" begin
-        result = get_optimal_vars(mock_edges, capacity, 2.0, obj_asset_map)
-        @test size(result, 1) == 6
-        @test result[1, :commodity] === :Electricity
-        @test result[1, :zone] === :node1_node2
-        @test result[1, :resource_id] === :asset1
-        @test result[1, :component_id] === :edge1
-        @test result[1, :type] == "ThermalPower{NaturalGas}"
-        @test result[1, :variable] === :capacity
-        @test result[1, :year] === missing
-        @test result[1, :value] === 200.0
-        @test result[2, :commodity] === :Electricity
-        @test result[2, :zone] === :node1_storage1
-        @test result[2, :resource_id] === :asset1
-        @test result[2, :component_id] === :edge2
-        @test result[2, :type] == "ThermalPower{NaturalGas}"
-        @test result[2, :variable] === :capacity
-        @test result[2, :year] === missing
-        @test result[2, :value] === 202.0
-        @test result[3, :commodity] === :Electricity
-        @test result[3, :zone] === :node1_transformation1
-        @test result[3, :resource_id] === :asset1
-        @test result[3, :component_id] === :edge3
-        @test result[3, :type] == "ThermalPower{NaturalGas}"
-        @test result[3, :value] === 204.0
-        @test result[4, :commodity] === :Electricity
-        @test result[4, :zone] === :storage1_node2
-        @test result[4, :resource_id] === :asset1
-        @test result[4, :component_id] === :edge4
-        @test result[4, :type] == "ThermalPower{NaturalGas}"
-        @test result[4, :value] === 206.0
-        @test result[5, :commodity] === :Electricity
-        @test result[5, :zone] === :transformation1_node2
-        @test result[5, :resource_id] === :asset1
-        @test result[5, :component_id] === :edge5
-        @test result[5, :type] == "ThermalPower{NaturalGas}"
-        @test result[5, :value] === 208.0
-        @test result[6, :commodity] === :Electricity
-        @test result[6, :zone] === :storage1_transformation1
-        @test result[6, :resource_id] === :asset1
-        @test result[6, :component_id] === :edge6
-        @test result[6, :type] == "ThermalPower{NaturalGas}"
-        @test result[6, :value] === 210.0
-        result = get_optimal_vars(Edge{Electricity}[edge_between_nodes], (new_capacity), 5.0)
-        @test size(result, 1) == 1
-        @test result[1, :commodity] === :Electricity
-        @test result[1, :zone] === :node1_node2
-        @test result[1, :resource_id] === :edge1
-        @test result[1, :component_id] === :edge1
-        @test result[1, :type] == "Edge{Electricity}"
-        @test result[1, :value] === 0.0
-        result = get_optimal_vars(Storage[storage], new_capacity, 5.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
-        @test size(result, 1) == 1
-        @test result[1, :commodity] === :Electricity
-        @test result[1, :zone] === :storage1
-        @test result[1, :resource_id] === :asset2
-        @test result[1, :component_id] === :storage1
-        @test result[1, :type] == "Battery"
-        @test result[1, :value] === 500.0
-        result = get_optimal_vars(Storage[storage], (new_capacity), 5.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
-        @test size(result, 1) == 1
-        @test result[1, :commodity] === :Electricity
-        @test result[1, :zone] === :storage1
-        @test result[1, :resource_id] === :asset2
-        @test result[1, :component_id] === :storage1
-        @test result[1, :type] == "Battery"
-        @test result[1, :value] === 500.0
-    end
-
-    function check_output_row(row, expected_commodity, expected_zone, expected_resource_id, expected_component_id, expected_type, expected_variable, expected_year, expected_segment, expected_time, expected_value)
-        @test row.commodity == expected_commodity
-        @test row.zone == expected_zone
-        @test row.resource_id == expected_resource_id
-        @test row.component_id == expected_component_id
-        @test row.type == expected_type
-        @test row.variable == expected_variable
-        @test row.year === expected_year
-        @test row.segment == expected_segment
-        @test row.time == expected_time
-        @test row.value == expected_value
-        # @test row.unit == expected_unit
-    end
-
-    @testset "get_optimal_vars_timeseries Tests" begin
-        expected_values = [
-            (:Electricity, :node1_node2, :asset1, :edge1, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [1.0, 2.0, 3.0]) #, :MWh),
-            (:Electricity, :node1_storage1, :asset1, :edge2, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [4.0, 5.0, 6.0]) #, :MWh),
-            (:Electricity, :node1_transformation1, :asset1, :edge3, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [7.0, 8.0, 9.0]) #, :MWh),
-            (:Electricity, :storage1_node2, :asset1, :edge4, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [10.0, 11.0, 12.0]) #, :MWh),
-            (:Electricity, :transformation1_node2, :asset1, :edge5, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [13.0, 14.0, 15.0]) #, :MWh),
-            (:Electricity, :storage1_transformation1, :asset1, :edge6, "ThermalPower{NaturalGas}", :flow, missing, 1, [1, 2, 3], [16.0, 17.0, 18.0]) #, :MWh)
-        ]
-        result = get_optimal_vars_timeseries(mock_edges, flow, 1.0, obj_asset_map)
-        @test size(result, 1) == 18
-        index = 1
-        for (commodity, zone, resource_id, component_id, type, variable, year, segment, times, values) in expected_values
-            for i in eachindex(times)
-                check_output_row(result[index, :], commodity, zone, resource_id, component_id, type, variable, year, segment, times[i], values[i])
-                index += 1
-            end
-        end
-        result = get_optimal_vars_timeseries(storage, storage_level, 1.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
-        @test size(result, 1) == 3
-        for i = 1:3
-            check_output_row(result[i, :], :Electricity, :storage1, :asset2, :storage1, "Battery", :storage_level, missing, 1, i, i)
-        end
-        result = get_optimal_vars_timeseries(storage, tuple(storage_level), 1.0, Dict{Symbol, Base.RefValue{<: AbstractAsset}}(:storage1 => asset_ref2))
-        @test size(result, 1) == 3
-        for i = 1:3
-            check_output_row(result[i, :], :Electricity, :storage1, :asset2, :storage1, "Battery", :storage_level, missing, 1, i, i)
-        end
-        result = get_optimal_vars_timeseries([node1, node2], max_non_served_demand, 1.0)
-        @test size(result, 1) == 6
-        for i = 1:6
-            check_output_row(result[i, :], :Electricity, i <= 3 ? :node1 : :node2, i <= 3 ? :node1 : :node2, i <= 3 ? :node1 : :node2, "Node{Electricity}", :max_non_served_demand, missing, 1, (i-1) % 3 + 1, i-1)
-        end
-        result = get_optimal_vars_timeseries([node1, node2], tuple(max_non_served_demand), 1.0)
-        @test size(result, 1) == 6
-        for i = 1:6
-            check_output_row(result[i, :], :Electricity, i <= 3 ? :node1 : :node2, i <= 3 ? :node1 : :node2, i <= 3 ? :node1 : :node2, "Node{Electricity}", :max_non_served_demand, missing, 1, (i-1) % 3 + 1, i-1)
-        end
-    end
-
     @testset "DataFrame Output Functions Tests" begin
         # Test get_optimal_capacity_by_field
         result = get_optimal_capacity_by_field(mock_edges, (capacity,), 2.0, obj_asset_map)
@@ -464,7 +363,7 @@ function test_writing_output()
         
         # Check first result structure
         @test result[1, :commodity] == :Electricity
-        @test result[1, :zone] == :node1_node2
+        @test result[1, :zone] == "node1_node2"
         @test result[1, :resource_id] == :asset1
         @test result[1, :component_id] == :edge1
         @test result[1, :resource_type] == "ThermalPower{NaturalGas}"
@@ -563,7 +462,7 @@ function test_writing_output()
         
         # Check structure
         @test result[1, :commodity] == :Electricity
-        @test result[1, :zone] == :node_nsd
+        @test result[1, :zone] == "node_nsd"
         @test result[1, :component_id] == :node_nsd
         @test result[1, :component_type] == "Node{Electricity}"
         @test result[1, :variable] == :non_served_demand
@@ -640,7 +539,7 @@ function test_writing_output()
         
         # Check structure
         @test result[1, :commodity] == :Electricity
-        @test result[1, :zone] == :storage_test
+        @test result[1, :zone] == "storage_test"
         @test result[1, :resource_id] == :storage_test
         @test result[1, :component_id] == :storage_test
         @test result[1, :component_type] == "Storage{Electricity}"
@@ -710,36 +609,6 @@ function test_writing_output()
             result_no_match_asset = get_optimal_storage_level(system, asset_type="VRE")
             @test isempty(result_no_match_asset)
         end
-    end
-
-    @testset "Timeseries Functions Tests" begin
-        # Test get_optimal_vars_timeseries for flow data
-        result = get_optimal_vars_timeseries(mock_edges, flow, 1.0, obj_asset_map)
-        @test result isa DataFrame
-        @test size(result, 1) == 18  # 6 edges × 3 time steps
-        
-        # Check first result structure
-        @test result[1, :commodity] == :Electricity
-        @test result[1, :zone] == :node1_node2
-        @test result[1, :resource_id] == :asset1
-        @test result[1, :component_id] == :edge1
-        @test result[1, :type] == "ThermalPower{NaturalGas}"
-        @test result[1, :variable] == :flow
-        @test result[1, :year] === missing
-        @test result[1, :segment] == 1
-        @test result[1, :time] == 1
-        @test result[1, :value] == 1.0
-        
-        # Check time progression
-        @test result[2, :time] == 2
-        @test result[2, :value] == 2.0
-        @test result[3, :time] == 3
-        @test result[3, :value] == 3.0
-        
-        # Check next edge (edge2: node1 -> storage1)
-        @test result[4, :zone] == :node1_storage1
-        @test result[4, :time] == 1
-        @test result[4, :value] == 4.0
     end
 
     # Test get_macro_objs functions
@@ -902,9 +771,9 @@ function test_writing_output()
     @testset "get_output_layout" begin
         # Helper to create a minimal System struct with settings
         function make_test_system(layout)
-            system = empty_system("random_path_$(randstring(8))")
-            system.settings = (OutputLayout=layout,)
-            return system
+            sys = empty_system("random_path_$(randstring(8))")
+            sys.settings = (OutputLayout=layout,)
+            return sys
         end
     
         @testset "String layouts" begin
@@ -916,19 +785,19 @@ function test_writing_output()
         @testset "NamedTuple layouts" begin
             ## Test NamedTuple
             layout_settings = (capacity="wide", storage="long")
-            system = make_test_system(layout_settings)
+            system3 = make_test_system(layout_settings)
             # no variable
             @test_logs (:warn, "OutputLayout in settings does not have a variable key. Using 'long' as default.") begin
-                @test get_output_layout(system) == "long"
+                @test get_output_layout(system3) == "long"
             end
 
             # with existing keys
-            @test get_output_layout(system, :capacity) == "wide"
-            @test get_output_layout(system, :storage) == "long"
+            @test get_output_layout(system3, :capacity) == "wide"
+            @test get_output_layout(system3, :storage) == "long"
     
             # Test missing key falls back to "long" with warning
             @test_logs (:warn, "OutputLayout in settings does not have a missing_var key. Using 'long' as default.") begin
-                @test get_output_layout(system, :missing_var) == "long"
+                @test get_output_layout(system3, :missing_var) == "long"
             end
         end
     
@@ -939,6 +808,213 @@ function test_writing_output()
                 @test get_output_layout(invalid_system, :any_variable) == "long"
             end
         end
+    end
+
+    @testset "get_detailed_costs" begin
+        # Add time_data to system (required by get_detailed_costs)
+        electricity_timedata = TimeData{Electricity}(;
+            time_interval=1:3,
+            hours_per_timestep=1,
+            subperiods=[1:1, 2:2, 3:3],
+            subperiod_indices=[1, 2, 3],
+            subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2),
+            period_index=1
+        )
+        node1.timedata = electricity_timedata
+        edge_to_transformation.timedata = electricity_timedata
+        system.time_data[:Electricity] = electricity_timedata
+        settings = (PeriodLengths=[10], DiscountRate=0.5, SolutionAlgorithm=MacroEnergy.Monolithic())
+
+        # Add costs to edge_to_transformation
+        edge_to_transformation.variable_om_cost = 1.0
+        edge_to_transformation.fixed_om_cost = 2.0
+        edge_to_transformation.can_expand = true
+        edge_to_transformation.annualized_investment_cost = 3.0
+        edge_to_transformation.capital_recovery_period = 4
+        edge_to_transformation.new_capacity = 5.0
+
+        # Compute annualized costs and discount fixed costs
+        compute_annualized_costs!(system, settings)
+        discount_fixed_costs!(system, settings)
+
+        # Compute multipliers using economics functions (period_length=10, period_index=1)
+        period_length = 10
+        period_index = 1
+        discount_rate = 0.5
+        period_start_year = total_years(settings.PeriodLengths[1:period_index-1])
+        discount_factor = present_value_factor(discount_rate, period_start_year)
+        opexmult = present_value_annuity_factor(discount_rate, period_length)
+        payment_years = min(capital_recovery_period(edge_to_transformation), period_length)
+        pvaf_inv = present_value_annuity_factor(discount_rate, payment_years)
+        crf_inv = capital_recovery_factor(discount_rate, payment_years)
+
+        # Pre-computed values to test against
+        variable_om_raw = sum(
+            subperiod_weight(edge_to_transformation, current_subperiod(edge_to_transformation, t)) *
+            variable_om_cost(edge_to_transformation) * value(flow(edge_to_transformation, t))
+            for t in time_interval(edge_to_transformation)
+        )
+        fuel_raw_transformation = sum(
+            subperiod_weight(edge_to_transformation, current_subperiod(edge_to_transformation, t)) * price(start_vertex(edge_to_transformation), t) * value(flow(edge_to_transformation, t))
+            for t in time_interval(edge_to_transformation)
+        )
+        fuel_raw_storage = sum(
+            subperiod_weight(edge_to_storage, current_subperiod(edge_to_storage, t)) * price(start_vertex(edge_to_storage), t) * value(flow(edge_to_storage, t))
+            for t in time_interval(edge_to_storage)
+        )
+        fuel_raw_total = fuel_raw_transformation + fuel_raw_storage
+        # NonServedDemand from node1: sum over segment and time of (weight * price_nsd * nsd)
+        nsd_raw_total = sum(
+            subperiod_weight(node1, current_subperiod(node1, t)) * price_non_served_demand(node1, s) * value(non_served_demand(node1, s, t))
+            for s in segments_non_served_demand(node1), t in time_interval(node1)
+        )
+        capacity_val = value(capacity(edge_to_transformation))
+        new_cap_val = value(new_capacity(edge_to_transformation))
+        fixed_om_cost_val = fixed_om_cost(edge_to_transformation)
+        annualized_inv_cost = annualized_investment_cost(edge_to_transformation)
+
+        # Undiscounted costs
+        costs_result = get_detailed_costs(system, settings)
+        detailed_undisc = costs_result.undiscounted
+        @test detailed_undisc isa DataFrame
+        @test all(c in names(detailed_undisc) for c in ["zone", "type", "category", "value"])
+        @test !isempty(detailed_undisc)
+
+        # Return structure: both discounted and undiscounted have same columns and row count
+        @test names(costs_result.discounted) == ["zone", "type", "category", "value"]
+        @test names(costs_result.undiscounted) == ["zone", "type", "category", "value"]
+        @test size(costs_result.discounted, 1) == size(costs_result.undiscounted, 1)
+        # FixedOM: cf_period_fixed_om_cost * capacity = (period_length * fixed_om_cost) * capacity
+        @test detailed_undisc.value[detailed_undisc.category .== :FixedOM] ≈ [period_length * fixed_om_cost_val * capacity_val]
+        # Investment: payment_years * pv_period_inv * crf * new_capacity
+        inv_cf = payment_years * annualized_inv_cost * pvaf_inv * crf_inv
+        @test detailed_undisc.value[detailed_undisc.category .== :Investment] ≈ [inv_cf * new_cap_val]
+        # VariableOM: raw * period_length
+        @test detailed_undisc.value[detailed_undisc.category .== :VariableOM] ≈ [variable_om_raw * period_length]
+        # Fuel: raw * period_length (sum of all edges with fuel cost)
+        @test sum(detailed_undisc.value[detailed_undisc.category .== :Fuel]) ≈ fuel_raw_total * period_length
+        # NonServedDemand: raw * period_length (from nodes with non_served_demand)
+        @test sum(detailed_undisc.value[detailed_undisc.category .== :NonServedDemand]) ≈ nsd_raw_total * period_length
+
+        # Discounted costs (use economics multipliers)
+        detailed_disc = costs_result.discounted
+        @test detailed_disc isa DataFrame
+        @test size(detailed_disc, 2) == 4
+        @test size(detailed_disc, 1) == size(detailed_undisc, 1)
+        # FixedOM: (fixed_om_cost * opexmult) * capacity * discount_factor
+        @test detailed_disc.value[detailed_disc.category .== :FixedOM] ≈ [fixed_om_cost_val * opexmult * capacity_val * discount_factor]
+        # Investment: (annualized_inv * pvaf_inv) * new_cap * discount_factor
+        inv_pv = annualized_inv_cost * pvaf_inv * new_cap_val * discount_factor
+        @test detailed_disc.value[detailed_disc.category .== :Investment] ≈ [inv_pv]
+        # VariableOM: raw * discount_factor * opexmult
+        @test detailed_disc.value[detailed_disc.category .== :VariableOM] ≈ [variable_om_raw * discount_factor * opexmult]
+        # Fuel: raw * discount_factor * opexmult (sum of all edges with fuel cost)
+        @test sum(detailed_disc.value[detailed_disc.category .== :Fuel]) ≈ fuel_raw_total * discount_factor * opexmult
+        # NonServedDemand: raw * discount_factor * opexmult
+        @test sum(detailed_disc.value[detailed_disc.category .== :NonServedDemand]) ≈ nsd_raw_total * discount_factor * opexmult
+
+        # Scaling
+        detailed_scaled = get_detailed_costs(system, settings; scaling=2.0).undiscounted
+        @test detailed_scaled.value ≈ detailed_undisc.value .* 4  # scaling^2
+
+        # Restore edge for other tests
+        edge_to_transformation.variable_om_cost = 0.0
+        edge_to_transformation.fixed_om_cost = 0.0
+        edge_to_transformation.can_expand = false
+        edge_to_transformation.annualized_investment_cost = 0.0
+        edge_to_transformation.capital_recovery_period = 1  # default
+        edge_to_transformation.new_capacity = 0.0
+        delete!(system.time_data, :Electricity)
+    end
+
+    @testset "get_detailed_costs - empty system and return structure" begin
+        # Empty / zero-cost system
+        empty_dir = abspath(mktempdir("."))
+        empty_sys = empty_system(empty_dir)
+        empty_timedata = TimeData{Electricity}(;
+            time_interval=1:1,
+            hours_per_timestep=1,
+            subperiods=[1:1],
+            subperiod_indices=[1],
+            subperiod_weights=Dict(1 => 1.0),
+            period_index=1
+        )
+        empty_sys.time_data = Dict(:Electricity => empty_timedata)
+        empty_settings = (PeriodLengths=[1], DiscountRate=0.0, SolutionAlgorithm=MacroEnergy.Monolithic())
+
+        costs_empty = get_detailed_costs(empty_sys, empty_settings)
+        @test costs_empty.discounted isa DataFrame
+        @test costs_empty.undiscounted isa DataFrame
+        @test names(costs_empty.discounted) == ["zone", "type", "category", "value"]
+        @test names(costs_empty.undiscounted) == ["zone", "type", "category", "value"]
+        @test isempty(costs_empty.discounted)
+        @test isempty(costs_empty.undiscounted)
+        rm(empty_dir, recursive = true)
+    end
+
+    @testset "Detailed cost helper functions" begin
+        # Test aggregate_costs_by_type
+        costs_df = DataFrame(
+            zone = ["z1", "z1", "z2", "z2"],
+            type = ["A", "A", "B", "B"],
+            category = [:Investment, :VariableOM, :Investment, :VariableOM],
+            value = [10.0, 5.0, 20.0, 8.0]
+        )
+        by_type = MacroEnergy.aggregate_costs_by_type(costs_df)
+        @test by_type isa DataFrame
+        @test size(by_type, 1) == 4  # 2 types × 2 categories
+        @test sum(by_type[by_type.type .== "A", :].value) ≈ 15.0
+        @test sum(by_type[by_type.type .== "B", :].value) ≈ 28.0
+
+        # Test aggregate_costs_by_zone
+        by_zone = MacroEnergy.aggregate_costs_by_zone(costs_df)
+        @test by_zone isa DataFrame
+        @test size(by_zone, 1) == 4  # 2 zones × 2 categories
+        @test sum(by_zone[by_zone.zone .== "z1", :].value) ≈ 15.0
+        @test sum(by_zone[by_zone.zone .== "z2", :].value) ≈ 28.0
+
+        # Test add_total_row!
+        df_with_total = MacroEnergy.add_total_row!(copy(by_type), :type)
+        @test "Total" in df_with_total.type
+        @test :Total in df_with_total.category
+        grand_total = only(df_with_total[(df_with_total.type .== "Total") .& (df_with_total.category .== :Total), :value])
+        @test grand_total ≈ 43.0
+
+        # Test reshape_costs_wide
+        wide_df = MacroEnergy.reshape_costs_wide(df_with_total, :type)
+        @test "Total" in names(wide_df)
+        @test "Investment" in names(wide_df)
+        @test "VariableOM" in names(wide_df)
+
+        # Test write_cost_breakdown_files!
+        test_dir = abspath(mktempdir("."))
+        detailed_costs = DataFrame(
+            zone = ["z1", "z2"],
+            type = ["A", "B"],
+            category = [:Investment, :VariableOM],
+            value = [100.0, 50.0]
+        )
+        @test_nowarn MacroEnergy.write_cost_breakdown_files!(
+            test_dir, detailed_costs, "long";
+            prefix = "test_costs",
+            validate_model = nothing
+        )
+        @test isfile(joinpath(test_dir, "test_costs_by_type.csv"))
+        @test isfile(joinpath(test_dir, "test_costs_by_zone.csv"))
+        rm(test_dir, recursive = true)
+
+        # Test aggregate_operational_costs (for Benders)
+        op_costs = [
+            DataFrame(zone=["z1"], type=["A"], category=[:VariableOM], value=[1.0]),
+            DataFrame(zone=["z1"], type=["A"], category=[:VariableOM], value=[2.0])
+        ]
+        merged = MacroEnergy.aggregate_operational_costs(op_costs)
+        @test size(merged, 1) == 1
+        @test only(merged.value) ≈ 3.0
+
+        # Test empty inputs
+        @test isempty(MacroEnergy.aggregate_costs_by_type(DataFrame(zone=[], type=[], category=[], value=[])))
+        @test isempty(MacroEnergy.aggregate_costs_by_zone(DataFrame(zone=[], type=[], category=[], value=[])))
     end
 end
 

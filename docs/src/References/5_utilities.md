@@ -211,6 +211,31 @@ MacroEnergy.collect_distributed_results
 
 # Benders Utility Functions
 
+## `SubproblemsData`
+```@docs
+MacroEnergy.SubproblemsData
+```
+
+## `collect_data_from_subproblems`
+```@docs
+MacroEnergy.collect_data_from_subproblems
+```
+
+## `collect_distributed_data`
+```@docs
+MacroEnergy.collect_distributed_data
+```
+
+## `collect_local_data`
+```@docs
+MacroEnergy.collect_local_data
+```
+
+## `extract_subproblem_results`
+```@docs
+MacroEnergy.extract_subproblem_results
+```
+
 ## `populate_slack_vars_from_subproblems!`
 ```@docs
 MacroEnergy.populate_slack_vars_from_subproblems!

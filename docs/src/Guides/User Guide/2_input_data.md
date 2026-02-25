@@ -79,7 +79,8 @@ The `settings` folder currently contains only one file, `macro_settings.yml`, wh
 | **Attribute** | **Values** | **Default** | **Description** |
 |---------------| :-----------------: | :---------: |-----------------|
 | ConstraintScaling | True, False | False | If true, the model will scale the optimization model constraints to make it more numerically stable. |
-| WriteSubcommodities | True, False | False | If true, the model will write the subcommodities created by the user in the results. |
+| AllowImplicitTopLevelCommodities | True, False | True | If true, unknown plain commodity names in `commodities.json` are treated as new top-level commodities inheriting from `Commodity`; if false, unknown names raise an error. |
+| WriteSubcommodities | True, False | True | If true, the model will write the subcommodities created by the user to file. |
 | OverwriteResults | True, False | False | If true, the model will overwrite the results file if it already exists. |
 | OutputDir | String | "results" | The directory where the results will be saved. |
 | OutputLayout | "long", "wide" | "long" | Switch between "long" and "wide" layouts for CSV output files. |
