@@ -8,6 +8,8 @@ test_logger = ConsoleLogger(stderr, Logging.Warn)
 with_logger(test_logger) do
     Test.@testset verbose = true "Load Inputs" begin
         include("test_workflow.jl")
+        include("test_user_additions.jl")
+        include("test_registry_user_smoke.jl")
     end
 
     Test.@testset verbose = true "Writing Outputs" begin
