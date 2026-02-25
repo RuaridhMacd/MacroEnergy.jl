@@ -23,9 +23,7 @@ function generate_operation_subproblem(system::System,case_settings::NamedTuple,
         add_slack_variables!(model,slack_penalty,eq_cons_to_be_relaxed,less_ineq_cons_to_be_relaxed,greater_ineq_cons_to_be_relaxed)
     end
     
-    any_commodity = first(keys(system.time_data))
-
-    period_index = system.time_data[any_commodity].period_index
+    period_index = system.time_data[:Electricity].period_index
 
     period_lengths = collect(case_settings.PeriodLengths)
 

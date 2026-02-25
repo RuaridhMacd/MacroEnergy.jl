@@ -33,14 +33,13 @@ function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{I
     period_lengths = collect(settings.PeriodLengths)
     discount_rate = settings.DiscountRate
     period_index = system.time_data[:Electricity].period_index;
-    
-    cum_years = sum(period_lengths[i] for i in 1:period_index-1; init=0);
-    discount_factor = 1/( (1 + discount_rate)^cum_years)
-    opexmult = sum([1 / (1 + discount_rate)^(i) for i in 1:period_lengths[period_index]])
 
     discounted_variable_cost = sum(subop_sol[w].op_cost for w in subop_indices)
 
-    variable_cost = period_lengths[period_index]*sum(subop_sol[w].op_cost for w in subop_indices)/(discount_factor * opexmult)
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
+    variable_cost = period_lengths[period_index] * discounted_variable_cost / (discount_factor * opexmult)
 
     return variable_cost, discounted_variable_cost
 end

@@ -210,10 +210,10 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
     compute_fixed_costs!(system, model, :CF)
     model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost] 
 
-    period_start_year = total_years(period_lengths[1:period_index-1])
-    discount_factor = present_value_factor(discount_rate, period_start_year)
-    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
-
-    model[:eVariableCost] = period_lengths[period_index] * model[:eVariableCostByPeriod][period_index] / (discount_factor * opexmult)
-
+    if !isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders) 
+        period_start_year = total_years(period_lengths[1:period_index-1])
+        discount_factor = present_value_factor(discount_rate, period_start_year)
+        opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
+        model[:eVariableCost] = period_lengths[period_index] * model[:eVariableCostByPeriod][period_index] / (discount_factor * opexmult)
+    end
 end
