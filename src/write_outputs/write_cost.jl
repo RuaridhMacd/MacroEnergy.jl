@@ -476,7 +476,7 @@ Combines fixed costs from the planning problem with operational costs from subpr
 # Arguments
 - `results_dir::AbstractString`: Directory to write output files
 - `system::System`: The system (with capacity values from planning solution)
-- `planning_problem_costs::NamedTuple`: The planning problem costs (for objective value validation). It should contain four fields: :eDiscountedFixedCost, :eDiscountedVariableCost, :eFixedCost, :eVariableCost.
+- `benders_costs::NamedTuple`: The benders costs (for objective value validation). It should contain four fields: :eDiscountedFixedCost, :eDiscountedVariableCost, :eFixedCost, :eVariableCost.
 - `operational_costs_df::Vector{DataFrame}`: Operational costs from subproblems for the current period
 - `settings::NamedTuple`: Case settings
 - `scaling::Float64=1.0`: Scaling factor
@@ -484,7 +484,7 @@ Combines fixed costs from the planning problem with operational costs from subpr
 function write_detailed_costs_benders(
     results_dir::AbstractString,
     system::System,
-    planning_problem_costs::NamedTuple,
+    benders_costs::NamedTuple,
     operational_costs_df::Vector{DataFrame},
     settings::NamedTuple;
     scaling::Float64=1.0
@@ -500,14 +500,14 @@ function write_detailed_costs_benders(
     # Write discounted costs by type and zone
     write_cost_breakdown_files!(results_dir, costs.discounted, layout; 
         prefix="costs",
-        validate_model=planning_problem_costs,
+        validate_model=benders_costs,
         discounted=true,
         scaling)
 
     # Write undiscounted costs by type and zone
     write_cost_breakdown_files!(results_dir, costs.undiscounted, layout; 
         prefix="undiscounted_costs",
-        validate_model=planning_problem_costs,
+        validate_model=benders_costs,
         discounted=false,
         scaling)
 

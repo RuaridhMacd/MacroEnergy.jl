@@ -94,7 +94,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         
         # Cost results (system level)
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
+
         write_costs(joinpath(results_dir, "costs.csv"), period, costs)
+        
         write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
         
         # Detailed cost breakdown (assets and zones level)
