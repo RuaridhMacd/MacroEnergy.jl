@@ -20,7 +20,6 @@ end
 
 """
 Write results when using Myopic as solution algorithm.
-Wraps one iteration of the same period writer used by Monolithic (setup + optional LP, then write_period_outputs).
 """
 function write_outputs_myopic(
     output_path::AbstractString, 

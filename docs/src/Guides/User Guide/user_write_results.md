@@ -60,6 +60,25 @@ write_costs("costs.csv", system, model)
 
 Note that the `write_costs` function requires both the `system` and `model` arguments, unlike the `write_capacity` function.
 
+To export undiscounted costs (fixed, variable, total) instead of discounted costs, use [`write_undiscounted_costs`](@ref):
+
+```julia
+write_undiscounted_costs("undiscounted_costs.csv", system, model)
+```
+
+For a detailed cost breakdown by category (Investment, FixedOM, VariableOM, Fuel, NonServedDemand, etc.) and by asset type or zone, use [`write_detailed_costs`](@ref). This writes both discounted and undiscounted breakdown files:
+
+```julia
+write_detailed_costs(results_dir, system, model, settings)
+```
+
+To obtain detailed costs as DataFrames for programmatic use, use [`get_detailed_costs`](@ref):
+
+```julia
+costs = get_detailed_costs(system, settings)
+# costs.discounted and costs.undiscounted are DataFrames with columns: zone, type, category, value
+```
+
 !!! note "Output Layout"
     Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"Costs": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
 

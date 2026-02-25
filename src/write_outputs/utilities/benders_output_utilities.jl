@@ -32,9 +32,9 @@ end
 """
     collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
 
-Collect all data from all subproblems in a single pass, handling both distributed and local cases.
+Collect all data from all Benders subproblems, handling both distributed and local cases.
 Returns a `SubproblemsData` struct whose fields (`.flows`, `.storage_levels`, `.nsd`, `.operational_costs`)
-are `Vector{DataFrame}` with one element per subproblem.
+are `Vector{DataFrame}` with one element per Benders subproblem.
 """
 function collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
     if case.settings.BendersSettings[:Distributed]
@@ -46,8 +46,8 @@ end
 
 
 """
-Collect all data from distributed subproblems using single-pass extraction.
-Returns a `SubproblemsData` with one DataFrame per subproblem in each field.
+Collect all data from distributed Benders subproblems.
+Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
 function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1.0)
     p_id = workers()
@@ -66,8 +66,8 @@ end
 
 
 """
-Collect all data from local subproblems using single-pass extraction.
-Returns a `SubproblemsData` with one DataFrame per subproblem in each field.
+Collect all data from local Benders subproblems.
+Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
 function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
     n = length(bd_results.op_subproblem)
@@ -90,8 +90,7 @@ end
 
 Struct holding results from all Benders subproblems, with one vector per output type.
 Each vector has one `DataFrame` per subproblem (same ordering). Use `.flows`, `.storage_levels`,
-`.nsd`, and `.operational_costs` for write functions; use `s[i]` or `for d in s` to get the
-NamedTuple for the i-th subproblem.
+`.nsd`, and `.operational_costs` for write functions.
 
 # Fields
 - `flows::Vector{DataFrame}`: Flow time-series, one DataFrame per subproblem
@@ -158,8 +157,7 @@ operational_costs(subproblems_data::SubproblemsData) = subproblems_data.operatio
 """
     extract_subproblem_results(system::System; scaling::Float64=1.0)
 
-Extract ALL results from a subproblem in a single pass through edges, storages, and nodes.
-This is more efficient than calling separate getter functions that each iterate through the system.
+Extract all results from a subproblem by iterating through edges, storages, and nodes.
 
 Returns a NamedTuple containing:
 - flows: DataFrame

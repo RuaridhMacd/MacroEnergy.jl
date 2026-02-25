@@ -50,6 +50,25 @@ function write_costs(
     return nothing
 end
 
+"""
+    write_undiscounted_costs(
+        file_path::AbstractString,
+        system::System,
+        model::Union{Model,NamedTuple};
+        scaling::Float64=1.0,
+        drop_cols::Vector{AbstractString}=String[]
+    )
+
+Write the optimal undiscounted cost results (fixed, variable, total) to a file.
+The extension of the file determines the format (CSV, Parquet, etc.).
+
+# Arguments
+- `file_path::AbstractString`: Path to the output file
+- `system::System`: The system (for output layout settings)
+- `model::Union{Model,NamedTuple}`: The optimized model
+- `scaling::Float64`: Scaling factor for the results
+- `drop_cols::Vector{AbstractString}`: Columns to drop from the DataFrame
+"""
 function write_undiscounted_costs(
     file_path::AbstractString, 
     system::System, 
@@ -76,7 +95,9 @@ end
 
 ## Cost extraction functions ##
 """
-    Helper function to extract discounted costs from the optimization results and return them as a DataFrame.
+    get_optimal_discounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
+
+Extract total discounted costs (fixed, variable, total) from the optimization results and return them as a DataFrame.
 """
 function get_optimal_discounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
     @debug " -- Getting optimal discounted costs for the system."
@@ -84,6 +105,11 @@ function get_optimal_discounted_costs(model::Union{Model,NamedTuple}; scaling::F
     costs[!, (!isa).(eachcol(costs), Vector{Missing})] # remove missing columns
 end
 
+"""
+    get_optimal_undiscounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
+
+Extract total undiscounted costs (fixed, variable, total) from the optimization results and return them as a DataFrame.
+"""
 function get_optimal_undiscounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
     @debug " -- Getting optimal discounted costs for the system."
     costs = prepare_undiscounted_costs(model, scaling)
@@ -164,7 +190,7 @@ end
     compute_investment_cost(o::T) where T <: Union{AbstractEdge, AbstractStorage}
 
 Returns `(pv, cf)::NTuple{2,Float64}`: investment cost discounted to period start (PV) and 
-undiscounted total cash flow (CF) for an edge or storage (computed as cost * new_capacity).
+undiscounted total cash flow (CF) for an edge or storage (computed as `cost * new_capacity`).
 """
 function compute_investment_cost(o::T)::NTuple{2,Float64} where T <: Union{AbstractEdge, AbstractStorage}
     (has_capacity(o) && can_expand(o)) || return (0.0, 0.0)
@@ -180,7 +206,7 @@ end
     compute_fixed_om_cost(o::T) where T <: Union{AbstractEdge, AbstractStorage}
 
 Returns `(pv, cf)::NTuple{2,Float64}`: fixed O&M cost discounted to period start (PV) and undiscounted
-total cash flow (CF) for an edge or storage (computed as cost * capacity).
+total cash flow (CF) for an edge or storage (computed as `cost * capacity`).
 """
 function compute_fixed_om_cost(o::T)::NTuple{2,Float64} where T <: Union{AbstractEdge, AbstractStorage}
     (has_capacity(o) && fixed_om_cost(o) > 0) || return (0.0, 0.0)
@@ -192,10 +218,10 @@ function compute_fixed_om_cost(o::T)::NTuple{2,Float64} where T <: Union{Abstrac
     return (pv * cap, cf * cap)
 end
 
-"""
+@doc raw"""
     compute_variable_om_cost(o::T) where T <: Union{AbstractEdge, AbstractStorage}
 
-Compute variable O&M cost for an edge: sum over time of (subperiod_weight * variable_om_cost * flow)
+Compute variable O&M cost for an edge: sum over time of `subperiod_weight * variable_om_cost * flow`.
 Returns a Float64 value.
 """
 function compute_variable_om_cost(e::AbstractEdge)::Float64
@@ -208,10 +234,10 @@ function compute_variable_om_cost(e::AbstractEdge)::Float64
     return vom_cost
 end
 
-"""
+@doc raw"""
     compute_fuel_cost(e::AbstractEdge)
 
-Compute fuel cost for an edge: sum over time of (subperiod_weight * price(start_vertex) * flow)
+Compute fuel cost for an edge: sum over time of `subperiod_weight * price(start_vertex) * flow`.
 Only applicable to edges with a start node.
 Returns a Float64 value.
 """
@@ -243,10 +269,10 @@ function compute_startup_cost(e::EdgeWithUC)::Float64
 end
 compute_startup_cost(e::AbstractEdge)::Float64 = 0.0
 
-"""
+@doc raw"""
     compute_nsd_cost(n::Node)
 
-Compute non-served demand (NSD) cost for a node: sum over time of (subperiod_weight * price_non_served_demand * non_served_demand).
+Compute non-served demand (NSD) cost for a node: sum over time of `subperiod_weight * price_non_served_demand * non_served_demand`.
 Only applicable to nodes with non-served demand constraints.
 Returns a Float64 value.
 """
@@ -265,11 +291,11 @@ function compute_nsd_cost(n::Node)::Float64
     return nsd_cost
 end
 
-"""
+@doc raw"""
     compute_supply_cost(n::Node)
 
-Compute supply cost for a node: sum over time of (subperiod_weight * price_supply * supply_flow).
-Only applicable to nodes with supply constraints.
+Compute supply cost for a node: sum over time of `subperiod_weight * price_supply * supply_flow`.
+Only applicable to nodes with non-zero `max_supply`.
 Returns a Float64 value.
 """
 function compute_supply_cost(n::Node)::Float64
@@ -286,10 +312,10 @@ function compute_supply_cost(n::Node)::Float64
     return supply_cost
 end
 
-"""
+@doc raw"""
     compute_slack_cost(n::Node)
 
-Compute unmet policy (slack) cost for a node: sum over time of (subperiod_weight * price_unmet_policy * policy_slack_vars).
+Compute unmet policy (slack) cost for a node: sum over time of `subperiod_weight * price_unmet_policy * policy_slack_vars`.
 Only applicable to nodes with policy constraints.
 Returns a Float64 value.
 """
@@ -377,7 +403,7 @@ const FIXED_COST_CATEGORIES = Set([:Investment,:FixedOM])
 # Categories only for variable operating costs (discounted with discount_factor * opexmult)
 const VARIABLE_OPERATING_COST_CATEGORIES = Set([:VariableOM, :Fuel, :Startup, :NonServedDemand, :Supply, :UnmetPolicyPenalty])
 
-"""
+@doc raw"""
     write_detailed_costs(
         results_dir::AbstractString,
         system::System,
@@ -387,8 +413,8 @@ const VARIABLE_OPERATING_COST_CATEGORIES = Set([:VariableOM, :Fuel, :Startup, :N
     )
 
 Write detailed cost breakdown files (both discounted and undiscounted):
-- costs_by_type.csv / undiscounted_costs_by_type.csv
-- costs_by_zone.csv / undiscounted_costs_by_zone.csv
+- costs\_by\_type.csv / undiscounted\_costs\_by\_type.csv
+- costs\_by\_zone.csv / undiscounted\_costs\_by\_zone.csv
 
 Costs are computed once per discounting mode, then aggregated and written.
 
@@ -441,14 +467,14 @@ end
         scaling::Float64=1.0
     )
 
-Write detailed cost breakdown files for Benders decomposition.
+Write detailed cost breakdown files for Benders decomposition for a single period.
 Combines fixed costs from the planning problem with operational costs from subproblems.
 
 # Arguments
 - `results_dir::AbstractString`: Directory to write output files
 - `system::System`: The system (with capacity values from planning solution)
 - `planning_problem_costs::NamedTuple`: The planning problem costs (for objective value validation). It should contain four fields: :eDiscountedFixedCost, :eDiscountedVariableCost, :eFixedCost, :eVariableCost.
-- `operational_costs_df::Vector{DataFrame}`: Operational costs from subproblems for this period
+- `operational_costs_df::Vector{DataFrame}`: Operational costs from subproblems for the current period
 - `settings::NamedTuple`: Case settings
 - `scaling::Float64=1.0`: Scaling factor
 """
@@ -485,7 +511,7 @@ function write_detailed_costs_benders(
     return nothing
 end
 
-"""
+@doc raw"""
     write_cost_breakdown_files!(
         results_dir::AbstractString,
         detailed_costs::DataFrame,
@@ -503,7 +529,7 @@ Used by both `write_detailed_costs` and `write_detailed_costs_benders`.
 - `results_dir::AbstractString`: Directory to write output files
 - `detailed_costs::DataFrame`: DataFrame with columns: zone, type, category, value
 - `layout::String`: Output layout ("wide" or "long")
-- `prefix::String`: Prefix for file names (e.g., "costs_by_type" or "costs_by_zone")
+- `prefix::String`: Prefix for file names (e.g., "costs" or "undiscounted\_costs")
 - `validate_model`: Optional model for objective value validation. It should contain four fields: :eDiscountedFixedCost, :eDiscountedVariableCost, :eFixedCost, :eVariableCost.
 - `discounted::Bool`: Whether costs are discounted (for validation)
 - `scaling::Float64`: Scaling factor (for validation)
@@ -540,7 +566,7 @@ end
     get_detailed_costs(system::System, settings::NamedTuple; scaling::Float64=1.0)
 
 Collect all detailed costs from the system, returning both discounted and undiscounted DataFrames.
-Uses period cost attributes (pv_period_*, cf_period_*) and economics.jl for discount factors.
+Uses period cost attributes (for edges and storages) and economics.jl for discount factors.
 
 Returns a NamedTuple `(discounted=df_discounted, undiscounted=df_undiscounted)` with the two 
 DataFrames having columns: zone, type, category, value.
@@ -687,7 +713,8 @@ end
     )
 
 Combine fixed costs from the planning problem with operational costs from subproblems.
-Returns (discounted=df, undiscounted=df).
+Returns a NamedTuple `(discounted=df_discounted, undiscounted=df_undiscounted)` with the two 
+DataFrames having columns: zone, type, category, value.
 """
 function get_detailed_costs_benders(
     system::System,
