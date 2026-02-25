@@ -94,7 +94,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         
         # Cost results (system level)
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
+
         write_costs(joinpath(results_dir, "costs.csv"), period, costs)
+        
         write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
         
         # Detailed cost breakdown (assets and zones level)
@@ -121,6 +123,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
             write_duals_benders(results_dir, period, discount_scaling)
         end
     end
+    	
+    write_benders_convergence(case_path, bd_results)
+
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
 end

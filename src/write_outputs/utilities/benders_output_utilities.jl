@@ -1,3 +1,12 @@
+function write_benders_convergence(case_path::AbstractString, bd_results::BendersResults)
+    
+    number_of_iterations = length(bd_results.LB_hist)
+
+    dfConv = DataFrame(Iter = 1:number_of_iterations, CPU_Time = bd_results.cpu_time, LB = bd_results.LB_hist, UB  = bd_results.UB_hist, Gap = bd_results.gap_hist, Status = append!([bd_results.termination_status],repeat([""],number_of_iterations-1)))
+    
+    CSV.write(joinpath(case_path, "benders_convergence.csv"), dfConv)
+end
+
 function prepare_costs_benders(system::System, 
     bd_results::BendersResults, 
     subop_indices::Vector{Int64}, 
@@ -17,9 +26,8 @@ function prepare_costs_benders(system::System,
     # Evaluate the discounted fixed cost expression on the Benders planning solutions
     discounted_fixed_cost = value(x -> planning_variable_values[name(x)], planning_problem[:eDiscountedFixedCost])
 
-    # evaluate the variable cost expressions using the subproblem solutions
-    variable_cost = evaluate_vtheta_in_expression(planning_problem, :eVariableCost, subop_sol, subop_indices)
-    discounted_variable_cost = evaluate_vtheta_in_expression(planning_problem, :eDiscountedVariableCost, subop_sol, subop_indices)
+    #### Get variables costs from subproblem solutions and apply undiscounting
+    variable_cost, discounted_variable_cost = compute_benders_variable_costs(subop_sol, subop_indices, system, settings)
 
     return (
         eFixedCost = fixed_cost,
@@ -27,6 +35,22 @@ function prepare_costs_benders(system::System,
         eDiscountedFixedCost = discounted_fixed_cost,
         eDiscountedVariableCost = discounted_variable_cost
     )
+end
+
+function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, system::System, settings::NamedTuple)
+
+    period_lengths = collect(settings.PeriodLengths)
+    discount_rate = settings.DiscountRate
+    period_index = system.time_data[:Electricity].period_index;
+
+    discounted_variable_cost = sum(subop_sol[w].op_cost for w in subop_indices)
+
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
+    variable_cost = period_lengths[period_index] * discounted_variable_cost / (discount_factor * opexmult)
+
+    return variable_cost, discounted_variable_cost
 end
     
 """

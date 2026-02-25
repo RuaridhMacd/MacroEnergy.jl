@@ -179,11 +179,6 @@ MacroEnergy.struct_info
 MacroEnergy.timestepbefore
 ```
 
-## `evaluate_vtheta_in_expression`
-```@docs
-MacroEnergy.evaluate_vtheta_in_expression
-```
-
 # Benders Utility Functions
 
 ## `SubproblemsData`

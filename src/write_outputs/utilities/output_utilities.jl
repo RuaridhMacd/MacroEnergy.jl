@@ -456,29 +456,3 @@ function get_local_expressions(optimal_getter::Function, subproblems_local::Vect
     end
     return expr_df
 end
-
-"""
-Evaluate the expression `expr` for a specific period using operational subproblem solutions.
-
-# Arguments
-- `m::Model`: JuMP model containing vTHETA variables and the expression `expr` to evaluate
-- `expr::Symbol`: The expression to evaluate
-- `subop_sol::Dict`: Dictionary mapping subproblem indices to their operational costs
-- `subop_indices::Vector{Int64}`: The subproblem indices to evaluate
-
-# Returns
-The evaluated expression for the specified period 
-"""
-function evaluate_vtheta_in_expression(m::Model, expr::Symbol, subop_sol::Dict, subop_indices::Vector{Int64})
-    @assert haskey(m, expr)
-    
-    # Create mapping from theta variables to their operational costs for this period
-    theta_to_cost = Dict(
-        m[:vTHETA][w] => subop_sol[w].op_cost 
-        for w in subop_indices
-    )
-    
-    # Evaluate the expression `expr` using the mapping
-    return value(x -> theta_to_cost[x], m[expr])
-    
-end

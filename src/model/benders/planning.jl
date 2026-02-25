@@ -93,16 +93,11 @@ function generate_planning_problem(case::Case)
 
     @expression(model, eOMFixedCostByPeriod[s in 1:number_of_periods], discount_factor[s] * om_fixed_cost[s])
 
-    period_to_subproblem_map, subproblem_indices = get_period_to_subproblem_mapping(periods);
+    _, number_of_subperiods = get_period_to_subproblem_mapping(periods);
 
-    @variable(model, vTHETA[w in subproblem_indices] .>= 0)
+    @expression(model, eLowerBoundOperatingCost[w in 1:number_of_subperiods], AffExpr(0.0))
 
-    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
-
-    @expression(model, eVariableCostByPeriod[s in 1:number_of_periods], discount_factor[s] * opexmult[s] * sum(vTHETA[w] for w in period_to_subproblem_map[s]))
-    @expression(model, eApproximateVariableCost, sum(eVariableCostByPeriod[s] for s in 1:number_of_periods))
-
-    @objective(model, Min, model[:eFixedCost] + model[:eApproximateVariableCost])
+    @objective(model, Min, model[:eFixedCost])
 
     @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")
 
