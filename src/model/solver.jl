@@ -48,6 +48,8 @@ function solve_case(case::Case, opt::Dict{Symbol, Dict{Symbol, Any}}, ::Benders)
 
     update_with_planning_solution!(case, results.planning_sol.values)
 
+    @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
+
     update_with_subproblem_solutions!(subproblems, results)
 
     return (case, BendersResults(results, subproblems))
