@@ -1,3 +1,12 @@
+function write_benders_convergence(case_path::AbstractString, bd_results::BendersResults)
+    
+    number_of_iterations = length(bd_results.LB_hist)
+
+    dfConv = DataFrame(Iter = 1:number_of_iterations, CPU_Time = bd_results.cpu_time, LB = bd_results.LB_hist, UB  = bd_results.UB_hist, Gap = bd_results.gap_hist, Status = append!([bd_results.termination_status],repeat([""],number_of_iterations-1)))
+    
+    CSV.write(joinpath(case_path, "benders_convergence.csv"), dfConv)
+end
+
 function prepare_costs_benders(system::System, 
     bd_results::BendersResults, 
     subop_indices::Vector{Int64}, 

@@ -119,6 +119,9 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
             write_duals_benders(results_dir, period, discount_scaling)
         end
     end
+    	
+    write_benders_convergence(case_path, bd_results)
+
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
 end
