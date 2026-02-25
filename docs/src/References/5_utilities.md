@@ -179,42 +179,37 @@ MacroEnergy.struct_info
 MacroEnergy.timestepbefore
 ```
 
-## `collect_flow_results`
-```@docs
-MacroEnergy.collect_flow_results
-```
-
-## `collect_non_served_demand_results`
-```@docs
-MacroEnergy.collect_non_served_demand_results
-```
-
-## `collect_storage_level_results`
-```@docs
-MacroEnergy.collect_storage_level_results
-```
-
-## `collect_subproblem_results`
-```@docs
-MacroEnergy.collect_subproblem_results
-```
-
-## `collect_local_results`
-```@docs
-MacroEnergy.collect_local_results
-```
-
-## `collect_distributed_results`
-```@docs
-MacroEnergy.collect_distributed_results
-```
-
 ## `evaluate_vtheta_in_expression`
 ```@docs
 MacroEnergy.evaluate_vtheta_in_expression
 ```
 
 # Benders Utility Functions
+
+## `SubproblemsData`
+```@docs
+MacroEnergy.SubproblemsData
+```
+
+## `collect_data_from_subproblems`
+```@docs
+MacroEnergy.collect_data_from_subproblems
+```
+
+## `collect_distributed_data`
+```@docs
+MacroEnergy.collect_distributed_data
+```
+
+## `collect_local_data`
+```@docs
+MacroEnergy.collect_local_data
+```
+
+## `extract_subproblem_results`
+```@docs
+MacroEnergy.extract_subproblem_results
+```
 
 ## `populate_slack_vars_from_subproblems!`
 ```@docs

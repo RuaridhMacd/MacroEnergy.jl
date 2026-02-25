@@ -42,6 +42,8 @@ import MacroEnergy:
     write_capacity,
     write_costs,
     write_undiscounted_costs,
+    write_detailed_costs,
+    get_detailed_costs,
     write_flow,
     typesymbol
 
@@ -301,6 +303,28 @@ function test_writing_outputs(case,model)
     @test_nowarn write_costs("test_costs.csv", system, model)
     @test_nowarn write_undiscounted_costs("test_undiscountedcosts.csv", system, model)
     @test_nowarn write_flow("test_flow.csv", system)
+    # Detailed cost breakdown (monolithic)
+    @test_nowarn write_detailed_costs(".", system, model, settings)
+    costs_result = get_detailed_costs(system, settings)
+    detailed_costs = costs_result.undiscounted
+    @test detailed_costs isa DataFrame
+    @test !isempty(detailed_costs)
+    @test all(c in names(detailed_costs) for c in ["zone", "type", "category", "value"])
+    # Return structure: both discounted and undiscounted have same columns and row count
+    @test names(costs_result.discounted) == ["zone", "type", "category", "value"]
+    @test names(costs_result.undiscounted) == ["zone", "type", "category", "value"]
+    @test size(costs_result.discounted, 1) == size(costs_result.undiscounted, 1)
+    # Grand total from detailed costs should match model total (same values written to test_costs.csv)
+    @test sum(costs_result.discounted.value) ≈ value(model[:eDiscountedFixedCost]) + value(model[:eDiscountedVariableCost])
+    @test sum(costs_result.undiscounted.value) ≈ value(model[:eFixedCost]) + value(model[:eVariableCost])
+    @test isfile("costs_by_type.csv")
+    @test isfile("costs_by_zone.csv")
+    @test isfile("undiscounted_costs_by_type.csv")
+    @test isfile("undiscounted_costs_by_zone.csv")
+    rm("costs_by_type.csv") # clean up
+    rm("costs_by_zone.csv") # clean up
+    rm("undiscounted_costs_by_type.csv") # clean up
+    rm("undiscounted_costs_by_zone.csv") # clean up
     rm("test_capacity.csv")     # clean up
     rm("test_costs.csv")        # clean up
     rm("test_undiscountedcosts.csv")        # clean up

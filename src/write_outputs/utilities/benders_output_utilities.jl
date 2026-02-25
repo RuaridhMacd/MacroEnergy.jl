@@ -30,68 +30,220 @@ function prepare_costs_benders(system::System,
 end
     
 """
-    collect_subproblem_results(case::Case, bd_results::BendersResults, getter_fn::Function)
+    collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
 
-Generic function to collect results from all subproblems (Benders), handling both distributed and local cases.
-
-# Arguments
-- `case::Case`: The case containing settings
-- `bd_results::BendersResults`: Benders decomposition results containing subproblems
-- `getter_fn::Function`: Function to extract results from a system (e.g., `get_optimal_flow`, `get_optimal_non_served_demand`)
-
-# Returns
-- `Vector{DataFrame}`: Vector of DataFrames, one per subproblem
+Collect all data from all Benders subproblems, handling both distributed and local cases.
+Returns a `SubproblemsData` struct whose fields (`.flows`, `.storage_levels`, `.nsd`, `.operational_costs`)
+are `Vector{DataFrame}` with one element per Benders subproblem.
 """
-function collect_subproblem_results(case::Case, bd_results::BendersResults, getter_fn::Function)
+function collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
     if case.settings.BendersSettings[:Distributed]
-        return collect_distributed_results(bd_results, getter_fn)
+        return collect_distributed_data(bd_results, scaling)
     else
-        return collect_local_results(bd_results, getter_fn)
+        return collect_local_data(bd_results, scaling)
     end
 end
 
+
 """
-Collect results from subproblems on distributed workers using the given getter function.
+Collect all data from distributed Benders subproblems.
+Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
-function collect_distributed_results(bd_results::BendersResults, getter_fn::Function)
+function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1.0)
     p_id = workers()
     np_id = length(p_id)
-    result_df = Vector{Vector{DataFrame}}(undef, np_id)
+    result_chunks = Vector{Vector{NamedTuple}}(undef, np_id)
+
     @sync for i in 1:np_id
-        @async result_df[i] = @fetchfrom p_id[i] get_local_expressions(getter_fn, DistributedArrays.localpart(bd_results.op_subproblem))
+        @async result_chunks[i] = @fetchfrom p_id[i] begin
+            local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
+            [extract_subproblem_results(sp[:system_local]; scaling=scaling) for sp in local_subproblems]
+        end
     end
-    return reduce(vcat, result_df)
+
+    return SubproblemsData(reduce(vcat, result_chunks))
 end
 
+
 """
-Collect results from local subproblems using the given getter function.
+Collect all data from local Benders subproblems.
+Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
-function collect_local_results(bd_results::BendersResults, getter_fn::Function)
-    result_df = Vector{DataFrame}(undef, length(bd_results.op_subproblem))
+function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
+    n = length(bd_results.op_subproblem)
+    results = SubproblemsData(n)
+
     for i in eachindex(bd_results.op_subproblem)
         system = bd_results.op_subproblem[i][:system_local]
-        result_df[i] = getter_fn(system)
+        results[i] = extract_subproblem_results(system; scaling)
     end
-    return result_df
+
+    return results
 end
 
-"""
-Collect flow results from subproblems on distributed workers.
-"""
-collect_flow_results(case::Case, bd_results::BendersResults) = 
-    collect_subproblem_results(case, bd_results, get_optimal_flow)
+###################################
+# Subproblem Results Data Structure
+###################################
 
 """
-Collect non-served demand results from subproblems on distributed workers.
+    SubproblemsData
+
+Struct holding results from all Benders subproblems, with one vector per output type.
+Each vector has one `DataFrame` per subproblem (same ordering). Use `.flows`, `.storage_levels`,
+`.nsd`, and `.operational_costs` for write functions.
+
+# Fields
+- `flows::Vector{DataFrame}`: Flow time-series, one DataFrame per subproblem
+- `storage_levels::Vector{DataFrame}`: Storage level time-series, one per subproblem
+- `nsd::Vector{DataFrame}`: Non-served demand time-series, one per subproblem
+- `operational_costs::Vector{DataFrame}`: Operational costs (VariableOM, Fuel, Startup, NSD, Supply, Slack), one per subproblem
+
+# Indexing and iteration
+- `subproblems_data[i]` returns a NamedTuple `(flows=..., storage_levels=..., nsd=..., operational_costs=...)` for subproblem `i`
+- `for d in subproblems_data` yields that NamedTuple for each subproblem
+- Supports `length`, `firstindex`, `lastindex`, `push!`, `pop!`
 """
-collect_non_served_demand_results(case::Case, bd_results::BendersResults) = 
-    collect_subproblem_results(case, bd_results, get_optimal_non_served_demand)
+struct SubproblemsData
+    flows::Vector{DataFrame} # one per subproblem
+    storage_levels::Vector{DataFrame} # one per subproblem
+    nsd::Vector{DataFrame} # one per subproblem
+    operational_costs::Vector{DataFrame} # one per subproblem
+end
+SubproblemsData(n::Int64) = SubproblemsData(Vector{DataFrame}(undef, n), Vector{DataFrame}(undef, n), Vector{DataFrame}(undef, n), Vector{DataFrame}(undef, n))
+function SubproblemsData(results::Vector{NamedTuple})
+    subproblems_data = SubproblemsData(length(results))
+    for i in eachindex(results)
+        subproblems_data[i] = results[i]
+    end
+    return subproblems_data
+end
+function Base.length(subproblems_data::SubproblemsData)
+    @assert length(subproblems_data.flows) == length(subproblems_data.storage_levels) == length(subproblems_data.nsd) == length(subproblems_data.operational_costs)
+    return length(subproblems_data.flows)
+end
+Base.iterate(s::SubproblemsData) = length(s) == 0 ? nothing : (s[1], 1)
+Base.iterate(s::SubproblemsData, i::Int) = i > length(s) ? nothing : (s[i], i + 1)
+function Base.getindex(subproblems_data::SubproblemsData, i::Int64)
+    return (
+        flows=subproblems_data.flows[i],
+        storage_levels=subproblems_data.storage_levels[i],
+        nsd=subproblems_data.nsd[i],
+        operational_costs=subproblems_data.operational_costs[i]
+    )
+end
+function Base.setindex!(subproblems_data::SubproblemsData, results::NamedTuple, i::Int64)
+    subproblems_data.flows[i] = results.flows
+    subproblems_data.storage_levels[i] = results.storage_levels
+    subproblems_data.nsd[i] = results.nsd
+    subproblems_data.operational_costs[i] = results.operational_costs
+end
+function Base.push!(subproblems_data::SubproblemsData, results::NamedTuple)
+    push!(subproblems_data.flows, results.flows)
+    push!(subproblems_data.storage_levels, results.storage_levels)
+    push!(subproblems_data.nsd, results.nsd)
+    push!(subproblems_data.operational_costs, results.operational_costs)
+end
+function Base.pop!(subproblems_data::SubproblemsData)
+    pop!(subproblems_data.flows)
+    pop!(subproblems_data.storage_levels)
+    pop!(subproblems_data.nsd)
+    pop!(subproblems_data.operational_costs)
+end
+flows(subproblems_data::SubproblemsData) = subproblems_data.flows
+storage_levels(subproblems_data::SubproblemsData) = subproblems_data.storage_levels
+non_served_demand(subproblems_data::SubproblemsData) = subproblems_data.nsd
+operational_costs(subproblems_data::SubproblemsData) = subproblems_data.operational_costs
 
 """
-Collect storage level results from subproblems on distributed workers.
+    extract_subproblem_results(system::System; scaling::Float64=1.0)
+
+Extract all results from a subproblem by iterating through edges, storages, and nodes.
+
+Returns a NamedTuple containing:
+- flows: DataFrame
+- storage_levels: DataFrame
+- nsd: DataFrame
+- operational_costs: DataFrame
+
+# Arguments
+- `system::System`: The system to extract results from
+- `scaling::Float64=1.0`: Scaling factor for values
 """
-collect_storage_level_results(case::Case, bd_results::BendersResults) = 
-    collect_subproblem_results(case, bd_results, get_optimal_storage_level)
+function extract_subproblem_results(system::System; scaling::Float64=1.0)
+    # Get edges and storages with their asset mappings
+    edges, edge_asset_map = get_edges(system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(system, return_ids_map=true)
+    # Nodes that can have operational costs (NSD, supply, and/or slack)
+    nodes_with_costs = filter(get_nodes(system)) do n
+        !isempty(non_served_demand(n)) ||
+        !all(iszero, max_supply(n)) ||
+        !isempty(policy_slack_vars(n))
+    end
+
+    # Initialize collectors for flows and costs
+    flow_dfs = DataFrame[]
+    cost_rows = NamedTuple{(:zone, :type, :category, :value),Tuple{String,String,Symbol,Float64}}[]
+
+    # Extract flows and compute operational costs for edges
+    for e in edges
+        zone = get_zone_name(e)
+        asset_type = get_type(edge_asset_map[id(e)])
+
+        # Reuse existing flow extraction function
+        push!(flow_dfs, get_optimal_flow(e, scaling, edge_asset_map))
+
+        # Compute operational costs
+        vom_cost = compute_variable_om_cost(e)
+        fuel_cost = compute_fuel_cost(e)
+        startup_cost_val = compute_startup_cost(e)
+
+        # Store aggregated costs (only non-zero, with scaling)
+        vom_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:VariableOM, value=vom_cost * scaling^2))
+        fuel_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Fuel, value=fuel_cost * scaling^2))
+        startup_cost_val > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Startup, value=startup_cost_val * scaling^2))
+    end
+
+    # Combine flow DataFrames
+    flows_df = isempty(flow_dfs) ? DataFrame() : reduce(vcat, flow_dfs)
+
+    # Extract storage levels
+    storage_levels_df = get_optimal_storage_level(storages, scaling, storage_asset_map)
+
+    # Extract NSD and compute NSD/Supply/Slack costs for nodes
+    nsd_dfs = DataFrame[]
+    for node in nodes_with_costs
+        zone = get_zone_name(node)
+        node_type = get_type(node)
+
+        # Reuse existing NSD extraction function
+        push!(nsd_dfs, get_optimal_non_served_demand(node, scaling))
+
+        # NSD cost
+        nsd_cost = compute_nsd_cost(node)
+        nsd_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:NonServedDemand, value=nsd_cost * scaling^2))
+
+        # Supply cost
+        supply_cost = compute_supply_cost(node)
+        supply_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:Supply, value=supply_cost * scaling^2))
+
+        # Slack cost
+        slack_cost = compute_slack_cost(node)
+        slack_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:UnmetPolicyPenalty, value=slack_cost * scaling^2))
+    end
+    nsd_df = isempty(nsd_dfs) ? DataFrame() : reduce(vcat, nsd_dfs)
+
+    # Build operational costs DataFrame
+    operational_costs_df = isempty(cost_rows) ?
+                           DataFrame(zone=String[], type=String[], category=Symbol[], value=Float64[]) :
+                           DataFrame(cost_rows)
+
+    return (
+        flows=flows_df,
+        storage_levels=storage_levels_df,
+        nsd=nsd_df,
+        operational_costs=operational_costs_df
+    )
+end
 
 """
 Convert DenseAxisArray to Dict, preserving axis information.

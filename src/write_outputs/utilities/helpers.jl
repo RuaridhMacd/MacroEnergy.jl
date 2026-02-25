@@ -8,26 +8,26 @@ get_commodity_name(obj::Node) = typesymbol(commodity_type(obj))
 get_commodity_name(obj::AbstractStorage) = typesymbol(commodity_type(obj))
 
 # Get the zone name/location of a vertex
-get_zone_name(v::AbstractVertex) = ismissing(location(v)) ? id(v) : location(v)
+get_zone_name(v::AbstractVertex)::String = ismissing(location(v)) ? string(id(v)) : string(location(v))
 
 # The zone name for an edge is derived from the locations of its connected vertices.
 # Priority: both locations → same location or "loc1_loc2"; one location → that location;
 # no locations → fallback to concatenated vertex IDs
-function get_zone_name(e::AbstractEdge)
+function get_zone_name(e::AbstractEdge)::String
     start_loc = location(e.start_vertex)
     end_loc = location(e.end_vertex)
     
     # Both vertices have locations
     if !ismissing(start_loc) && !ismissing(end_loc)
-        return start_loc == end_loc ? start_loc : Symbol("$(start_loc)_$(end_loc)")
+        return start_loc == end_loc ? string(start_loc) : string("$(start_loc)_$(end_loc)")
     end
     
     # Only one vertex has a location - use it
-    !ismissing(start_loc) && return start_loc
-    !ismissing(end_loc) && return end_loc
+    !ismissing(start_loc) && return string(start_loc)
+    !ismissing(end_loc) && return string(end_loc)
     
     # Neither vertex has a location - fall back to concatenated vertex IDs
-    return Symbol("$(id(e.start_vertex))_$(id(e.end_vertex))")
+    return string("$(id(e.start_vertex))_$(id(e.end_vertex))")
 end
 
 # New functions for flow outputs - get node_in and node_out

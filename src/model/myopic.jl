@@ -121,7 +121,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         end
 
         @info(" -- Writing outputs for period $(period_idx)")
-        write_period_outputs(output_path, case, system, model, period_idx, num_periods)
+        write_outputs_myopic(output_path, case, model, system, period_idx)
 
         # Store or discard the model based on settings
         if return_models
@@ -138,39 +138,6 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
 
     return return_models ? MyopicResults(models) : MyopicResults(nothing)
 end
-
-"""
-Write outputs for a single period during myopic iteration.
-This function is called for every period to write outputs immediately.
-"""
-function write_period_outputs(output_path::AbstractString, case::Case, system::System, model::Model, period_idx::Int, num_periods::Int)
-    # Create results directory to store outputs for this period
-    if num_periods > 1
-        results_dir = joinpath(output_path, "results_period_$period_idx")
-    else
-        results_dir = joinpath(output_path, "results")
-    end
-    mkpath(results_dir)
-    
-    # Set up cost expressions before writing cost outputs
-    create_discounted_cost_expressions!(model, system, get_settings(case))
-    compute_undiscounted_costs!(model, system, get_settings(case))
-    
-    # Write LP file if requested
-    myopic_settings = get_settings(case).MyopicSettings
-    if myopic_settings[:WriteModelLP]
-        @info(" -- Writing LP file for period $(period_idx)")
-        lp_filename = joinpath(results_dir, "model_period_$(period_idx).lp")
-        write_to_file(model, lp_filename)
-    end
-    
-    # Scaling factor for variable cost portion of objective function
-    discount_scaling = compute_variable_cost_discount_scaling(period_idx, get_settings(case))
-
-    # Write all outputs for this period
-    write_outputs(results_dir, system, model, discount_scaling)
-end
-
 
 function load_previous_capacity_results(path::AbstractString)
     df = load_dataframe(path)
