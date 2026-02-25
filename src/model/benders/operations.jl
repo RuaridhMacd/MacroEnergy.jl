@@ -263,3 +263,13 @@ function get_all_policy_constraints(system::System)
     end 
     return policy_constraints
 end
+
+function update_with_subproblem_solutions!(subproblems::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray}, results::NamedTuple)
+
+    subop_sol = MacroEnergySolvers.solve_subproblems(subproblems, results.planning_sol, true)
+
+    results.subop_sol = subop_sol
+
+    return nothing
+    
+end
