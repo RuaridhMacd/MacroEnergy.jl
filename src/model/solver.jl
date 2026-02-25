@@ -47,8 +47,8 @@ function solve_case(case::Case, opt::Dict{Symbol, Dict{Symbol, Any}}, ::Benders)
     results = MacroEnergySolvers.benders(planning_problem, subproblems, linking_variables_sub, Dict(pairs(bd_setup)))
 
     update_with_planning_solution!(case, results.planning_sol.values)
-    
-    update_with_subproblem_solutions!(case, subproblems, results)
+
+    update_with_subproblem_solutions!(subproblems, results)
 
     return (case, BendersResults(results, subproblems))
 end

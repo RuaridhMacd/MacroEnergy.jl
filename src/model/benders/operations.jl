@@ -268,7 +268,7 @@ function update_with_subproblem_solutions!(subproblems::Union{Vector{Dict{Any, A
 
     subop_sol = MacroEnergySolvers.solve_subproblems(subproblems, results.planning_sol, true)
 
-    results.subop_sol = subop_sol
+    results = (; results..., subop_sol = subop_sol)
 
     return nothing
     
