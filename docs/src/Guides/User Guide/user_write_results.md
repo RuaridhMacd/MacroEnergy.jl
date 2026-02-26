@@ -4,6 +4,7 @@ Currently, Macro supports the following types of outputs:
 
 - [Capacity Results](@ref): final capacity, new capacity and retired capacity for each technology.
 - [Costs](@ref): fixed, variable and total system costs.
+- [Curtailment Results](@ref): curtailment of variable renewable energy (VRE) assets over time.
 - [Flow Results](@ref): flow for each commodity through each edge in the system.
 - [Non-Served Demand Results](@ref): non-served demand for each node with demand.
 - [Storage Level Results](@ref): storage level for each storage unit over time.
@@ -49,6 +50,19 @@ write_capacity("capacity.csv", system, commodity="CO2*")
 
 !!! note "Output Layout"
     Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"Capacity": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
+
+## Curtailment Results
+
+Export curtailment results for variable renewable energy (VRE) assets using the [`write_curtailment`](@ref) function:
+
+```julia
+write_curtailment("curtailment.csv", system)
+```
+
+Curtailment is the difference between available VRE generation (capacity × availability factor) and actual generation (flow). It represents energy that could have been produced but was not dispatched.
+
+!!! note "Output Layout"
+    Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"Curtailment": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
 
 ## Costs
 
@@ -207,6 +221,7 @@ or
   "OutputLayout": {
     "Capacity": "wide",
     "Costs": "long",
+    "Curtailment": "long",
     "Flow": "long",
     "NonServedDemand": "long",
     "StorageLevel": "wide"
@@ -217,7 +232,7 @@ or
 Available options:
 - `"OutputLayout": "long"` (applies to all outputs)
 - `"OutputLayout": "wide"` (applies to all outputs)
-- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Flow": "long", "NonServedDemand": "long", "StorageLevel": "wide"}` (individual layout settings)
+- `"OutputLayout": {"Capacity": "wide", "Costs": "long", "Curtailment": "long", "Flow": "long", "NonServedDemand": "long", "StorageLevel": "wide"}` (individual layout settings)
 
 ## Output Files Location
 

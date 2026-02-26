@@ -3,12 +3,14 @@ module TestOutput
 using Test
 using Random
 using MacroEnergy
+using CSV
 using DataFrames
 import MacroEnergy:
     TimeData,
     compute_annualized_costs!,
     discount_fixed_costs!,
     get_detailed_costs,
+    get_optimal_curtailment,
     capacity,
     variable_om_cost,
     fixed_om_cost,
@@ -62,7 +64,9 @@ import MacroEnergy:
     Storage,
     Transformation,
     Edge,
-    filter_edges_by_commodity!
+    filter_edges_by_commodity!,
+    write_curtailment,
+    VRE
 
 
 function test_writing_output()
@@ -611,6 +615,104 @@ function test_writing_output()
         end
     end
 
+    @testset "Curtailment Output Functions Tests" begin
+        # Create VRE asset with edge that has capacity, flow, and availability
+        vre_timedata = TimeData{Electricity}(;
+            time_interval=1:3,
+            hours_per_timestep=1,
+            subperiods=[1:1, 2:2, 3:3],
+            subperiod_indices=[1, 2, 3],
+            subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
+        )
+        vre_transform = Transformation(;
+            id=:vre_transform,
+            timedata=vre_timedata
+        )
+        vre_edge = Edge{Electricity}(;
+            id=:vre_edge,
+            start_vertex=vre_transform,
+            end_vertex=node1,
+            timedata=vre_timedata,
+            has_capacity=true,
+            capacity=100.0,
+            flow=[1.0, 2.0, 3.0],
+            availability=[0.5, 0.6, 0.7]
+        )
+        vre_asset = VRE(:vre_asset, vre_transform, vre_edge)
+
+        # System with VRE for curtailment tests
+        system_with_vre = empty_system("test_system_with_vre")
+        system_with_vre.settings = (OutputLayout="long",)  # Required for write_curtailment
+        add!(system_with_vre, node1)
+        add!(system_with_vre, vre_asset)
+
+        # Test get_optimal_curtailment for single edge
+        vre_asset_ref = Ref(vre_asset)
+        vre_edge_map = Dict{Symbol,Base.RefValue{<:AbstractAsset}}(:vre_edge => vre_asset_ref)
+        result = get_optimal_curtailment(vre_edge, 1.0, vre_edge_map)
+        @test result isa DataFrame
+        @test size(result, 1) == 3  # 3 time steps
+        # Curtailment = max(0, capacity * availability(t) - flow(t))
+        # t=1: 100*0.5 - 1 = 49, t=2: 100*0.6 - 2 = 58, t=3: 100*0.7 - 3 = 67
+        @test result[1, :commodity] == :Electricity
+        @test result[1, :variable] == :curtailment
+        @test result[1, :time] == 1
+        @test result[1, :value] ≈ 49.0 # first time step value
+        @test result[2, :value] ≈ 58.0 # second time step value
+        @test result[3, :value] ≈ 67.0 # third time step value
+        @test result[1, :resource_id] == :vre_asset
+        @test result[1, :resource_type] == "VRE"
+
+        # Test get_optimal_curtailment at system level (with VRE)
+        result_system = get_optimal_curtailment(system_with_vre)
+        @test result_system isa DataFrame
+        @test size(result_system, 1) == 3
+        @test result_system[1, :value] ≈ 49.0
+        @test result_system[2, :value] ≈ 58.0
+        @test result_system[3, :value] ≈ 67.0
+
+        # Test scaling
+        result_scaled = get_optimal_curtailment(system_with_vre; scaling=2.0)
+        @test result_scaled[1, :value] ≈ 98.0  # 49 * 2
+        @test result_scaled[2, :value] ≈ 116.0 # 58 * 2
+        @test result_scaled[3, :value] ≈ 134.0 # 67 * 2
+
+        # Test get_optimal_curtailment for system without VRE (returns empty)
+        result_empty = get_optimal_curtailment(system)  # system has ThermalPower and Battery, no VRE
+        @test result_empty isa DataFrame
+        @test isempty(result_empty)
+
+        # Test write_curtailment
+        test_curtailment_path = joinpath(abspath(mktempdir(".")), "curtailment.csv")
+        @test_nowarn write_curtailment(test_curtailment_path, system_with_vre)
+        @test isfile(test_curtailment_path)
+        written = CSV.read(test_curtailment_path, DataFrame)
+        @test size(written, 1) == 3
+        @test written[1, :value] ≈ 49.0
+        @test written[2, :value] ≈ 58.0
+        @test written[3, :value] ≈ 67.0
+        @test "value" in names(written)
+        rm(test_curtailment_path) # clean up
+
+        # Test write_curtailment with wide layout
+        system_with_vre.settings = (OutputLayout="wide",)
+        test_curtailment_path = joinpath(abspath(mktempdir(".")), "curtailment_wide.csv")
+        @test_nowarn write_curtailment(test_curtailment_path, system_with_vre)
+        @test isfile(test_curtailment_path)
+        written = CSV.read(test_curtailment_path, DataFrame)
+        @test size(written, 1) == 3
+        @test written[1, :vre_asset] ≈ 49.0
+        @test written[2, :vre_asset] ≈ 58.0
+        @test written[3, :vre_asset] ≈ 67.0
+
+        # Test write_curtailment with system without VRE (no file written, no error)
+        test_empty_path = joinpath(abspath(mktempdir(".")), "curtailment_empty.csv")
+        @test_nowarn write_curtailment(test_empty_path, system)
+        # When empty, write_curtailment returns early and may not create file
+        # (get_optimal_curtailment returns empty, so no write occurs)
+        @test !isfile(test_empty_path)
+    end
+
     # Test get_macro_objs functions
     @testset "get_macro_objs Tests" begin
         edges = get_edges([asset1, asset2])
@@ -784,7 +886,7 @@ function test_writing_output()
     
         @testset "NamedTuple layouts" begin
             ## Test NamedTuple
-            layout_settings = (capacity="wide", storage="long")
+            layout_settings = (Capacity="wide", Curtailment="wide", StorageLevel="long")
             system3 = make_test_system(layout_settings)
             # no variable
             @test_logs (:warn, "OutputLayout in settings does not have a variable key. Using 'long' as default.") begin
@@ -792,8 +894,9 @@ function test_writing_output()
             end
 
             # with existing keys
-            @test get_output_layout(system3, :capacity) == "wide"
-            @test get_output_layout(system3, :storage) == "long"
+            @test get_output_layout(system3, :Capacity) == "wide"
+            @test get_output_layout(system3, :Curtailment) == "wide"
+            @test get_output_layout(system3, :StorageLevel) == "long"
     
             # Test missing key falls back to "long" with warning
             @test_logs (:warn, "OutputLayout in settings does not have a missing_var key. Using 'long' as default.") begin
@@ -807,6 +910,16 @@ function test_writing_output()
             @test_logs (:warn, "OutputLayout type Int64 not supported. Using 'long' as default.") begin
                 @test get_output_layout(invalid_system, :any_variable) == "long"
             end
+        end
+
+        @testset "OutputLayout validation accepts Curtailment" begin
+            # Verify configure_settings accepts :Curtailment in OutputLayout
+            settings = MacroEnergy.configure_settings((
+                OutputLayout=(Capacity="long", Costs="long", Curtailment="wide", Flow="long",
+                             NonServedDemand="long", StorageLevel="long"),
+            ))
+            @test settings.OutputLayout isa NamedTuple
+            @test settings.OutputLayout.Curtailment == "wide"
         end
     end
 
