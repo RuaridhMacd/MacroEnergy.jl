@@ -70,10 +70,8 @@ function write_duals_benders(
 )
     @info "Writing constraint dual values to $results_dir"
 
-    # Note: with Benders, the duals for balance constraints don't need to be undiscounted
-    # as the objective function for the operational subproblems is already undiscounted
-    write_balance_duals(results_dir, system)
-    # Duals for CO2 cap constraints comes from the planning problem which is discounted
+    # Duals for Balance and CO2 cap constraints
+    write_balance_duals(results_dir, system, scaling)
     write_co2_cap_duals(results_dir, system, scaling)
     
     return nothing
