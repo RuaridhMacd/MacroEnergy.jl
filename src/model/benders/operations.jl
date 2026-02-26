@@ -31,9 +31,9 @@ function generate_operation_subproblem(system::System,case_settings::NamedTuple,
 
     discount_factor = present_value_factor(discount_rate, period_lengths)
     
-    opexmult = present_value_annuity_factor(discount_rate, period_lengths[period_index])
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
 
-    @objective(model, Min, discount_factor * opexmult * model[:eVariableCost])
+    @objective(model, Min, discount_factor[period_index] * opexmult[period_index] * model[:eVariableCost])
 
     return model, linking_variables
 
