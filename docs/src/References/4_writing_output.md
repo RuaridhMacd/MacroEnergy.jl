@@ -106,11 +106,6 @@ MacroEnergy.write_cost_breakdown_files!
 MacroEnergy.write_duals
 ```
 
-## `write_duals_benders`
-```@docs
-MacroEnergy.write_duals_benders
-```
-
 ## `write_flow`
 
 ```@docs
