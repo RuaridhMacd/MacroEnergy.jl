@@ -46,11 +46,14 @@ cd MacroEnergy.jl
 julia --project=. -e "using Pkg; Pkg.instantiate(); Pkg.precompile()"
 ```
 
+This command might not work if you already have a `Manifest.toml` file.
+Please remove the file manually and try again.
+
 - **Test the installation**:
 Start Julia with the project environment in a terminal:
 
 ```bash
-$ julia --project=.
+julia --project=.
 ```
 
 Load Macro in the Julia REPL:
