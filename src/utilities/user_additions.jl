@@ -22,7 +22,7 @@ function parse_asset_type_definitions(file_path::AbstractString)
         return asset_names
     end
 
-    pattern = r"^\s*(?:mutable\s+)?struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*<:\s*(?:MacroEnergy\.)?AbstractAsset\b"
+    pattern = r"^\s*(?:mutable\s+)?struct\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*\{[^}]*\})?\s*<:\s*(?:MacroEnergy\.)?AbstractAsset\b"
     for line in eachline(file_path)
         m = match(pattern, line)
         if !isnothing(m)
