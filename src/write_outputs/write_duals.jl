@@ -132,9 +132,9 @@ Extracts dual values from CO2 cap policy budget constraints and exports them to
 
 # Output Format
 Long-format CSV with columns:
-- `node`: Node ID
-- `co2_shadow_price`: Carbon price
-- `co2_penalty_cost`: Total penalty cost across subperiods (if slack variables exist)
+- `Node`: Node ID
+- `CO2_Shadow_Price`: Carbon price (shadow price of the CO2 cap constraint)
+- `CO2_Slack`: Total penalty cost across subperiods (if slack variables exist)
 
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV file will be written
