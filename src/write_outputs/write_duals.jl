@@ -162,7 +162,7 @@ function write_co2_cap_duals(
 
     node_ids = Vector{Symbol}()
     co2_shadow_prices = Vector{Float64}()
-    co2_slack_vars = Vector{Float64}()
+    co2_slack_vars = Vector{Union{Float64, Missing}}()
 
     for node in filter(n -> n isa Node, system.locations)
         # Skip nodes without CO2 cap policy budget constraint
@@ -191,6 +191,9 @@ function write_co2_cap_duals(
             end
 
             push!(co2_slack_vars, co2_slack_sum)
+        else
+            # No slack variables for this node
+            push!(co2_slack_vars, missing)
         end
     end
     
