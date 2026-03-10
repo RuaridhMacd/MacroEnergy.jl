@@ -229,7 +229,7 @@ function update_with_planning_solution!(e::AbstractEdge, planning_variable_value
         e.retrofitted_capacity = value(x->planning_variable_values[name(x)], e.retrofitted_capacity)
     end
 end
-#### Removing for now, needs more testing  
+
 function add_feasibility_constraints!(system::System, model::Model)
     all_storages = get_storages(system)
     for g in all_storages

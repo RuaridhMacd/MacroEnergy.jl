@@ -46,6 +46,10 @@ MacroEnergy.add_model_constraint!(ct::MaxNonServedDemandPerSegmentConstraint, n:
 ```@docs
 MacroEnergy.add_model_constraint!(ct::MaxStorageLevelConstraint, g::AbstractStorage, model::Model)
 ```
+## [Maximum initial storage level constraint](@id max_init_storage_level_constraint_ref)
+```@docs
+MacroEnergy.add_model_constraint!(ct::MaxInitStorageLevelConstraint, g::LongDurationStorage, model::Model)
+```
 ## [Minimum capacity constraint](@id min_capacity_constraint_ref)
 ```@docs
 MacroEnergy.add_model_constraint!(ct::MinCapacityConstraint, y::Union{AbstractEdge,AbstractStorage}, model::Model)
@@ -58,6 +62,10 @@ MacroEnergy.add_model_constraint!(ct::MinFlowConstraint, e::EdgeWithUC, model::M
 ## [Minimum storage level constraint](@id min_storage_level_constraint_ref)
 ```@docs
 MacroEnergy.add_model_constraint!(ct::MinStorageLevelConstraint, g::AbstractStorage, model::Model)
+```
+## [Minimum initial storage level constraint](@id min_init_storage_level_constraint_ref)
+```@docs
+MacroEnergy.add_model_constraint!(ct::MinInitStorageLevelConstraint, g::LongDurationStorage, model::Model)
 ```
 ## [Minimum storage outflow constraint](@id min_storage_outflow_constraint_ref)
 ```@docs
