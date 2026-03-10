@@ -67,6 +67,8 @@ function generate_planning_problem(case::Case)
             carry_over_capacities!(periods[period_idx+1], system)
         end
 
+        add_feasibility_constraints!(system, model)
+
         model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost]
         fixed_cost[period_idx] = model[:eFixedCost];
         investment_cost[period_idx] = model[:eInvestmentFixedCost];
@@ -228,16 +230,27 @@ function update_with_planning_solution!(e::AbstractEdge, planning_variable_value
     end
 end
 #### Removing for now, needs more testing  
-# function add_feasibility_constraints!(system::System, model::Model)
-#     all_edges = edges(system.assets)
-#     for n in system.locations
-#         if isa(n, Node)
-#             if !all(max_supply(n) .== 0)
-#                 edges_that_start_from_n = all_edges[findall(start_vertex(e) == n && e.unidirectional == true for e in all_edges)]
-#                 @info "Adding feasibility constraints for node $(n.id)"
-#                 @constraint(model, sum(capacity(e) for e in edges_that_start_from_n) <= sum(max_supply(n)))    
-#             end
-#         end
-#     end
-#     return nothing
-# end
+function add_feasibility_constraints!(system::System, model::Model)
+    all_storages = get_storages(system)
+    for g in all_storages
+        if isa(g, LongDurationStorage)
+            has_storage_max_level_constraint = any(isa.(g.constraints, MaxStorageLevelConstraint))
+            has_storage_min_level_constraint = any(isa.(g.constraints, MinStorageLevelConstraint))
+            has_init_storage_max_level_constraint = any(isa.(g.constraints, MaxInitStorageLevelConstraint))
+            has_init_storage_min_level_constraint = any(isa.(g.constraints, MinInitStorageLevelConstraint))
+            
+            if has_storage_max_level_constraint && !has_init_storage_max_level_constraint
+                @info("Adding max initial storage level constraint to storage $(id(g)) for feasibility")
+                push!(g.constraints,  MaxInitStorageLevelConstraint())
+                add_model_constraint!(g.constraints[end], g, model)
+            end
+
+            if has_storage_min_level_constraint && !has_init_storage_min_level_constraint
+                @info("Adding min initial storage level constraint to storage $(id(g)) for feasibility")
+                push!(g.constraints,  MinInitStorageLevelConstraint())
+                add_model_constraint!(g.constraints[end], g, model)
+            end
+        end
+    end
+    return nothing
+end
