@@ -132,9 +132,9 @@ Extracts dual values from CO2 cap policy budget constraints and exports them to
 
 # Output Format
 Long-format CSV with columns:
-- `node`: Node ID
-- `co2_shadow_price`: Carbon price
-- `co2_penalty_cost`: Total penalty cost across subperiods (if slack variables exist)
+- `Node`: Node ID
+- `CO2_Shadow_Price`: Carbon price (shadow price of the CO2 cap constraint)
+- `CO2_Slack`: Total penalty cost across subperiods (if slack variables exist)
 
 # Arguments
 - `results_dir::AbstractString`: Directory where CSV file will be written
@@ -162,7 +162,7 @@ function write_co2_cap_duals(
 
     node_ids = Vector{Symbol}()
     co2_shadow_prices = Vector{Float64}()
-    co2_slack_vars = Vector{Float64}()
+    co2_slack_vars = Vector{Union{Float64, Missing}}()
 
     for node in filter(n -> n isa Node, system.locations)
         # Skip nodes without CO2 cap policy budget constraint
@@ -191,6 +191,9 @@ function write_co2_cap_duals(
             end
 
             push!(co2_slack_vars, co2_slack_sum)
+        else
+            # No slack variables for this node
+            push!(co2_slack_vars, missing)
         end
     end
     
