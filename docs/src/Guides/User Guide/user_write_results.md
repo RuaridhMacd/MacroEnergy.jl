@@ -8,6 +8,7 @@ Currently, Macro supports the following types of outputs:
 - [Flow Results](@ref): flow for each commodity through each edge in the system.
 - [Non-Served Demand Results](@ref): non-served demand for each node with demand.
 - [Storage Level Results](@ref): storage level for each storage unit over time.
+- [Time Weights](@ref time_weights_results): timestep-to-weight mapping for annualization when using time-domain reduction (TDR).
 
 For detailed information about output formats and layouts, please refer to the [Output Format](@ref) and [Output Files Layout](@ref) sections below.
 
@@ -156,6 +157,21 @@ write_storage_level("storage_level.csv", system, asset_type="Battery")
 
 !!! note "Output Layout"
     Results are written in *long* format by default. To use *wide* format, configure the `OutputLayout: {"StorageLevel": "wide"}` setting in your Macro settings JSON file (see [Output Files Layout](@ref) for details).
+
+## [Time Weights](@id time_weights_results)
+
+When using time-domain reduction (TDR), export the timestep-to-weight mapping using the [`write_time_weights`](@ref) function:
+
+```julia
+write_time_weights("time_weights.csv", system)
+```
+
+The CSV maps every optimization timestep to its representative sub-period index and the corresponding sub-period weight. This is needed for downstream post-processing — energy revenue, capacity factor calculations, and any other weighted annual sums require knowing each timestep's weight. Weights are normalized so that `Σ_k weight(k) × hours_per_subperiod(k) = TotalHoursModeled`, for each representative sub-period `k`. Without TDR, every timestep receives weight 1.0, unless `TotalHoursModeled` differs from the sum of timestep durations in the model (e.g., partial-year or leap-year), in which case the same normalization applies.
+
+Output columns: 
+- `time`: 1-based timestep index
+- `subperiod_index`: index of the representative sub-period that the timestep belongs to
+- `weight`: weight of the representative sub-period (hours it represents in the full year)
 
 ## Writing Case Settings
 

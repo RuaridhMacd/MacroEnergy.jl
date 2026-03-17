@@ -130,6 +130,12 @@ MacroEnergy.write_settings
 MacroEnergy.write_storage_level
 ```
 
+## `write_time_weights`
+
+```@docs
+MacroEnergy.write_time_weights
+```
+
 ## `write_undiscounted_costs`
 ```@docs
 MacroEnergy.write_undiscounted_costs
