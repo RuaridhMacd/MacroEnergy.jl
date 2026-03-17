@@ -202,8 +202,10 @@ function make_edge(
     end
     if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
         filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end    
-    _edge = Edge{commodity}(;
+    end
+    unidirectional = get(data, :unidirectional, true)
+    edge_type = unidirectional ? UnidirectionalEdge{commodity} : BidirectionalEdge{commodity}
+    _edge = edge_type(;
         id = id,
         timedata = time_data,
         start_vertex = start_vertex,
@@ -212,6 +214,7 @@ function make_edge(
     )
     return _edge
 end
+
 Edge(
     id::Symbol,
     data::Dict{Symbol,Any},
@@ -221,6 +224,14 @@ Edge(
     end_vertex::AbstractVertex,
 ) = make_edge(id, data, time_data, commodity, start_vertex, end_vertex)
 
+BidirectionalEdge(
+    id::Symbol,
+    data::Dict{Symbol,Any},
+    time_data::TimeData,
+    commodity::DataType,
+    start_vertex::AbstractVertex,
+    end_vertex::AbstractVertex,
+) = make_edge(id, data, time_data, commodity, start_vertex, end_vertex)
 
 # Function to filter edges with capacity variables from a Vector of edges.
 edges_with_capacity_variables(edges::Vector{<:AbstractEdge}) =
@@ -753,7 +764,8 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
 end
 
-function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effective_flow::AffExpr, outgoing::Bool)
+function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effective_flow, outgoing::Bool)
+    # effective_flow is <: AbstractVector{AffExpr} or AbstractVector{VariableRef}
     if outgoing
         flow_dir = -1.0
     else
