@@ -63,7 +63,7 @@ import MacroEnergy:
     Node,
     Storage,
     Transformation,
-    Edge,
+    UnidirectionalEdge,
     filter_edges_by_commodity!,
     write_curtailment,
     write_time_weights,
@@ -126,7 +126,7 @@ function test_writing_output()
         )
     )
 
-    edge_between_nodes = Edge{Electricity}(;
+    edge_between_nodes = UnidirectionalEdge{Electricity}(;
         id=:edge1,
         start_vertex=node1,
         end_vertex=node2,
@@ -141,7 +141,7 @@ function test_writing_output()
         flow=[1.0, 2.0, 3.0]
     )
 
-    edge_to_storage = Edge{Electricity}(;
+    edge_to_storage = UnidirectionalEdge{Electricity}(;
         id=:edge2,
         start_vertex=node1,
         end_vertex=storage,
@@ -156,7 +156,7 @@ function test_writing_output()
         flow=[4.0, 5.0, 6.0]
     )
 
-    edge_to_transformation = Edge{Electricity}(;
+    edge_to_transformation = UnidirectionalEdge{Electricity}(;
         id=:edge3,
         start_vertex=node1,
         end_vertex=transformation,
@@ -172,7 +172,7 @@ function test_writing_output()
         flow=[7.0, 8.0, 9.0]
     )
 
-    edge_from_storage = Edge{Electricity}(;
+    edge_from_storage = UnidirectionalEdge{Electricity}(;
         id=:edge4,
         start_vertex=storage,
         end_vertex=node2,
@@ -187,7 +187,7 @@ function test_writing_output()
         flow=[10.0, 11.0, 12.0]
     )
 
-    edge_from_transformation = Edge{Electricity}(;
+    edge_from_transformation = UnidirectionalEdge{Electricity}(;
         id=:edge5,
         start_vertex=transformation,
         end_vertex=node2,
@@ -202,7 +202,7 @@ function test_writing_output()
         flow=[13.0, 14.0, 15.0]
     )
 
-    edge_storage_transformation = Edge{Electricity}(;
+    edge_storage_transformation = UnidirectionalEdge{Electricity}(;
         id=:edge6,
         start_vertex=storage,
         end_vertex=transformation,
@@ -217,7 +217,7 @@ function test_writing_output()
         flow=[16.0, 17.0, 18.0]
     )
 
-    edge_from_transformation1 = Edge{NaturalGas}(;
+    edge_from_transformation1 = UnidirectionalEdge{NaturalGas}(;
         id=:edge3ng,
         start_vertex=transformation,
         end_vertex=node1,
@@ -232,7 +232,7 @@ function test_writing_output()
         flow=[7.0, 8.0, 9.0]
     )
 
-    edge_from_transformation2 = Edge{CO2}(;
+    edge_from_transformation2 = UnidirectionalEdge{CO2}(;
         id=:edge3co2,
         start_vertex=transformation,
         end_vertex=node1,
@@ -372,7 +372,7 @@ function test_writing_output()
         @test result[1, :resource_id] == :asset1
         @test result[1, :component_id] == :edge1
         @test result[1, :resource_type] == "ThermalPower{NaturalGas}"
-        @test result[1, :component_type] == "Edge{Electricity}"
+        @test result[1, :component_type] == "UnidirectionalEdge{Electricity}"
         @test result[1, :variable] == :capacity
         @test result[1, :year] === missing
         @test result[1, :value] == 200.0
@@ -397,7 +397,7 @@ function test_writing_output()
         @test result[1, :resource_id] == :asset1
         @test result[1, :component_id] == :edge1
         @test result[1, :resource_type] == "ThermalPower{NaturalGas}"
-        @test result[1, :component_type] == "Edge{Electricity}"
+        @test result[1, :component_type] == "UnidirectionalEdge{Electricity}"
         @test result[1, :variable] == :flow
         @test result[1, :year] === missing
         @test result[1, :time] === 1
@@ -629,7 +629,7 @@ function test_writing_output()
             id=:vre_transform,
             timedata=vre_timedata
         )
-        vre_edge = Edge{Electricity}(;
+        vre_edge = UnidirectionalEdge{Electricity}(;
             id=:vre_edge,
             start_vertex=vre_transform,
             end_vertex=node1,
