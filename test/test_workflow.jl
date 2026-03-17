@@ -46,7 +46,8 @@ import MacroEnergy:
     get_detailed_costs,
     write_flow,
     write_curtailment,
-    typesymbol
+    typesymbol,
+    unidirectional
 
 
 include("utilities.jl")
@@ -137,7 +138,7 @@ function test_load(e_in::AbstractEdge{T}, e_true::S) where {T<:Commodity,S<:JSON
     @test e_in.start_vertex.id == Symbol(e_true.start_vertex)
     @test e_in.end_vertex.id == Symbol(e_true.end_vertex)
     @test typesymbol(commodity_type(e_in.timedata)) == Symbol(e_true.timedata)
-    @test e_in.unidirectional == get(e_true, :unidirectional, true)
+    @test unidirectional(e_in) == get(e_true, :unidirectional, true)
     @test e_in.has_capacity == get(e_true, :has_capacity, false)
     @test e_in.can_retire == get(e_true, :can_retire, false)
     @test e_in.can_expand == get(e_true, :can_expand, false)
