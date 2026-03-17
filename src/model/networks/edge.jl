@@ -441,21 +441,7 @@ function compute_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Symbol=:
     compute_om_fixed_costs!(e, model, fom_cost_function[cost_type])
 end
 
-function operation_model!(e::Edge, model::Model)
-
-    if unidirectional(e)
-        e.flow = @variable(
-            model,
-            [t in time_interval(e)],
-            lower_bound = 0.0,
-            base_name = "vFLOW_$(id(e))_period$(period_index(e))"
-        )
-    else
-        e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
-    end
-
-    update_balances!(e, model)
-
+function add_operation_model_varcosts!(e::EdgeWithoutUC, model::Model)
     for t in time_interval(e)
         w = current_subperiod(e,t)
         vom_cost = variable_om_cost(e)
@@ -475,9 +461,25 @@ function operation_model!(e::Edge, model::Model)
                 )
             end
         end
-
     end
+end
 
+function operation_model!(e::UnidirectionalEdge, model::Model)
+    e.flow = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vFLOW_$(id(e))_period$(period_index(e))"
+    )
+    update_balances!(e, model)
+    add_operation_model_varcosts!(e, model)
+    return nothing
+end
+
+function operation_model!(e::BidirectionalEdge, model::Model)
+    e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
+    update_balances!(e, model)
+    add_operation_model_varcosts!(e, model)
     return nothing
 end
 
@@ -593,15 +595,41 @@ ustart(e::EdgeWithUC) = e.ustart;
 ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 ##### End of EdgeWithUC interface #####
 
-function operation_model!(e::EdgeWithUC, model::Model)
+function add_operation_model_varcosts!(e;;EdgeWithUC, model::Model)
+    for t in time_interval(e)
 
-    if !unidirectional(e)
-        error(
-            "UC is available only for unidirectional edges, set edge $(id(e)) to be unidirectional",
-        )
-        return nothing
+        w = current_subperiod(e,t)
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * vom_cost,
+                flow(e, t),
+            )
+        end
+
+        if isa(start_vertex(e), Node)
+            if !isempty(price(start_vertex(e)))
+                add_to_expression!(
+                    model[:eVariableCost],
+                    subperiod_weight(e, w) * price(start_vertex(e), t),
+                    flow(e, t),
+                )
+            end
+        end
+
+        if startup_cost(e) > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
+                ustart(e, t),
+            )
+        end
+
     end
+end
 
+function operation_model!(e::EdgeWithUC, model::Model)
     if !has_capacity(e)
         error(
             "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
@@ -638,40 +666,8 @@ function operation_model!(e::EdgeWithUC, model::Model)
     )
 
     update_balances!(e, model)
-
     update_startup_fuel_balance!(e)
-
-    for t in time_interval(e)
-
-        w = current_subperiod(e,t)
-        vom_cost = variable_om_cost(e)
-        if vom_cost > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * vom_cost,
-                flow(e, t),
-            )
-        end
-
-        if isa(start_vertex(e), Node)
-            if !isempty(price(start_vertex(e)))
-                add_to_expression!(
-                    model[:eVariableCost],
-                    subperiod_weight(e, w) * price(start_vertex(e), t),
-                    flow(e, t),
-                )
-            end
-        end
-
-        if startup_cost(e) > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
-                ustart(e, t),
-            )
-        end
-
-    end
+    add_operation_model_varcosts!(e, model)
 
     ### DEFAULT CONSTRAINTS ###
 
@@ -694,7 +690,6 @@ function operation_model!(e::EdgeWithUC, model::Model)
     return nothing
 end
 
-
 function edges(assets::Vector{AbstractAsset})
     edges = Vector{AbstractEdge}()
     for a in assets
@@ -708,7 +703,6 @@ function edges(assets::Vector{AbstractAsset})
 end
 
 function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
-
     if isempty(balance_data(v, i))
         return 1.0
     elseif id(e) ∈ keys(balance_data(v, i))
@@ -716,7 +710,6 @@ function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
     else
         return 0.0
     end
-
 end
 
 function lossy_edge(e::AbstractEdge)
@@ -760,77 +753,63 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
 end
 
-function update_balance_start!(e::AbstractEdge, model::Model)
-
-    v = start_vertex(e)
-
-    if unidirectional(e)
-
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
-
-    elseif !unidirectional(e) && lossy_edge(e)
-        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
-        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-
-        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-
-        if isa(e, EdgeWithUC)
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity_size(e) * ucommit(e, t))
-        else
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        end
-
-        effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
-    elseif !unidirectional(e) && !lossy_edge(e)
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effective_flow::AffExpr, outgoing::Bool)
+    if outgoing
+        flow_dir = -1.0
+    else
+        flow_dir = 1.0
     end
-    
     for i in balance_ids(v)
-        balance_coeff = -1 * balance_data(e, v, i)
-        balance_expr = get_balance(v,i)
+        balance_coeff = flow_dir * balance_data(e, v, i)
         if balance_coeff != 0.0
+            balance_expr = get_balance(v,i)
             for t in time_interval(e)
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
         end
     end
+end
 
+function update_balance_start!(e::AbstractEdge, model::Model)
+    # This implicitly works for UnidirectionalEdge and EdgeWithUC
+    # BidirectionalEdge is handled in a separate method
+    v = start_vertex(e)
+    effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, true)
+end
+
+function update_balance_start!(e::BidirectionalEdge, model::Model)
+    v = start_vertex(e)
+    if lossy_edge(e)
+        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
+        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
+        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
+        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
+        effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
+    else
+        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+    end
+    add_flow_to_vertex_balances!(e, v, effective_flow, true)
 end
 
 function update_balance_end!(e::AbstractEdge, model::Model)
-
     v = end_vertex(e)
+    effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, false)
+end
 
-    if unidirectional(e)
-        effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
-    elseif !unidirectional(e) && lossy_edge(e)
-    
+function update_balance_end!(e::BidirectionalEdge, model::Model)
+    v = end_vertex(e)
+    if lossy_edge(e)
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-
         @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-
-        if isa(e, EdgeWithUC)
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity_size(e) * ucommit(e, t))
-        else
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        end
-
+        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
         effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * flow_pos[t] - flow_neg[t])
-    elseif !unidirectional(e) && !lossy_edge(e)
+    else
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
-
-    for i in balance_ids(v)
-        balance_coeff = balance_data(e, v, i)
-        balance_expr = get_balance(v,i)
-        if balance_coeff != 0.0
-            for t in time_interval(e)
-                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
-            end
-        end
-    end
-    
+    add_flow_to_vertex_balances!(e, v, effective_flow, false)
 end
 
 ###### Templates ######
@@ -858,7 +837,6 @@ macro edge_template_args()
             :min_flow_fraction,
             :ramp_down_fraction,
             :ramp_up_fraction,
-            :unidirectional,
             :variable_om_cost
         ]
     end
