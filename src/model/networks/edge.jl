@@ -62,8 +62,10 @@ macro AbstractEdgeBaseAttributes()
     end)
 end
 
+abstract type EdgeWithoutUC{T} <: AbstractEdge{T} end
+
 """
-    Edge{T} <: AbstractEdge{T}
+    UnidirectionalEdge{T} <: EdgeWithoutUC{T}
 
     A mutable struct representing an edge in a network model, parameterized by commodity type T.
 
@@ -101,9 +103,54 @@ end
     They can model physical infrastructure like pipelines, transmission lines, or logical 
     connections with associated costs, capacities, and operational constraints.
 """
-Base.@kwdef mutable struct Edge{T} <: AbstractEdge{T}
+Base.@kwdef mutable struct UnidirectionalEdge{T} <: EdgeWithoutUC{T}
     @AbstractEdgeBaseAttributes()
 end
+
+"""
+    BidirectionalEdge{T} <: EdgeWithoutUC{T}
+
+    A mutable struct representing an edge in a network model, parameterized by commodity type T.
+
+    # Fields
+    - id::Symbol: Unique identifier for the edge
+    - timedata::TimeData: Time-related data for the edge
+    - start_vertex::AbstractVertex: Starting vertex of the edge
+    - end_vertex::AbstractVertex: Ending vertex of the edge
+    - availability::Vector{Float64}: Time series of availability factors
+    - can_expand::Bool: Whether edge capacity can be expanded
+    - can_retire::Bool: Whether edge capacity can be retired
+    - capacity::Union{AffExpr,Float64}: Total available capacity
+    - capacity_size::Float64: Size factor for resource cluster
+    - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the edge
+    - distance::Float64: Physical distance of the edge
+    - existing_capacity::Float64: Initial installed capacity
+    - fixed_om_cost::Float64: Fixed operation and maintenance costs
+    - flow::Union{JuMPVariable,Vector{Float64}}: Flow of commodity `T` through the edge at each timestep
+    - has_capacity::Bool: Whether the edge has capacity variables
+    - integer_decisions::Bool: Whether capacity decisions must be integer
+    - investment_cost::Float64: CAPEX per unit of new capacity
+    - loss_fraction::Vector{Float64}: Fraction of flow lost during transmission, it can be time-dependent.
+    - max_capacity::Float64: Maximum allowed capacity
+    - min_capacity::Float64: Minimum required capacity
+    - min_retired_capacity::Float64: Minimum capacity that must be retired in this period
+    - min_flow_fraction::Float64: Minimum flow as fraction of capacity
+    - new_capacity::Union{JuMPVariable,Float64}: JuMP variable representing new capacity built
+    - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
+    - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
+    - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
+    - unidirectional::Bool: Whether flow is restricted to one direction
+    - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
+
+    Edges represent connections between vertices that allow commodities to flow between them. 
+    They can model physical infrastructure like pipelines, transmission lines, or logical 
+    connections with associated costs, capacities, and operational constraints.
+"""
+Base.@kwdef mutable struct BidirectionalEdge{T} <: EdgeWithoutUC{T}
+    @AbstractEdgeBaseAttributes()
+end
+
+const Edge = UnidirectionalEdge
 
 commodity_type(::Type{AbstractEdge{T}}) where {T} = T
 function commodity_type(t::Type{AbstractEdge{<:T}}) where {T}
