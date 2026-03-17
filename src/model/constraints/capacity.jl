@@ -5,7 +5,7 @@ Base.@kwdef mutable struct CapacityConstraint <: OperationConstraint
 end
 
 @doc raw"""
-    add_model_constraint!(ct::CapacityConstraint, e::UndirectionalEdge, model::Model)
+    add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, model::Model)
 
 Add a capacity constraint to the edge `e`. If the edge is unidirectional, the functional form of the constraint is:
 
@@ -17,7 +17,7 @@ Add a capacity constraint to the edge `e`. If the edge is unidirectional, the fu
 
 for each time `t` in `time_interval(e)` for the edge `e` and each `i` in `{0, 1}`. The function `availability` returns the time series of the capacity factor of the edge at time `t`.
 """
-function add_model_constraint!(ct::CapacityConstraint, e::UndirectionalEdge, model::Model)
+function add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, model::Model)
     if has_capacity(e) 
         ct.constraint_ref = @constraint(
             model,
@@ -31,7 +31,7 @@ function add_model_constraint!(ct::CapacityConstraint, e::UndirectionalEdge, mod
 end
 
 @doc raw"""
-    add_model_constraint!(ct::CapacityConstraint, e::UndirectionalEdge, model::Model)
+    add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, model::Model)
 
 Add a capacity constraint to the edge `e`. If the edge is bidirectional, the constraint is:
 
