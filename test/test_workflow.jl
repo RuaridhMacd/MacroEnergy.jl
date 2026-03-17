@@ -9,7 +9,8 @@ using CSV, DataFrames, JSON3
 import MacroEnergy:
     System,
     AbstractEdge,
-    Edge,
+    UnidirectionalEdge,
+    BidirectionalEdge,
     EdgeWithUC,
     Node,
     Location,
@@ -243,7 +244,7 @@ function test_load(a_in::AbstractAsset, a_true::T) where {T<:JSON3.Object}
         data_in = getfield(a_in, t)
         if isa(data_in, AssetId)
             test_load(data_in, a_true_instance_data.id)
-        elseif isa(data_in, Edge) || isa(data_in, EdgeWithUC)
+        elseif isa(data_in, UnidirectionalEdge) || isa(data_in, BidirectionalEdge) || isa(data_in, EdgeWithUC)
             test_load(data_in, a_true_instance_data.edges[t])
         elseif isa(data_in, Storage)
             test_load(data_in, a_true_instance_data.storage)
