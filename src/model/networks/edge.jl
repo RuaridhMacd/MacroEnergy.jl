@@ -43,7 +43,6 @@ macro AbstractEdgeBaseAttributes()
         retrofitted_capacity::AffExpr = AffExpr(0.0)
         retrofitted_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
         retrofitted_units::Union{JuMPVariable,Float64} = 0.0
-        unidirectional::Bool = $edge_defaults[:unidirectional]
         variable_om_cost::Float64 = $edge_defaults[:variable_om_cost]
         min_down_time::Int64 = $edge_defaults[:min_down_time]
         min_up_time::Int64 = $edge_defaults[:min_up_time]
@@ -96,7 +95,6 @@ abstract type EdgeWithoutUC{T} <: AbstractEdge{T} end
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
     - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
-    - unidirectional::Bool: Whether flow is restricted to one direction
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     Edges represent connections between vertices that allow commodities to flow between them. 
@@ -139,7 +137,6 @@ end
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
     - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
-    - unidirectional::Bool: Whether flow is restricted to one direction
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     Edges represent connections between vertices that allow commodities to flow between them. 
@@ -267,6 +264,8 @@ investment_cost(e::AbstractEdge) = e.investment_cost;
 is_retrofit(e::AbstractEdge) = e.is_retrofit;
 lifetime(e::AbstractEdge) = e.lifetime;
 loss_fraction(e::AbstractEdge) = e.loss_fraction;
+unidirectional(e::AbstractEdge) = true;
+unidirectional(e::BidirectionalEdge) = false;
 function loss_fraction(e::AbstractEdge, t::Int64)
     a = loss_fraction(e)
     if isempty(a)
@@ -444,7 +443,7 @@ end
 
 function operation_model!(e::Edge, model::Model)
 
-    if e.unidirectional
+    if unidirectional(e)
         e.flow = @variable(
             model,
             [t in time_interval(e)],
@@ -513,7 +512,6 @@ end
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
     - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
-    - unidirectional::Bool: Whether flow is restricted to one direction
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     # Fields specific to EdgeWithUC
@@ -597,7 +595,7 @@ ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 
 function operation_model!(e::EdgeWithUC, model::Model)
 
-    if !e.unidirectional
+    if !unidirectional(e)
         error(
             "UC is available only for unidirectional edges, set edge $(id(e)) to be unidirectional",
         )
@@ -766,11 +764,11 @@ function update_balance_start!(e::AbstractEdge, model::Model)
 
     v = start_vertex(e)
 
-    if e.unidirectional == true
+    if unidirectional(e)
 
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
 
-    elseif e.unidirectional == false && lossy_edge(e)
+    elseif !unidirectional(e) && lossy_edge(e)
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
 
@@ -783,7 +781,7 @@ function update_balance_start!(e::AbstractEdge, model::Model)
         end
 
         effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
-    elseif e.unidirectional == false && !lossy_edge(e)
+    elseif !unidirectional(e) && !lossy_edge(e)
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
     
@@ -803,9 +801,9 @@ function update_balance_end!(e::AbstractEdge, model::Model)
 
     v = end_vertex(e)
 
-    if e.unidirectional == true
+    if unidirectional(e)
         effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
-    elseif e.unidirectional == false && lossy_edge(e)
+    elseif !unidirectional(e) && lossy_edge(e)
     
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
@@ -819,7 +817,7 @@ function update_balance_end!(e::AbstractEdge, model::Model)
         end
 
         effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * flow_pos[t] - flow_neg[t])
-    elseif e.unidirectional == false && !lossy_edge(e)
+    elseif !unidirectional(e) && !lossy_edge(e)
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
 
