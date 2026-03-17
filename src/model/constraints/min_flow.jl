@@ -5,7 +5,7 @@ Base.@kwdef mutable struct MinFlowConstraint <: OperationConstraint
 end
 
 @doc raw"""
-    add_model_constraint!(ct::MinFlowConstraint, e::Edge, model::Model)
+    add_model_constraint!(ct::MinFlowConstraint, e::UnidirectionalEdge, model::Model)
 
 Add a min flow constraint to the edge `e`. The functional form of the constraint is:
 
@@ -18,8 +18,8 @@ for each time `t` in `time_interval(e)` for the edge `e`.
 !!! note
     This constraint is available only for unidirectional edges.
 """
-function add_model_constraint!(ct::MinFlowConstraint, e::Edge, model::Model)
-    if e.unidirectional && has_capacity(e)
+function add_model_constraint!(ct::MinFlowConstraint, e::UnidirectionalEdge, model::Model)
+    if has_capacity(e)
         ct.constraint_ref = @constraint(
             model,
             [t in time_interval(e)],
@@ -29,6 +29,8 @@ function add_model_constraint!(ct::MinFlowConstraint, e::Edge, model::Model)
         warning("Min flow constraints are available only for unidirectional edges with capacity")
     end
 
+function add_model_constraint!(ct::MinFlowConstraint, e::BiidirectionalEdge, model::Model)
+    error("MinFlowConstraint is not supported for bidirectional edges. Please use unidirectional edges for this constraint.")
     return nothing
 end
 
@@ -47,15 +49,10 @@ for each time `t` in `time_interval(e)` for the edge `e`.
     This constraint is available only for unidirectional edges.
 """
 function add_model_constraint!(ct::MinFlowConstraint, e::EdgeWithUC, model::Model)
-    if unidirectional(e)
-        ct.constraint_ref = @constraint(
-            model,
-            [t in time_interval(e)],
-            flow(e, t) >= min_flow_fraction(e) * capacity_size(e) * ucommit(e, t)
-        )
-    else
-        warning("Min flow constraints are available only for unidirectional edges")
-    end
-
+    ct.constraint_ref = @constraint(
+        model,
+        [t in time_interval(e)],
+        flow(e, t) >= min_flow_fraction(e) * capacity_size(e) * ucommit(e, t)
+    )
     return nothing
 end
