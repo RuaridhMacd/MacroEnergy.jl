@@ -595,7 +595,7 @@ ustart(e::EdgeWithUC) = e.ustart;
 ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 ##### End of EdgeWithUC interface #####
 
-function add_operation_model_varcosts!(e;;EdgeWithUC, model::Model)
+function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
     for t in time_interval(e)
 
         w = current_subperiod(e,t)
