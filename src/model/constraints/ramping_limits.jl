@@ -5,7 +5,7 @@ Base.@kwdef mutable struct RampingLimitConstraint <: OperationConstraint
 end
 
 @doc raw"""
-    add_model_constraint!(ct::RampingLimitConstraint, e::Edge, model::Model)
+    add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithoutUC, model::Model)
 
 Add a ramping limit constraint to the edge `e`. The functional form of the ramping up limit constraint is:
 
@@ -23,7 +23,7 @@ On the other hand, the ramping down limit constraint is:
 ```
 for each time `t` in `time_interval(e)` for the edge `e`. The function [`timestepbefore`](@ref) is used to perform the time wrapping within the subperiods and get the correct time step before `t`.
 """
-function add_model_constraint!(ct::RampingLimitConstraint, e::Edge, model::Model)
+function add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithoutUC, model::Model)
 
     #### For now these are set to zero because we are not modeling reserves
     reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
