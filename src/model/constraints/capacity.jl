@@ -28,7 +28,7 @@ for each time `t` in `time_interval(e)` for the edge `e` and each `i` in `{0, 1}
 function add_model_constraint!(ct::CapacityConstraint, e::Edge, model::Model)
     
     if has_capacity(e) 
-        if e.unidirectional
+        if unidirectional(e)
 
             ct.constraint_ref = @constraint(
                 model,

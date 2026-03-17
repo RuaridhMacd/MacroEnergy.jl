@@ -137,7 +137,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         elec_start_node,
         elec_end_node,
     )
-    elec_edge.unidirectional = true
+#    elec_edge.unidirectional = true
 
     # steel scrap edge
 
@@ -167,7 +167,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         steelscrap_start_node,
         steelscrap_end_node,
     )
-    steelscrap_edge.unidirectional = true;
+#    steelscrap_edge.unidirectional = true;
 
     # natural gas edge
 
@@ -197,7 +197,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         naturalgas_start_node,
         naturalgas_end_node,
     )
-    naturalgas_edge.unidirectional = true;
+#    naturalgas_edge.unidirectional = true;
 
     # carbonsource edge
 
@@ -228,7 +228,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         carbonsource_start_node,
         carbonsource_end_node,
     )
-    carbonsource_edge.unidirectional = true;
+#    carbonsource_edge.unidirectional = true;
 
     # crude steel edge
     crudesteel_edge_key = :crudesteel_edge
@@ -257,7 +257,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         crudesteel_start_node,
         crudesteel_end_node,
     )
-    crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
+#    crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
 
     # co2 edge
     co2_edge_key = :co2_edge
@@ -286,7 +286,7 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
         co2_end_node,
     )
     co2_edge.constraints = Vector{AbstractTypeConstraint}()
-    co2_edge.unidirectional = true;
+#    co2_edge.unidirectional = true;
 
     # stochiometry
     eaf_transform.balance_data = Dict(
