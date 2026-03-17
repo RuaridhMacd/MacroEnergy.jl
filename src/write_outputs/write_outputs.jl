@@ -171,6 +171,7 @@ function write_period_outputs(
     write_storage_level(joinpath(results_dir, "storage_level.csv"), system)
     # Curtailment results
     write_curtailment(joinpath(results_dir, "curtailment.csv"), system)
+
     # Sub-period weights (for downstream revenue and weighted-sum calculations)
     write_time_weights(joinpath(results_dir, "time_weights.csv"), system)
 

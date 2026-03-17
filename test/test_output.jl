@@ -66,6 +66,7 @@ import MacroEnergy:
     Edge,
     filter_edges_by_commodity!,
     write_curtailment,
+    write_time_weights,
     VRE
 
 
@@ -682,8 +683,11 @@ function test_writing_output()
         @test result_empty isa DataFrame
         @test isempty(result_empty)
 
+        # Test write_curtailment (use shared temp dir, clean up at end)
+        curtailment_test_dir = abspath(mktempdir("."))
+
         # Test write_curtailment
-        test_curtailment_path = joinpath(abspath(mktempdir(".")), "curtailment.csv")
+        test_curtailment_path = joinpath(curtailment_test_dir, "curtailment.csv")
         @test_nowarn write_curtailment(test_curtailment_path, system_with_vre)
         @test isfile(test_curtailment_path)
         written = CSV.read(test_curtailment_path, DataFrame)
@@ -692,25 +696,79 @@ function test_writing_output()
         @test written[2, :value] ≈ 58.0
         @test written[3, :value] ≈ 67.0
         @test "value" in names(written)
-        rm(test_curtailment_path) # clean up
 
         # Test write_curtailment with wide layout
         system_with_vre.settings = (OutputLayout="wide",)
-        test_curtailment_path = joinpath(abspath(mktempdir(".")), "curtailment_wide.csv")
-        @test_nowarn write_curtailment(test_curtailment_path, system_with_vre)
-        @test isfile(test_curtailment_path)
-        written = CSV.read(test_curtailment_path, DataFrame)
+        test_curtailment_wide_path = joinpath(curtailment_test_dir, "curtailment_wide.csv")
+        @test_nowarn write_curtailment(test_curtailment_wide_path, system_with_vre)
+        @test isfile(test_curtailment_wide_path)
+        written = CSV.read(test_curtailment_wide_path, DataFrame)
         @test size(written, 1) == 3
         @test written[1, :vre_asset] ≈ 49.0
         @test written[2, :vre_asset] ≈ 58.0
         @test written[3, :vre_asset] ≈ 67.0
 
         # Test write_curtailment with system without VRE (no file written, no error)
-        test_empty_path = joinpath(abspath(mktempdir(".")), "curtailment_empty.csv")
-        @test_nowarn write_curtailment(test_empty_path, system)
-        # When empty, write_curtailment returns early and may not create file
-        # (get_optimal_curtailment returns empty, so no write occurs)
+        test_empty_path = joinpath(curtailment_test_dir, "curtailment_empty.csv")
         @test !isfile(test_empty_path)
+        @test_nowarn write_curtailment(test_empty_path, system)
+        @test !isfile(test_empty_path)
+
+        rm(curtailment_test_dir, recursive=true)
+    end
+
+    @testset "write_time_weights" begin
+        # Create minimal system with time_data for TDR (3 representative sub-periods)
+        test_dir = abspath(mktempdir("."))
+        sys_tdr = empty_system(test_dir)
+        timedata_tdr = TimeData{Electricity}(;
+            time_interval=1:9,
+            hours_per_timestep=1,
+            subperiods=[1:3, 4:6, 7:9],
+            subperiod_indices=[1, 2, 3],
+            subperiod_weights=Dict(1 => 100.0, 2 => 200.0, 3 => 300.0),
+            subperiod_map=Dict(1 => 1, 2 => 2, 3 => 3),
+        )
+        sys_tdr.time_data = Dict(:Electricity => timedata_tdr)
+
+        # Test TDR case: write and verify output
+        time_weights_path = joinpath(test_dir, "time_weights.csv")
+        write_time_weights(time_weights_path, sys_tdr)
+        @test isfile(time_weights_path)
+
+        written = CSV.read(time_weights_path, DataFrame)
+        @test Set(names(written)) == Set(["time", "subperiod_index", "weight"])
+        @test size(written, 1) == 9
+
+        # Timesteps 1–3 in subperiod 1 (weight 100), 4–6 in subperiod 2 (weight 200), 7–9 in subperiod 3 (weight 300)
+        @test written[1:3, :subperiod_index] == [1, 1, 1]
+        @test written[1:3, :weight] == [100.0, 100.0, 100.0]
+        @test written[4:6, :subperiod_index] == [2, 2, 2]
+        @test written[4:6, :weight] == [200.0, 200.0, 200.0]
+        @test written[7:9, :subperiod_index] == [3, 3, 3]
+        @test written[7:9, :weight] == [300.0, 300.0, 300.0]
+        @test written[!, :time] == collect(1:9)
+
+        # Test without TDR (single representative sub-period)
+        sys_single = empty_system(test_dir)
+        timedata_single = TimeData{Electricity}(;
+            time_interval=1:5,
+            hours_per_timestep=1,
+            subperiods=[1:5],
+            subperiod_indices=[1],
+            subperiod_weights=Dict(1 => 1.0),
+            subperiod_map=Dict(1 => 1),
+        )
+        sys_single.time_data = Dict(:Electricity => timedata_single)
+
+        time_weights_single_path = joinpath(test_dir, "time_weights_single.csv")
+        write_time_weights(time_weights_single_path, sys_single)
+        written_single = CSV.read(time_weights_single_path, DataFrame)
+        @test size(written_single, 1) == 5
+        @test all(written_single.subperiod_index .== 1)
+        @test all(written_single.weight .== 1.0)
+
+        rm(test_dir, recursive=true)
     end
 
     # Test get_macro_objs functions
