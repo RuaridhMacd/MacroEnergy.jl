@@ -244,9 +244,9 @@ The `ThermalHeating` asset is defined as follows:
 struct ThermalHeating{T} <: AbstractAsset
     id::AssetId
     heating_transform::Transformation
-    heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
+    heat_edge::Union{UnidirectionalEdge{<:Heat},EdgeWithUC{<:Heat}}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 
@@ -255,7 +255,7 @@ end
 ### Default constructor
 
 ```julia
-ThermalHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::Edge{<:Fuel}, co2_edge::Edge{<:CO2})
+ThermalHeating(id::AssetId, heating_transform::Transformation, heat_edge::Union{UnidirectionalEdge{<:Heat},EdgeWithUC{<:Heat}}, fuel_edge::UnidirectionalEdge{<:Fuel}, co2_edge::UnidirectionalEdge{<:CO2})
 ```
 
 ### Factory constructor

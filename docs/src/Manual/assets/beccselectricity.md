@@ -228,11 +228,11 @@ The `BECCSElectricity` asset is defined as follows:
 struct BECCSElectricity <: AbstractAsset
     id::AssetId
     beccs_transform::Transformation
-    biomass_edge::Edge{<:Biomass}
-    elec_edge::Edge{<:Electricity}
-    co2_edge::Edge{<:CO2}
-    co2_emission_edge::Edge{<:CO2}
-    co2_captured_edge::Edge{<:CO2Captured}
+    biomass_edge::UnidirectionalEdge{<:Biomass}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    co2_edge::UnidirectionalEdge{<:CO2}
+    co2_emission_edge::UnidirectionalEdge{<:CO2}
+    co2_captured_edge::UnidirectionalEdge{<:CO2Captured}
 end
 ```
 
@@ -241,7 +241,7 @@ end
 ### Default constructor
 
 ```julia
-BECCSElectricity(id::AssetId, beccs_transform::Transformation, biomass_edge::Edge{<:Biomass}, co2_edge::Edge{<:CO2}, elec_edge::Edge{<:Electricity}, co2_captured_edge::Edge{<:CO2Captured}, co2_emission_edge::Edge{<:CO2})
+BECCSElectricity(id::AssetId, beccs_transform::Transformation, biomass_edge::UnidirectionalEdge{<:Biomass}, co2_edge::UnidirectionalEdge{<:CO2}, elec_edge::UnidirectionalEdge{<:Electricity}, co2_captured_edge::UnidirectionalEdge{<:CO2Captured}, co2_emission_edge::UnidirectionalEdge{<:CO2})
 ```
 
 ### Factory constructor

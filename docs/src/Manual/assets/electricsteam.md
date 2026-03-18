@@ -234,8 +234,8 @@ The `electricsteam` asset is defined as follows:
 struct electricsteam{T} <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
-    steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}
-    elec_edge::Edge{<:T}
+    steam_edge::Union{UnidirectionalEdge{<:Steam},EdgeWithUC{<:Steam}}
+    elec_edge::UnidirectionalEdge{<:T}
 end
 ```
 
@@ -244,7 +244,7 @@ end
 ### Default constructor
 
 ```julia
-electricsteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}, elec_edge::Edge{<:Electricity})
+electricsteam(id::AssetId, steam_transform::Transformation, steam_edge::Union{UnidirectionalEdge{<:Steam},EdgeWithUC{<:Steam}}, elec_edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

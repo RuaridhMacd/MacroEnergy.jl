@@ -186,12 +186,12 @@ The ElectricArcFurnace asset is defined as follows:
 struct ElectricArcFurnace{T <: Commodity} <: AbstractAsset
     id::AssetId
     eaf_transform::Transformation
-    crudesteel_edge::Edge{CrudeSteel}
-    elec_edge::Edge{Electricity}
-    steelscrap_edge::Edge{SteelScrap} 
-    naturalgas_edge::Edge{NaturalGas}
-    carbonsource_edge::Edge{T}
-    co2_edge::Edge{CO2}
+    crudesteel_edge::UnidirectionalEdge{CrudeSteel}
+    elec_edge::UnidirectionalEdge{Electricity}
+    steelscrap_edge::UnidirectionalEdge{SteelScrap} 
+    naturalgas_edge::UnidirectionalEdge{NaturalGas}
+    carbonsource_edge::UnidirectionalEdge{T}
+    co2_edge::UnidirectionalEdge{CO2}
 end
 ```
 Here, T denotes the carbon source, which may be metallurgical coal, charcoal, etc.

@@ -219,11 +219,11 @@ The `NaturalGasDAC` asset is defined as follows:
 struct NaturalGasDAC <: AbstractAsset
     id::AssetId
     natgasdac_transform::Transformation
-    co2_edge::Edge{<:CO2}
-    co2_emission_edge::Edge{<:CO2}
-    natgas_edge::Edge{<:NaturalGas}
-    elec_edge::Edge{<:Electricity}
-    co2_captured_edge::Edge{<:CO2Captured}
+    co2_edge::UnidirectionalEdge{<:CO2}
+    co2_emission_edge::UnidirectionalEdge{<:CO2}
+    natgas_edge::UnidirectionalEdge{<:NaturalGas}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    co2_captured_edge::UnidirectionalEdge{<:CO2Captured}
 end
 ```
 
@@ -232,7 +232,7 @@ end
 ### Default constructor
 
 ```julia
-NaturalGasDAC(id::AssetId, natgasdac_transform::Transformation, co2_edge::Edge{<:CO2}, co2_emission_edge::Edge{<:CO2}, natgas_edge::Edge{<:NaturalGas}, elec_edge::Edge{<:Electricity}, co2_captured_edge::Edge{<:CO2Captured})
+NaturalGasDAC(id::AssetId, natgasdac_transform::Transformation, co2_edge::UnidirectionalEdge{<:CO2}, co2_emission_edge::UnidirectionalEdge{<:CO2}, natgas_edge::UnidirectionalEdge{<:NaturalGas}, elec_edge::UnidirectionalEdge{<:Electricity}, co2_captured_edge::UnidirectionalEdge{<:CO2Captured})
 ```
 
 ### Factory constructor
