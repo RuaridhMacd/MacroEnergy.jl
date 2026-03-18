@@ -8,7 +8,8 @@ MacroEnergy.add_model_constraint!(ct::BalanceConstraint, v::MacroEnergy.Abstract
 ```
 ## [Capacity constraint](@id capacity_constraint_ref)
 ```@docs
-MacroEnergy.add_model_constraint!(ct::CapacityConstraint, e::MacroEnergy.Edge, model::Model)
+MacroEnergy.add_model_constraint!(ct::CapacityConstraint, e::MacroEnergy.UnidirectionalEdge, model::Model)
+MacroEnergy.add_model_constraint!(ct::CapacityConstraint, e::MacroEnergy.BidirectionalEdge, model::Model)
 MacroEnergy.add_model_constraint!(ct::CapacityConstraint, e::MacroEnergy.EdgeWithUC, model::Model)
 ```
 ## [CO2 capacity constraint](@id co2_capacity_constraint_ref)
@@ -81,11 +82,11 @@ MacroEnergy.add_model_constraint!(ct::MinDownTimeConstraint, e::EdgeWithUC, mode
 
 ## [Must-run constraint](@id must_run_constraint_ref)
 ```@docs
-MacroEnergy.add_model_constraint!(ct::MustRunConstraint, e::Edge, model::Model)
+MacroEnergy.add_model_constraint!(ct::MustRunConstraint, e::AbstractEdge, model::Model)
 ```
 ## [Ramping limits constraint](@id ramping_limits_constraint_ref)
 ```@docs
-MacroEnergy.add_model_constraint!(ct::RampingLimitConstraint, e::Edge, model::Model)
+MacroEnergy.add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithoutUC, model::Model)
 MacroEnergy.add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithUC, model::Model)
 ```
 ## [Storage capacity constraint](@id storage_capacity_constraint_ref)
@@ -94,11 +95,11 @@ MacroEnergy.add_model_constraint!(ct::StorageCapacityConstraint, g::AbstractStor
 ```
 ## [Storage discharge limit constraint](@id storage_discharge_limit_constraint_ref)
 ```@docs
-MacroEnergy.add_model_constraint!(ct::StorageDischargeLimitConstraint, e::Edge, model::Model)
+MacroEnergy.add_model_constraint!(ct::StorageDischargeLimitConstraint, e::AbstractEdge, model::Model)
 ```
 ## [Storage charge limit constraint](@id storage_charge_limit_constraint_ref)
 ```@docs
-MacroEnergy.add_model_constraint!(ct::StorageChargeLimitConstraint, e::Edge, model::Model)
+MacroEnergy.add_model_constraint!(ct::StorageChargeLimitConstraint, e::AbstractEdge, model::Model)
 ```
 ## [Storage symmetric capacity constraint](@id storage_symmetric_capacity_constraint_ref)
 ```@docs
