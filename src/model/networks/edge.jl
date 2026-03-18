@@ -207,7 +207,7 @@ function make_edge_unidir(
     if !unidirectional
         error("Edge $id is being created as a unidirectional edge, but the input data has unidirectional=false. If you intended to create a bidirectional edge, set unidirectional=false and use the BidirectionalEdge constructor.")
     end
-    _edge = UnidirectionalEdge(;
+    _edge = UnidirectionalEdge{commodity}(;
         id = id,
         timedata = time_data,
         start_vertex = start_vertex,
@@ -257,7 +257,7 @@ function make_edge_bidir(
     if unidirectional
         error("Edge $id is being created as a bidirectional edge, but the input data has unidirectional=true. If you intended to create a unidirectional edge, set unidirectional=true and use the Edge constructor directly.")
     end
-    _edge = BidirectionalEdge(;
+    _edge = BidirectionalEdge{commodity}(;
         id = id,
         timedata = time_data,
         start_vertex = start_vertex,
