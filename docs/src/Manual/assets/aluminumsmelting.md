@@ -185,11 +185,11 @@ The Aluminum Smelting asset is defined as follows:
 struct AluminumSmelting <: AbstractAsset
     id::AssetId
     aluminumsmelting_transform::Transformation
-    elec_edge::Edge{<:Electricity}
-    alumina_edge::Edge{<:Alumina}
-    graphite_edge::Edge{<:Graphite}
-    aluminum_edge::Union{Edge{<:Aluminum},EdgeWithUC{<:Aluminum}}
-    co2_edge::Edge{<:CO2}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    alumina_edge::UnidirectionalEdge{<:Alumina}
+    graphite_edge::UnidirectionalEdge{<:Graphite}
+    aluminum_edge::Union{UnidirectionalEdge{<:Aluminum},EdgeWithUC{<:Aluminum}}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 

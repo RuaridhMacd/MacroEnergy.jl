@@ -177,11 +177,11 @@ The Synthetic Methanol asset is defined as follows:
 struct SyntheticMethanol <: AbstractAsset
     id::AssetId
     synthetic_methanol_transform::Transformation
-    co2_captured_edge::Edge{<:CO2Captured}
-    ch3oh_edge::Edge{<:Methanol}
-    elec_edge::Edge{<:Electricity}
-    h2_edge::Edge{<:Hydrogen}
-    co2_emission_edge::Edge{<:CO2}
+    co2_captured_edge::UnidirectionalEdge{<:CO2Captured}
+    ch3oh_edge::UnidirectionalEdge{<:Methanol}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    h2_edge::UnidirectionalEdge{<:Hydrogen}
+    co2_emission_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 

@@ -234,8 +234,8 @@ The `electricheating` asset is defined as follows:
 struct electricheating{T} <: AbstractAsset
     id::AssetId
     heating_transform::Transformation
-    heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}
-    elec_edge::Edge{<:T}
+    heat_edge::Union{UnidirectionalEdge{<:Heat},EdgeWithUC{<:Heat}}
+    elec_edge::UnidirectionalEdge{<:T}
 end
 ```
 
@@ -244,7 +244,7 @@ end
 ### Default constructor
 
 ```julia
-electricheating(id::AssetId, heating_transform::Transformation, heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}, elec_edge::Edge{<:Electricity})
+electricheating(id::AssetId, heating_transform::Transformation, heat_edge::Union{UnidirectionalEdge{<:Heat},EdgeWithUC{<:Heat}}, elec_edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

@@ -170,10 +170,10 @@ The Synthetic Ammonia asset is defined as follows:
 struct SyntheticAmmonia <: AbstractAsset
     id::AssetId
     synthetic_ammonia_transform::Transformation
-    h2_edge::Edge{<:Hydrogen}
-    n2_edge::Edge{<:Nitrogen}
-    elec_edge::Edge{<:Electricity}
-    nh3_edge::Edge{<:Ammonia}
+    h2_edge::UnidirectionalEdge{<:Hydrogen}
+    n2_edge::UnidirectionalEdge{<:Nitrogen}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    nh3_edge::UnidirectionalEdge{<:Ammonia}
 end
 ```
 

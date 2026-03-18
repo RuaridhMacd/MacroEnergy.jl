@@ -229,10 +229,10 @@ The Thermal Methanol asset (without CCS) is defined as follows:
 struct ThermalMethanol{T} <: AbstractAsset
     id::AssetId
     thermalmethanol_transform::Transformation
-    ch3oh_edge::Union{Edge{<:Methanol},EdgeWithUC{<:Methanol}}
-    elec_edge::Edge{<:Electricity}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
+    ch3oh_edge::Union{UnidirectionalEdge{<:Methanol},EdgeWithUC{<:Methanol}}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 
@@ -242,11 +242,11 @@ The Thermal Methanol with CCS asset is defined as follows:
 struct ThermalMethanolCCS{T} <: AbstractAsset
     id::AssetId
     thermalmethanolccs_transform::Transformation
-    ch3oh_edge::Union{Edge{<:Methanol},EdgeWithUC{<:Methanol}}
-    elec_edge::Edge{<:Electricity}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
-    co2_captured_edge::Edge{<:CO2Captured}
+    ch3oh_edge::Union{UnidirectionalEdge{<:Methanol},EdgeWithUC{<:Methanol}}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
+    co2_captured_edge::UnidirectionalEdge{<:CO2Captured}
 end
 ```
 
