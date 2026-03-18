@@ -250,7 +250,7 @@ export AbstractAsset,
     UnidirectionalEdge,
     BidirectionalEdge,
     EdgeWithUC,
-    EdgeWithoutUC
+    EdgeWithoutUC,
     Electricity,
     Electrolyzer,
     ElectricDAC,
