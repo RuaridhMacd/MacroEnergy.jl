@@ -176,7 +176,7 @@ function target_is_valid(edge::AbstractEdge, target::AbstractVertex)
     return target_is_valid(commodity_type(edge), target)
 end
 
-function make_edge(
+function make_edge_unidir(
     id::Symbol,
     data::AbstractDict{Symbol,Any},
     time_data::TimeData,
@@ -204,8 +204,10 @@ function make_edge(
         filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
     end
     unidirectional = get(data, :unidirectional, true)
-    edge_type = unidirectional ? UnidirectionalEdge{commodity} : BidirectionalEdge{commodity}
-    _edge = edge_type(;
+    if !unidirectional
+        error("Edge $id is being created as a unidirectional edge, but the input data has unidirectional=false. If you intended to create a bidirectional edge, set unidirectional=false and use the BidirectionalEdge constructor.")
+    end
+    _edge = UnidirectionalEdge(;
         id = id,
         timedata = time_data,
         start_vertex = start_vertex,
@@ -222,7 +224,48 @@ Edge(
     commodity::DataType,
     start_vertex::AbstractVertex,
     end_vertex::AbstractVertex,
-) = make_edge(id, data, time_data, commodity, start_vertex, end_vertex)
+) = make_edge_unidir(id, data, time_data, commodity, start_vertex, end_vertex)
+
+function make_edge_bidir(
+    id::Symbol,
+    data::AbstractDict{Symbol,Any},
+    time_data::TimeData,
+    commodity::DataType,
+    start_vertex::AbstractVertex,
+    end_vertex::AbstractVertex,
+)
+    if !(target_is_valid(commodity, start_vertex))
+        error("Edge $id cannot be connected to its start vertex, $(start_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(start_vertex.id) is a $(commodity_type(start_vertex)) vertex.")
+    elseif !target_is_valid(commodity, end_vertex)
+        error("Edge $id cannot be connected to its end vertex, $(end_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(end_vertex.id) is a $(commodity_type(end_vertex)) vertex.")
+    end
+
+    edge_kwargs = Base.fieldnames(Edge)
+    filtered_data = Dict{Symbol, Any}(
+        k => v for (k,v) in data if k in edge_kwargs
+    )
+    remove_keys = [:id, :start_vertex, :end_vertex, :timedata]
+    for key in remove_keys
+        if haskey(filtered_data, key)
+            delete!(filtered_data, key)
+        end
+    end
+    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
+        filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
+    end
+    unidirectional = get(data, :unidirectional, false)
+    if unidirectional
+        error("Edge $id is being created as a bidirectional edge, but the input data has unidirectional=true. If you intended to create a unidirectional edge, set unidirectional=true and use the Edge constructor directly.")
+    end
+    _edge = BidirectionalEdge(;
+        id = id,
+        timedata = time_data,
+        start_vertex = start_vertex,
+        end_vertex = end_vertex,
+        filtered_data...
+    )
+    return _edge
+end
 
 BidirectionalEdge(
     id::Symbol,
@@ -231,7 +274,7 @@ BidirectionalEdge(
     commodity::DataType,
     start_vertex::AbstractVertex,
     end_vertex::AbstractVertex,
-) = make_edge(id, data, time_data, commodity, start_vertex, end_vertex)
+) = make_edge_bidir(id, data, time_data, commodity, start_vertex, end_vertex)
 
 # Function to filter edges with capacity variables from a Vector of edges.
 edges_with_capacity_variables(edges::Vector{<:AbstractEdge}) =
