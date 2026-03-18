@@ -617,6 +617,10 @@ function make_edge_UC(
             delete!(filtered_data, key)
         end
     end
+    unidirectional = get(data, :unidirectional, true)
+    if !unidirectional
+        error("Edge $id is being created as a unidirectional edge, but the input data has unidirectional=false. Edges with Unit Commitment must be unidirectional.")
+    end
     _edge = EdgeWithUC{commodity}(;
         id = id,
         timedata = time_data,
