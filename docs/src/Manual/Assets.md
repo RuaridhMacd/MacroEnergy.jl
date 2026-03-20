@@ -106,6 +106,33 @@ flowchart LR
     linkStyle 5 stroke:lightgray, stroke-width: 2px;
 ```
 
+### [Downstream Use](@ref)
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
+flowchart LR
+  subgraph "DownstreamUse"
+  direction TB
+    A{{..}}
+    E((Commodity))
+    F((Commodity))
+    G((CO2))
+    E a@--fuel_edge--> A
+    A b@--fuel_demand_edge--> F
+    A c@--co2_edge--> G
+  end
+    style A fill:black,stroke:black,color:black;
+    style E font-size:21px,r:55px,fill:#d3b683,stroke:black,color:black,stroke-dasharray: 3,5;
+    style F font-size:21px,r:55px,fill:#d3b683,stroke:black,color:black,stroke-dasharray: 3,5;
+    style G font-size:21px,r:55px,fill:#A9A9A9,stroke:black,color:black,stroke-dasharray: 3,5;
+    linkStyle 0 stroke:#d3b683,stroke-width: 2px;
+    a@{ animate: true };
+    linkStyle 1 stroke:#d3b683,stroke-width: 2px;
+    b@{ animate: true };
+    linkStyle 2 stroke:#A9A9A9,stroke-width: 2px;
+    c@{ animate: true };
+```
+
 ### [Electric DAC](@ref)
 
 ```mermaid
