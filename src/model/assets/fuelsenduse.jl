@@ -1,4 +1,4 @@
-struct FuelsEndUse{T} <: AbstractAsset
+struct DownstreamUse{T} <: AbstractAsset
     id::AssetId
     fuelsenduse_transform::Transformation
     fuel_edge::Edge{<:T}
@@ -6,10 +6,12 @@ struct FuelsEndUse{T} <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-FuelsEndUse(id::AssetId, fuelsenduse_transform::Transformation, fuel_edge::Edge{T}, fuel_demand_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    FuelsEndUse{T}(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge)
+const FuelsEndUse = DownstreamUse
 
-function default_data(t::Type{FuelsEndUse}, id=missing, style="full")
+DownstreamUse(id::AssetId, fuelsenduse_transform::Transformation, fuel_edge::Edge{T}, fuel_demand_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    DownstreamUse{T}(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge)
+
+function default_data(t::Type{DownstreamUse}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -17,7 +19,7 @@ function default_data(t::Type{FuelsEndUse}, id=missing, style="full")
     end
 end
 
-function full_default_data(::Type{FuelsEndUse}, id=missing)
+function full_default_data(::Type{DownstreamUse}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -43,7 +45,7 @@ function full_default_data(::Type{FuelsEndUse}, id=missing)
     )
 end
 
-function simple_default_data(::Type{FuelsEndUse}, id=missing)
+function simple_default_data(::Type{DownstreamUse}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -56,7 +58,7 @@ function simple_default_data(::Type{FuelsEndUse}, id=missing)
     )
 end
 
-function set_commodity!(::Type{FuelsEndUse}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
+function set_commodity!(::Type{DownstreamUse}, commodity::Type{<:Commodity}, data::AbstractDict{Symbol,Any})
     edge_keys = [:fuel_edge, :fuel_demand_edge,]
     if haskey(data, :fuel_commodity)
         data[:fuel_commodity] = string(commodity)
@@ -76,25 +78,25 @@ function set_commodity!(::Type{FuelsEndUse}, commodity::Type{<:Commodity}, data:
     return nothing
 end
 
-function make(asset_type::Type{FuelsEndUse}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{DownstreamUse}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
     location = as_symbol_or_missing(get(data, :location, missing))
 
     @setup_data(asset_type, data, id)
 
-    FuelsEndUse_key = :transforms
+    DownstreamUse_key = :transforms
     @process_data(
         transform_data, 
-        data[FuelsEndUse_key], 
+        data[DownstreamUse_key], 
         [
-            (data[FuelsEndUse_key], key),
-            (data[FuelsEndUse_key], Symbol("transform_", key)),
+            (data[DownstreamUse_key], key),
+            (data[DownstreamUse_key], Symbol("transform_", key)),
             (data, Symbol("transform_", key)),
             (data, key),
         ]
     )
     fuelsenduse_transform = Transformation(;
-        id = Symbol(id, "_", FuelsEndUse_key),
+        id = Symbol(id, "_", DownstreamUse_key),
         timedata = system.time_data[Symbol(transform_data[:timedata])],
         location = location,
         constraints = transform_data[:constraints],
@@ -191,5 +193,5 @@ function make(asset_type::Type{FuelsEndUse}, data::AbstractDict{Symbol,Any}, sys
         )
     )
 
-    return FuelsEndUse(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge) 
+    return DownstreamUse(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge) 
 end
