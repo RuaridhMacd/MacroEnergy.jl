@@ -506,15 +506,6 @@ function add_operation_model_varcosts!(e::EdgeWithoutUC, model::Model)
                 flow(e, t),
             )
         end
-        if isa(start_vertex(e), Node)
-            if !isempty(price(start_vertex(e)))
-                add_to_expression!(
-                    model[:eVariableCost],
-                    subperiod_weight(e, w) * price(start_vertex(e), t),
-                    flow(e, t),
-                )
-            end
-        end
     end
 end
 
@@ -664,16 +655,6 @@ function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
                 subperiod_weight(e, w) * vom_cost,
                 flow(e, t),
             )
-        end
-
-        if isa(start_vertex(e), Node)
-            if !isempty(price(start_vertex(e)))
-                add_to_expression!(
-                    model[:eVariableCost],
-                    subperiod_weight(e, w) * price(start_vertex(e), t),
-                    flow(e, t),
-                )
-            end
         end
 
         if startup_cost(e) > 0
