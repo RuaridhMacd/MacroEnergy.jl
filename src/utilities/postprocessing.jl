@@ -1,11 +1,11 @@
-function postprocess!(case::Case, solution::Model)
+function postprocess!(case::Case, solution::Any)
     for system in get_periods(case)
         postprocess!(system, solution)
     end
     return nothing
 end
 
-function postprocess!(system::System, solution::Model)
+function postprocess!(system::System, solution::Any)
     for asset in system.assets
         postprocess!(asset, solution)
     end
@@ -17,7 +17,7 @@ function postprocess!(system::System, solution::Model)
     return nothing
 end
 
-function postprocess!(asset::AbstractAsset, solution::Model)
+function postprocess!(asset::AbstractAsset, solution::Any)
     for field_name in fieldnames(typeof(asset))
         component = getfield(asset, field_name)
         if isa(component, MacroObject)
@@ -29,7 +29,7 @@ function postprocess!(asset::AbstractAsset, solution::Model)
     return nothing
 end
 
-function postprocess!(n::Node, solution::Model)
+function postprocess!(n::Node, solution::Any)
     time_steps = collect(time_interval(n))
     effective_price = zeros(Float64, isempty(time_steps) ? 0 : maximum(time_steps))
 
@@ -55,10 +55,10 @@ function postprocess!(n::Node, solution::Model)
     return nothing
 end
 
-function postprocess!(component::MacroObject, solution::Model)
+function postprocess!(component::MacroObject, solution::Any)
     return nothing
 end
 
-function postprocess_asset!(asset::AbstractAsset, solution::Model)
+function postprocess_asset!(asset::AbstractAsset, solution::Any)
     return nothing
 end

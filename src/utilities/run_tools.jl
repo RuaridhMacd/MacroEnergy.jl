@@ -147,7 +147,7 @@ function run_case(
 
         (case, solution) = solve_case(case, optimizer)
 
-        postprocess_case!(case, solution)
+        postprocess!(case, solution)
 
         # Myopic outputs are written during iteration, so we don't need to write them here
         if !isa(solution_algorithm(case), Myopic)
