@@ -100,6 +100,7 @@ const pages = [
             "Manual/assets/thermalmethanol.md",
             "Manual/assets/thermalpower.md",
             "Manual/assets/transmissionlink.md",
+            "Manual/assets/upstreamsupply.md",
             "Manual/assets/vre.md"
         ],
         "Financial Assumptions" => "Manual/Financial_assumptions.md",
