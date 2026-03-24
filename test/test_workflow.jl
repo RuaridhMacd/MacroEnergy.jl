@@ -26,6 +26,7 @@ import MacroEnergy:
     read_file,
     generate_model,
     create_optimizer,
+    postprocess!,
     set_optimizer,
     optimize!,
     objective_value,
@@ -71,7 +72,7 @@ function test_load_commodities(
     @test length(commodities) == length(commodities_true)
     for (k, v) in commodities
         @test k in commodities_true
-        @test Symbol(v) in commodities_true
+        @test typesymbol(v) in commodities_true
     end
     return nothing
 end
@@ -123,14 +124,17 @@ function test_load(
     obj_in::Vector{AbstractTypeConstraint},
     data_true::T,
 ) where {T<:JSON3.Object}
-    @test length(obj_in) == length(data_true)
+    active_constraints = Dict(
+        k => v for (k, v) in data_true if v
+    )
+    @test length(obj_in) == length(active_constraints)
     for c in obj_in
         name = Symbol(typeof(c))
-        if !(name in propertynames(data_true))
+        if !(name in keys(active_constraints))
             println("Constraint $name not found in JSON file")
         end
-        @test name in propertynames(data_true)
-        @test data_true[name]   # check that the constraint is set to true in the JSON file
+        @test name in keys(active_constraints)
+        @test active_constraints[name]   # check that the constraint is set to true in the JSON file
     end
     return nothing
 end
@@ -275,6 +279,7 @@ function test_model_generation_and_optimization()
     optimizer = create_optimizer(optim)
     model = generate_model(case,optimizer)
     optimize!(model)
+    postprocess!(case, model)
     macro_objval = objective_value(model)
 
     @test macro_objval ≈ obj_true
