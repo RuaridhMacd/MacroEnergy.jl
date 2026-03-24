@@ -167,9 +167,9 @@ The Aluminum Refining asset is defined as follows:
 struct AluminumRefining <: AbstractAsset
     id::AssetId
     aluminum_transform::Transformation
-    elec_edge::Edge{<:Electricity}
-    aluminumscrap_edge::Edge{<:AluminumScrap}
-    aluminum_edge::Edge{<:Aluminum}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    aluminumscrap_edge::UnidirectionalEdge{<:AluminumScrap}
+    aluminum_edge::UnidirectionalEdge{<:Aluminum}
 end
 ```
 

@@ -258,10 +258,10 @@ The `ThermalSteam` asset is defined as follows:
 struct ThermalSteam{T} <: AbstractAsset
     id::AssetId
     steam_transform::Transformation
-    steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}}
-    fuel_edge::Edge{<:T}
-    elec_edge::Edge{<:Electricity}
-    co2_edge::Edge{<:CO2}
+    steam_edge::Union{UnidirectionalEdge{<:Steam},EdgeWithUC{<:Steam}}
+    fuel_edge::UnidirectionalEdge{<:T}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 
@@ -273,10 +273,10 @@ end
 ThermalSteam(
     id::AssetId,
     steam_transform::Transformation,
-    steam_edge::Union{Edge{<:Steam},EdgeWithUC{<:Steam}},
-    fuel_edge::Edge{<:Fuel},
-    elec_edge::Edge{<:Electricity},
-    co2_edge::Edge{<:CO2}
+    steam_edge::Union{UnidirectionalEdge{<:Steam},EdgeWithUC{<:Steam}},
+    fuel_edge::UnidirectionalEdge{<:Fuel},
+    elec_edge::UnidirectionalEdge{<:Electricity},
+    co2_edge::UnidirectionalEdge{<:CO2}
 )
 ```
 

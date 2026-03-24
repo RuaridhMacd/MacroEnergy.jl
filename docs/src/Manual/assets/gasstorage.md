@@ -290,12 +290,12 @@ struct GasStorage{T} <: AbstractAsset
     id::AssetId
     pump_transform::Transformation
     gas_storage::AbstractStorage{<:T}
-    charge_edge::Edge{<:T}
-    discharge_edge::Edge{<:T}
-    external_charge_edge::Edge{<:T}
-    external_discharge_edge::Edge{<:T}
-    charge_elec_edge::Edge{<:Electricity}
-    discharge_elec_edge::Edge{<:Electricity}
+    charge_edge::UnidirectionalEdge{<:T}
+    discharge_edge::UnidirectionalEdge{<:T}
+    external_charge_edge::UnidirectionalEdge{<:T}
+    external_discharge_edge::UnidirectionalEdge{<:T}
+    charge_elec_edge::UnidirectionalEdge{<:Electricity}
+    discharge_elec_edge::UnidirectionalEdge{<:Electricity}
 end
 ```
 
@@ -304,7 +304,7 @@ end
 ### Default constructor
 
 ```julia
-GasStorage(id::AssetId, pump_transform::Transformation, gas_storage::AbstractStorage{T}, charge_edge::Edge{T}, discharge_edge::Edge{T}, external_charge_edge::Edge{T}, external_discharge_edge::Edge{T}, charge_elec_edge::Edge{<:Electricity}, discharge_elec_edge::Edge{<:Electricity}) where {T<:Commodity}
+GasStorage(id::AssetId, pump_transform::Transformation, gas_storage::AbstractStorage{T}, charge_edge::UnidirectionalEdge{T}, discharge_edge::UnidirectionalEdge{T}, external_charge_edge::UnidirectionalEdge{T}, external_discharge_edge::UnidirectionalEdge{T}, charge_elec_edge::UnidirectionalEdge{<:Electricity}, discharge_elec_edge::UnidirectionalEdge{<:Electricity}) where {T<:Commodity}
 ```
 
 ### Factory constructor

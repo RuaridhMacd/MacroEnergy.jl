@@ -146,7 +146,7 @@ The `TransmissionLink` asset is defined as follows:
 ```julia
 struct TransmissionLink{T} <: AbstractAsset
     id::AssetId
-    transmission_edge::Edge{<:T}
+    transmission_edge::BidirectionalEdge{<:T}
 end
 ```
 
@@ -155,7 +155,7 @@ end
 ### Default constructor
 
 ```julia
-TransmissionLink(id::AssetId, transmission_edge::Edge{<:T})
+TransmissionLink(id::AssetId, transmission_edge::BidirectionalEdge{<:T})
 ```
 
 ### Factory constructor
@@ -242,7 +242,7 @@ Macro provides an advanced format for defining Transmission Link assets, offerin
 
 To understand the advanced format, consider the [graph representation](@ref transmissionlink_asset_structure) and the [type definition](@ref transmissionlink_type_definition) of a Transmission Link asset. The input file mirrors this hierarchical structure.
 
-A Transmission Link asset in Macro is composed of a single transmission edge, represented by an `Edge` object. The input file for a Transmission Link asset is therefore organized as follows:
+A Transmission Link asset in Macro is composed of a single transmission edge, represented by a `BidirectionalEdge` object. The input file for a Transmission Link asset is therefore organized as follows:
 
 ```json
 {

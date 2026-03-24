@@ -184,11 +184,11 @@ The Alumina Plant asset is defined as follows:
 struct AluminaPlant{T} <: AbstractAsset
     id::AssetId
     aluminaplant_transform::Transformation
-    elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}
-    alumina_edge::Edge{<:Alumina}
-    bauxite_edge::Edge{<:Bauxite}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
+    elec_edge::Union{UnidirectionalEdge{<:Electricity},EdgeWithUC{<:Electricity}}
+    alumina_edge::UnidirectionalEdge{<:Alumina}
+    bauxite_edge::UnidirectionalEdge{<:Bauxite}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 

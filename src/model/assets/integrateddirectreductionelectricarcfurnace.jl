@@ -140,7 +140,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         ironore_start_node,
         ironore_end_node,
     )
-    ironore_edge.unidirectional = get(ironore_edge_data, :unidirectional, true)
 
     # electricity edge
 
@@ -169,7 +168,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         elec_start_node,
         elec_end_node,
     )
-    elec_edge.unidirectional = true
 
     # reductant edge 
 
@@ -200,7 +198,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         reductant_start_node,
         reductant_end_node,
     )
-    reductant_edge.unidirectional = true;
 
     # carbonsource edge
 
@@ -231,7 +228,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         carbonsource_start_node,
         carbonsource_end_node,
     )
-    carbonsource_edge.unidirectional = true;
 
     # co2 edge
 
@@ -260,7 +256,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         co2_start_node,
         co2_end_node,
     )
-    co2_edge.unidirectional = true;
     
     # crude steel edge
 
@@ -297,7 +292,6 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
         [
             CapacityConstraint()
         ])
-    crudesteel_edge.unidirectional = get(crudesteel_edge_data, :unidirectional, true)
 
     dreaf_transform.balance_data = Dict(
         :ironore_consumption=> Dict(

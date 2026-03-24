@@ -150,7 +150,7 @@ The `VRE` asset is defined as follows:
 struct VRE <: AbstractAsset
     id::AssetId
     energy_transform::Transformation
-    edge::Edge{<:Electricity}
+    edge::UnidirectionalEdge{<:Electricity}
 end
 ```
 
@@ -159,7 +159,7 @@ end
 ### Default constructor
 
 ```julia
-VRE(id::AssetId, energy_transform::Transformation, edge::Edge{<:Electricity})
+VRE(id::AssetId, energy_transform::Transformation, edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

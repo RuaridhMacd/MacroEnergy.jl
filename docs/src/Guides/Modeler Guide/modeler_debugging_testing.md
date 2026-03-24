@@ -367,9 +367,9 @@ Prints the structure of an asset in terms of its components (edges, transformati
 ```julia
 julia> MacroEnergy.print_struct_info(thermal_plant)
 Field: thermal_transform, Type: Transformation
-Field: elec_edge, Type: Union{Edge{<:Electricity}, EdgeWithUC{<:Electricity}}
-Field: fuel_edge, Type: Edge{<:NaturalGas}
-Field: co2_edge, Type: Edge{<:CO2}
+Field: elec_edge, Type: Union{UnidirectionalEdge{<:Electricity}, EdgeWithUC{<:Electricity}}
+Field: fuel_edge, Type: UnidirectionalEdge{<:NaturalGas}
+Field: co2_edge, Type: UnidirectionalEdge{<:CO2}
 ```
 
 Once you have collected the **names** of the components of an asset, you can use the following function to get a specific component by its name.
@@ -578,9 +578,9 @@ To access the transformation component of an asset, utilize the following functi
 ```julia
 julia> MacroEnergy.print_struct_info(thermal_plant)
 Field: thermal_transform, Type: Transformation
-Field: elec_edge, Type: Union{Edge{<:Electricity}, EdgeWithUC{<:Electricity}}
-Field: fuel_edge, Type: Edge{<:NaturalGas}
-Field: co2_edge, Type: Edge{<:CO2}
+Field: elec_edge, Type: Union{UnidirectionalEdge{<:Electricity}, EdgeWithUC{<:Electricity}}
+Field: fuel_edge, Type: UnidirectionalEdge{<:NaturalGas}
+Field: co2_edge, Type: UnidirectionalEdge{<:CO2}
 
 julia> thermal_transform = MacroEnergy.get_component_by_fieldname(thermal_plant, :thermal_transform);
 
@@ -689,8 +689,8 @@ julia> battery = MacroEnergy.get_asset_by_id(system, :battery_SE);
 
 julia> MacroEnergy.print_struct_info(battery)
 Field: battery_storage, Type: AbstractStorage{<:Electricity}
-Field: discharge_edge, Type: Edge{<:Electricity}
-Field: charge_edge, Type: Edge{<:Electricity}
+Field: discharge_edge, Type: UnidirectionalEdge{<:Electricity}
+Field: charge_edge, Type: UnidirectionalEdge{<:Electricity}
 
 julia> storage = MacroEnergy.get_component_by_fieldname(battery, :battery_storage);
 
@@ -791,7 +791,7 @@ julia> MacroEnergy.id(charge_edge)
 :battery_SE_charge_edge
 
 julia> MacroEnergy.typeof(charge_edge)
-Edge{Electricity}
+UnidirectionalEdge{Electricity}
 ```
 
 ### `discharge_edge`
@@ -803,7 +803,7 @@ julia> MacroEnergy.id(discharge_edge)
 :battery_SE_discharge_edge
 
 julia> MacroEnergy.typeof(discharge_edge)
-Edge{Electricity}
+UnidirectionalEdge{Electricity}
 ```
 
 ### `spillage_edge`

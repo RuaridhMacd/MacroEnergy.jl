@@ -148,7 +148,7 @@ The `MustRun` asset is defined as follows:
 struct MustRun <: AbstractAsset
     id::AssetId
     energy_transform::Transformation
-    elec_edge::Edge{<:Electricity}
+    elec_edge::UnidirectionalEdge{<:Electricity}
 end
 ```
 
@@ -157,7 +157,7 @@ end
 ### Default constructor
 
 ```julia
-MustRun(id::AssetId, energy_transform::Transformation, elec_edge::Edge{<:Electricity})
+MustRun(id::AssetId, energy_transform::Transformation, elec_edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

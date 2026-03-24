@@ -194,8 +194,8 @@ The `Electrolyzer` asset is defined as follows:
 struct Electrolyzer <: AbstractAsset
     id::AssetId
     electrolyzer_transform::Transformation
-    h2_edge::Edge{<:Hydrogen}
-    elec_edge::Edge{<:Electricity}
+    h2_edge::UnidirectionalEdge{<:Hydrogen}
+    elec_edge::UnidirectionalEdge{<:Electricity}
 end
 ```
 
@@ -204,7 +204,7 @@ end
 ### Default constructor
 
 ```julia
-Electrolyzer(id::AssetId, electrolyzer_transform::Transformation, h2_edge::Edge{<:Hydrogen}, elec_edge::Edge{<:Electricity})
+Electrolyzer(id::AssetId, electrolyzer_transform::Transformation, h2_edge::UnidirectionalEdge{<:Hydrogen}, elec_edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

@@ -296,8 +296,8 @@ The `Battery` asset is defined as follows:
 struct Battery <: AbstractAsset
     id::AssetId
     battery_storage::AbstractStorage{<:Electricity}
-    discharge_edge::Edge{<:Electricity}
-    charge_edge::Edge{<:Electricity}
+    discharge_edge::UnidirectionalEdge{<:Electricity}
+    charge_edge::UnidirectionalEdge{<:Electricity}
 end
 ```
 
@@ -306,7 +306,7 @@ end
 ### Default constructor
 
 ```julia
-Battery(id::AssetId, storage::AbstractStorage{<:Electricity}, discharge_edge::Edge{<:Electricity}, charge_edge::Edge{<:Electricity})
+Battery(id::AssetId, storage::AbstractStorage{<:Electricity}, discharge_edge::UnidirectionalEdge{<:Electricity}, charge_edge::UnidirectionalEdge{<:Electricity})
 ```
 
 ### Factory constructor

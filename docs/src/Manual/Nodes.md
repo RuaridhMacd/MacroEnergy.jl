@@ -387,7 +387,7 @@ Tracking and constraining emissions is an important part of many energy system m
 
 Here we define a `co2_sink` Node which we will use to track all `CO2` emissions in our System. We have added a `CO2CapConstraint` and set its right-hand side (RHS) value to 0, meaning the CO2 flows at this Node must net to zero over the period of operations.
 
-Becasue this is a common way to formulate emissions tracking, we have made the `co2_sink` ID a special case in Macro. Most emitting Assets have the ability to automatically connect their `Edge{CO2}` emissions flows to a `co2_sink` Node if it exists in the System.
+Becasue this is a common way to formulate emissions tracking, we have made the `co2_sink` ID a special case in Macro. Most emitting Assets have the ability to automatically connect their `UnidirectionalEdge{CO2}` emissions flows to a `co2_sink` Node if it exists in the System.
 
 In this example we have also added to Nodes to allow for captured CO2 to be sequestered. These `Node{CO2Captured}` Nodes have `CO2StorageConstraint` constraints which allow and limit the tonnes of CO2 that can be injected into each Node annually. The `rhs_policy` field sets the annual limit for each Node, in this case 4,753,600 tonnes for Boston and 5,145,400 tonnes for Princeton.
 
@@ -455,7 +455,7 @@ The [Modellers guide on creating Assets](@ref modeler_create_asset) provides a d
 
 In this example, we create a `StationPowerExample` Asset representing a natural gas power plant with station power requirements. Station power is usually accounted for by the `Transformation` component. The stochiometric balance between the fuel and exported electricity flows will include the station power required to run the pumps, compressors, and other equipment at the plant.
 
-In this case, we will explicitly track the station power using an `Edge{Electricity}` connected to a `Node{Electricity}`. We will add the station power edge as an incoming Edge to the `Transformation`. The stochiometric balance will be used to control the station power required. In the future, we could use the Node to add a fixed station power demand on top of the output-dependent station power.
+In this case, we will explicitly track the station power using an `UnidirectionalEdge{Electricity}` connected to a `Node{Electricity}`. We will add the station power edge as an incoming Edge to the `Transformation`. The stochiometric balance will be used to control the station power required. In the future, we could use the Node to add a fixed station power demand on top of the output-dependent station power.
 
 ```mermaid
 flowchart TD
@@ -479,11 +479,11 @@ struct StationPowerExample <: AbstractAsset
     id::AssetId
     thermal_transform::Transformation
     elec_node::Node{<:Electricity}
-    generated_elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}
-    station_elec_edge::Edge{<:Electricity}
-    exported_elec_edge::Edge{<:Electricity}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
+    generated_elec_edge::Union{UnidirectionalEdge{<:Electricity},EdgeWithUC{<:Electricity}}
+    station_elec_edge::UnidirectionalEdge{<:Electricity}
+    exported_elec_edge::UnidirectionalEdge{<:Electricity}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end>
 
 # You will need to define additional constructors and the default inputs here
@@ -513,19 +513,19 @@ function make(asset_type::Type{StationPowerExample}, data::AbstractDict{Symbol,A
     )
 
     generated_elec_key = :generated_elec_edge
-    # ... create an Edge{Electricity} between the Transformation and the Electricity Node
+    # ... create an UnidirectionalEdge{Electricity} between the Transformation and the Electricity Node
 
     station_elec_key = :station_elec_edge
-    # ... create an Edge{Electricity} for the station power, connecting the Node to the Transformation
+    # ... create an UnidirectionalEdge{Electricity} for the station power, connecting the Node to the Transformation
 
     exported_elec_key = :exported_elec_edge
-    # ... create an Edge{Electricity} for the electricity export, connecting the Node to the external demand
+    # ... create an UnidirectionalEdge{Electricity} for the electricity export, connecting the Node to the external demand
 
     fuel_key = :fuel_edge
-    # ... create an Edge{NaturalGas} for the fuel supply, connecting the fuel Node to the Transformation
+    # ... create an UnidirectionalEdge{NaturalGas} for the fuel supply, connecting the fuel Node to the Transformation
 
     co2_key = :co2_edge
-    # ... create an Edge{CO2} for the CO2 emissions, connecting the Transformation to the CO2 sink Node
+    # ... create an UnidirectionalEdge{CO2} for the CO2 emissions, connecting the Transformation to the CO2 sink Node
 
     # ... set up the stochiometric balance between the fuel, station power, and generated electricity flows
 

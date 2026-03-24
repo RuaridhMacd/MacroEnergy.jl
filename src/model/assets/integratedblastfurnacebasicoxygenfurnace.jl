@@ -145,7 +145,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         ironore_start_node,
         ironore_end_node,
     )
-    ironore_edge.unidirectional = true
     
     # steel scrap edge
 

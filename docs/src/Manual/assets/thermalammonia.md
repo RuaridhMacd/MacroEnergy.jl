@@ -225,10 +225,10 @@ The Thermal Ammonia asset (without CCS) is defined as follows:
 struct ThermalAmmonia{T} <: AbstractAsset
     id::AssetId
     thermalammonia_transform::Transformation
-    nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}}
-    elec_edge::Edge{<:Electricity}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
+    nh3_edge::Union{UnidirectionalEdge{<:Ammonia},EdgeWithUC{<:Ammonia}}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
 end
 ```
 
@@ -238,11 +238,11 @@ The Thermal Ammonia with CCS asset is defined as follows:
 struct ThermalAmmoniaCCS{T} <: AbstractAsset
     id::AssetId
     thermalammoniaccs_transform::Transformation
-    nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}}
-    elec_edge::Edge{<:Electricity}
-    fuel_edge::Edge{<:T}
-    co2_edge::Edge{<:CO2}
-    co2_captured_edge::Edge{<:CO2Captured}
+    nh3_edge::Union{UnidirectionalEdge{<:Ammonia},EdgeWithUC{<:Ammonia}}
+    elec_edge::UnidirectionalEdge{<:Electricity}
+    fuel_edge::UnidirectionalEdge{<:T}
+    co2_edge::UnidirectionalEdge{<:CO2}
+    co2_captured_edge::UnidirectionalEdge{<:CO2Captured}
 end
 ```
 

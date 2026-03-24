@@ -43,7 +43,6 @@ macro AbstractEdgeBaseAttributes()
         retrofitted_capacity::AffExpr = AffExpr(0.0)
         retrofitted_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
         retrofitted_units::Union{JuMPVariable,Float64} = 0.0
-        unidirectional::Bool = $edge_defaults[:unidirectional]
         variable_om_cost::Float64 = $edge_defaults[:variable_om_cost]
         min_down_time::Int64 = $edge_defaults[:min_down_time]
         min_up_time::Int64 = $edge_defaults[:min_up_time]
@@ -62,8 +61,10 @@ macro AbstractEdgeBaseAttributes()
     end)
 end
 
+abstract type EdgeWithoutUC{T} <: AbstractEdge{T} end
+
 """
-    Edge{T} <: AbstractEdge{T}
+    UnidirectionalEdge{T} <: EdgeWithoutUC{T}
 
     A mutable struct representing an edge in a network model, parameterized by commodity type T.
 
@@ -94,16 +95,59 @@ end
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
     - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
-    - unidirectional::Bool: Whether flow is restricted to one direction
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     Edges represent connections between vertices that allow commodities to flow between them. 
     They can model physical infrastructure like pipelines, transmission lines, or logical 
     connections with associated costs, capacities, and operational constraints.
 """
-Base.@kwdef mutable struct Edge{T} <: AbstractEdge{T}
+Base.@kwdef mutable struct UnidirectionalEdge{T} <: EdgeWithoutUC{T}
     @AbstractEdgeBaseAttributes()
 end
+
+"""
+    BidirectionalEdge{T} <: EdgeWithoutUC{T}
+
+    A mutable struct representing an edge in a network model, parameterized by commodity type T.
+
+    # Fields
+    - id::Symbol: Unique identifier for the edge
+    - timedata::TimeData: Time-related data for the edge
+    - start_vertex::AbstractVertex: Starting vertex of the edge
+    - end_vertex::AbstractVertex: Ending vertex of the edge
+    - availability::Vector{Float64}: Time series of availability factors
+    - can_expand::Bool: Whether edge capacity can be expanded
+    - can_retire::Bool: Whether edge capacity can be retired
+    - capacity::Union{AffExpr,Float64}: Total available capacity
+    - capacity_size::Float64: Size factor for resource cluster
+    - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the edge
+    - distance::Float64: Physical distance of the edge
+    - existing_capacity::Float64: Initial installed capacity
+    - fixed_om_cost::Float64: Fixed operation and maintenance costs
+    - flow::Union{JuMPVariable,Vector{Float64}}: Flow of commodity `T` through the edge at each timestep
+    - has_capacity::Bool: Whether the edge has capacity variables
+    - integer_decisions::Bool: Whether capacity decisions must be integer
+    - investment_cost::Float64: CAPEX per unit of new capacity
+    - loss_fraction::Vector{Float64}: Fraction of flow lost during transmission, it can be time-dependent.
+    - max_capacity::Float64: Maximum allowed capacity
+    - min_capacity::Float64: Minimum required capacity
+    - min_retired_capacity::Float64: Minimum capacity that must be retired in this period
+    - min_flow_fraction::Float64: Minimum flow as fraction of capacity
+    - new_capacity::Union{JuMPVariable,Float64}: JuMP variable representing new capacity built
+    - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
+    - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
+    - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
+    - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
+
+    Edges represent connections between vertices that allow commodities to flow between them. 
+    They can model physical infrastructure like pipelines, transmission lines, or logical 
+    connections with associated costs, capacities, and operational constraints.
+"""
+Base.@kwdef mutable struct BidirectionalEdge{T} <: EdgeWithoutUC{T}
+    @AbstractEdgeBaseAttributes()
+end
+
+const Edge = UnidirectionalEdge
 
 commodity_type(::Type{AbstractEdge{T}}) where {T} = T
 function commodity_type(t::Type{AbstractEdge{<:T}}) where {T}
@@ -132,7 +176,7 @@ function target_is_valid(edge::AbstractEdge, target::AbstractVertex)
     return target_is_valid(commodity_type(edge), target)
 end
 
-function make_edge(
+function make_edge_unidir(
     id::Symbol,
     data::AbstractDict{Symbol,Any},
     time_data::TimeData,
@@ -158,8 +202,12 @@ function make_edge(
     end
     if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
         filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
-    end    
-    _edge = Edge{commodity}(;
+    end
+    unidirectional = get(data, :unidirectional, true)
+    if !unidirectional
+        error("Edge $id is being created as a unidirectional edge, but the input data has unidirectional=false. If you intended to create a bidirectional edge, set unidirectional=false and use the BidirectionalEdge constructor.")
+    end
+    _edge = UnidirectionalEdge{commodity}(;
         id = id,
         timedata = time_data,
         start_vertex = start_vertex,
@@ -168,6 +216,7 @@ function make_edge(
     )
     return _edge
 end
+
 Edge(
     id::Symbol,
     data::Dict{Symbol,Any},
@@ -175,8 +224,57 @@ Edge(
     commodity::DataType,
     start_vertex::AbstractVertex,
     end_vertex::AbstractVertex,
-) = make_edge(id, data, time_data, commodity, start_vertex, end_vertex)
+) = make_edge_unidir(id, data, time_data, commodity, start_vertex, end_vertex)
 
+function make_edge_bidir(
+    id::Symbol,
+    data::AbstractDict{Symbol,Any},
+    time_data::TimeData,
+    commodity::DataType,
+    start_vertex::AbstractVertex,
+    end_vertex::AbstractVertex,
+)
+    if !(target_is_valid(commodity, start_vertex))
+        error("Edge $id cannot be connected to its start vertex, $(start_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(start_vertex.id) is a $(commodity_type(start_vertex)) vertex.")
+    elseif !target_is_valid(commodity, end_vertex)
+        error("Edge $id cannot be connected to its end vertex, $(end_vertex.id).\nThey have different commodities\n$id is a $commodity edge.\n$(end_vertex.id) is a $(commodity_type(end_vertex)) vertex.")
+    end
+
+    edge_kwargs = Base.fieldnames(Edge)
+    filtered_data = Dict{Symbol, Any}(
+        k => v for (k,v) in data if k in edge_kwargs
+    )
+    remove_keys = [:id, :start_vertex, :end_vertex, :timedata]
+    for key in remove_keys
+        if haskey(filtered_data, key)
+            delete!(filtered_data, key)
+        end
+    end
+    if haskey(filtered_data,:loss_fraction) && !isa(filtered_data[:loss_fraction], Vector{Float64})
+        filtered_data[:loss_fraction] = [filtered_data[:loss_fraction]];
+    end
+    unidirectional = get(data, :unidirectional, false)
+    if unidirectional
+        error("Edge $id is being created as a bidirectional edge, but the input data has unidirectional=true. If you intended to create a unidirectional edge, set unidirectional=true and use the Edge constructor directly.")
+    end
+    _edge = BidirectionalEdge{commodity}(;
+        id = id,
+        timedata = time_data,
+        start_vertex = start_vertex,
+        end_vertex = end_vertex,
+        filtered_data...
+    )
+    return _edge
+end
+
+BidirectionalEdge(
+    id::Symbol,
+    data::Dict{Symbol,Any},
+    time_data::TimeData,
+    commodity::DataType,
+    start_vertex::AbstractVertex,
+    end_vertex::AbstractVertex,
+) = make_edge_bidir(id, data, time_data, commodity, start_vertex, end_vertex)
 
 # Function to filter edges with capacity variables from a Vector of edges.
 edges_with_capacity_variables(edges::Vector{<:AbstractEdge}) =
@@ -220,6 +318,8 @@ investment_cost(e::AbstractEdge) = e.investment_cost;
 is_retrofit(e::AbstractEdge) = e.is_retrofit;
 lifetime(e::AbstractEdge) = e.lifetime;
 loss_fraction(e::AbstractEdge) = e.loss_fraction;
+unidirectional(e::AbstractEdge) = true;
+unidirectional(e::BidirectionalEdge) = false;
 function loss_fraction(e::AbstractEdge, t::Int64)
     a = loss_fraction(e)
     if isempty(a)
@@ -395,21 +495,7 @@ function compute_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Symbol=:
     compute_om_fixed_costs!(e, model, fom_cost_function[cost_type])
 end
 
-function operation_model!(e::Edge, model::Model)
-
-    if e.unidirectional
-        e.flow = @variable(
-            model,
-            [t in time_interval(e)],
-            lower_bound = 0.0,
-            base_name = "vFLOW_$(id(e))_period$(period_index(e))"
-        )
-    else
-        e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
-    end
-
-    update_balances!(e, model)
-
+function add_operation_model_varcosts!(e::EdgeWithoutUC, model::Model)
     for t in time_interval(e)
         w = current_subperiod(e,t)
         vom_cost = variable_om_cost(e)
@@ -429,9 +515,25 @@ function operation_model!(e::Edge, model::Model)
                 )
             end
         end
-
     end
+end
 
+function operation_model!(e::UnidirectionalEdge, model::Model)
+    e.flow = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vFLOW_$(id(e))_period$(period_index(e))"
+    )
+    update_balances!(e, model)
+    add_operation_model_varcosts!(e, model)
+    return nothing
+end
+
+function operation_model!(e::BidirectionalEdge, model::Model)
+    e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
+    update_balances!(e, model)
+    add_operation_model_varcosts!(e, model)
     return nothing
 end
 
@@ -466,7 +568,6 @@ end
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
     - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
-    - unidirectional::Bool: Whether flow is restricted to one direction
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     # Fields specific to EdgeWithUC
@@ -516,6 +617,10 @@ function make_edge_UC(
             delete!(filtered_data, key)
         end
     end
+    unidirectional = get(data, :unidirectional, true)
+    if !unidirectional
+        error("Edge $id is being created as a unidirectional edge, but the input data has unidirectional=false. Edges with Unit Commitment must be unidirectional.")
+    end
     _edge = EdgeWithUC{commodity}(;
         id = id,
         timedata = time_data,
@@ -548,15 +653,41 @@ ustart(e::EdgeWithUC) = e.ustart;
 ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 ##### End of EdgeWithUC interface #####
 
-function operation_model!(e::EdgeWithUC, model::Model)
+function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
+    for t in time_interval(e)
 
-    if !e.unidirectional
-        error(
-            "UC is available only for unidirectional edges, set edge $(id(e)) to be unidirectional",
-        )
-        return nothing
+        w = current_subperiod(e,t)
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * vom_cost,
+                flow(e, t),
+            )
+        end
+
+        if isa(start_vertex(e), Node)
+            if !isempty(price(start_vertex(e)))
+                add_to_expression!(
+                    model[:eVariableCost],
+                    subperiod_weight(e, w) * price(start_vertex(e), t),
+                    flow(e, t),
+                )
+            end
+        end
+
+        if startup_cost(e) > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
+                ustart(e, t),
+            )
+        end
+
     end
+end
 
+function operation_model!(e::EdgeWithUC, model::Model)
     if !has_capacity(e)
         error(
             "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
@@ -593,40 +724,8 @@ function operation_model!(e::EdgeWithUC, model::Model)
     )
 
     update_balances!(e, model)
-
     update_startup_fuel_balance!(e)
-
-    for t in time_interval(e)
-
-        w = current_subperiod(e,t)
-        vom_cost = variable_om_cost(e)
-        if vom_cost > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * vom_cost,
-                flow(e, t),
-            )
-        end
-
-        if isa(start_vertex(e), Node)
-            if !isempty(price(start_vertex(e)))
-                add_to_expression!(
-                    model[:eVariableCost],
-                    subperiod_weight(e, w) * price(start_vertex(e), t),
-                    flow(e, t),
-                )
-            end
-        end
-
-        if startup_cost(e) > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
-                ustart(e, t),
-            )
-        end
-
-    end
+    add_operation_model_varcosts!(e, model)
 
     ### DEFAULT CONSTRAINTS ###
 
@@ -649,7 +748,6 @@ function operation_model!(e::EdgeWithUC, model::Model)
     return nothing
 end
 
-
 function edges(assets::Vector{AbstractAsset})
     edges = Vector{AbstractEdge}()
     for a in assets
@@ -663,7 +761,6 @@ function edges(assets::Vector{AbstractAsset})
 end
 
 function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
-
     if isempty(balance_data(v, i))
         return 1.0
     elseif id(e) ∈ keys(balance_data(v, i))
@@ -671,7 +768,6 @@ function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
     else
         return 0.0
     end
-
 end
 
 function lossy_edge(e::AbstractEdge)
@@ -715,125 +811,62 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
 end
 
-function update_balance_start!(e::AbstractEdge, model::Model)
-
-    v = start_vertex(e)
-
-    if e.unidirectional == true
-
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
-
-    elseif e.unidirectional == false && lossy_edge(e)
-        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
-        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-
-        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-
-        if isa(e, EdgeWithUC)
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity_size(e) * ucommit(e, t))
-        else
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        end
-
-        effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
-    elseif e.unidirectional == false && !lossy_edge(e)
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effective_flow, outgoing::Bool)
+    # effective_flow is <: AbstractVector{AffExpr} or AbstractVector{VariableRef}
+    if outgoing
+        flow_dir = -1.0
+    else
+        flow_dir = 1.0
     end
-    
     for i in balance_ids(v)
-        balance_coeff = -1 * balance_data(e, v, i)
-        balance_expr = get_balance(v,i)
+        balance_coeff = flow_dir * balance_data(e, v, i)
         if balance_coeff != 0.0
+            balance_expr = get_balance(v,i)
             for t in time_interval(e)
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
         end
     end
+end
 
+function update_balance_start!(e::AbstractEdge, model::Model)
+    # This implicitly works for UnidirectionalEdge and EdgeWithUC
+    # BidirectionalEdge is handled in a separate method
+    v = start_vertex(e)
+    effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, true)
+end
+
+function update_balance_start!(e::BidirectionalEdge, model::Model)
+    v = start_vertex(e)
+    if lossy_edge(e)
+        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
+        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
+        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
+        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
+        effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
+    else
+        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
+    end
+    add_flow_to_vertex_balances!(e, v, effective_flow, true)
 end
 
 function update_balance_end!(e::AbstractEdge, model::Model)
-
     v = end_vertex(e)
+    effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, false)
+end
 
-    if e.unidirectional == true
-        effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
-    elseif e.unidirectional == false && lossy_edge(e)
-    
+function update_balance_end!(e::BidirectionalEdge, model::Model)
+    v = end_vertex(e)
+    if lossy_edge(e)
         flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
         flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-
         @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-
-        if isa(e, EdgeWithUC)
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity_size(e) * ucommit(e, t))
-        else
-            @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        end
-
+        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
         effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * flow_pos[t] - flow_neg[t])
-    elseif e.unidirectional == false && !lossy_edge(e)
+    else
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
-
-    for i in balance_ids(v)
-        balance_coeff = balance_data(e, v, i)
-        balance_expr = get_balance(v,i)
-        if balance_coeff != 0.0
-            for t in time_interval(e)
-                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
-            end
-        end
-    end
-    
-end
-
-###### Templates ######
-
-macro edge_template_args()
-    quote 
-        [ 
-            :id,
-            :timedata,
-            :start_vertex,
-            :end_vertex,
-            :availability,
-            :can_expand,
-            :can_retire,
-            :capacity_size,
-            :distance,
-            :existing_capacity,
-            :fixed_om_cost,
-            :has_capacity,
-            :integer_decisions,
-            :investment_cost,
-            :loss_fraction,
-            :max_capacity,
-            :min_capacity,
-            :min_flow_fraction,
-            :ramp_down_fraction,
-            :ramp_up_fraction,
-            :unidirectional,
-            :variable_om_cost
-        ]
-    end
-end
-
-function input_template(e::AbstractEdge)
-    template = Dict{Symbol,Any}()
-    for sym in @edge_template_args
-        if !hasproperty(e, sym)
-            @debug "$(sym) not found in $(typeof(e)), $(id(e)))"
-            continue
-        end
-        prop = getfield(e, sym)
-        if typeof(prop) <: Real
-            template[sym] = prop
-        elseif typeof(prop) == Symbol
-            template[sym] = ""
-        elseif typeof(prop) <: Vector
-            template[sym] = [0.0]
-        end
-    end
-    return template
+    add_flow_to_vertex_balances!(e, v, effective_flow, false)
 end
