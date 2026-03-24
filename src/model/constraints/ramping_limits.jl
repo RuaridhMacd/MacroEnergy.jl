@@ -25,33 +25,39 @@ for each time `t` in `time_interval(e)` for the edge `e`. The function [`timeste
 """
 function add_model_constraint!(ct::RampingLimitConstraint, e::Edge, model::Model)
 
-    #### For now these are set to zero because we are not modeling reserves
-    reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
-    regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+    if !has_capacity(e)
+        @warn "Edge $(id(e)) does not have capacity. Ignoring ramping limit constraint."
+        return nothing
+    end
+    if has_capacity(e)
+        #### For now these are set to zero because we are not modeling reserves
+        reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+        regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
 
-    eRampUp = @expression(
-        model,
-        [t in time_interval(e)],
-        flow(e, t) - flow(e, timestepbefore(t, 1, subperiods(e))) +
-        regulation_term[t] +
-        reserves_term[t] - ramp_up_fraction(e) * capacity(e)
-    )
+        eRampUp = @expression(
+            model,
+            [t in time_interval(e)],
+            flow(e, t) - flow(e, timestepbefore(t, 1, subperiods(e))) +
+            regulation_term[t] +
+            reserves_term[t] - ramp_up_fraction(e) * capacity(e)
+        )
 
-    eRampDown = @expression(
-        model,
-        [t in time_interval(e)],
-        flow(e, timestepbefore(t, 1, subperiods(e))) - flow(e, t) - regulation_term[t] +
-        reserves_term[timestepbefore(t, 1, subperiods(e))] -
-        ramp_down_fraction(e) * capacity(e)
-    )
+        eRampDown = @expression(
+            model,
+            [t in time_interval(e)],
+            flow(e, timestepbefore(t, 1, subperiods(e))) - flow(e, t) - regulation_term[t] +
+            reserves_term[timestepbefore(t, 1, subperiods(e))] -
+            ramp_down_fraction(e) * capacity(e)
+        )
 
-    ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
+        ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
 
-    ct.constraint_ref = @constraint(
-        model,
-        [s in [:RampUp, :RampDown], t in time_interval(e)],
-        ramp_expr_dict[s][t] <= 0
-    )
+        ct.constraint_ref = @constraint(
+            model,
+            [s in [:RampUp, :RampDown], t in time_interval(e)],
+            ramp_expr_dict[s][t] <= 0
+        )
+    end
 
     return nothing
 end
