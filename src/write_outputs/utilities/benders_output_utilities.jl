@@ -208,13 +208,14 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
     # Nodes that can have operational costs (NSD, supply, and/or slack)
     nodes_with_costs = filter(get_nodes(system)) do n
         !isempty(non_served_demand(n)) ||
-        !all(iszero, max_supply(n)) ||
+        !isempty(supply_segments(n)) ||
         !isempty(policy_slack_vars(n))
     end
 
     # Initialize collectors for flows and costs
     flow_dfs = DataFrame[]
     cost_rows = NamedTuple{(:zone, :type, :category, :value),Tuple{String,String,Symbol,Float64}}[]
+    attributed_fuel_cost_by_node = Dict{Symbol,Float64}()
 
     # Extract flows and compute operational costs for edges
     for e in edges
@@ -228,6 +229,11 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
         vom_cost = compute_variable_om_cost(e)
         fuel_cost = compute_fuel_cost(e)
         startup_cost_val = compute_startup_cost(e)
+
+        if fuel_cost > 0 && isa(start_vertex(e), Node)
+            source_node = start_vertex(e)
+            attributed_fuel_cost_by_node[id(source_node)] = get(attributed_fuel_cost_by_node, id(source_node), 0.0) + fuel_cost
+        end
 
         # Store aggregated costs (only non-zero, with scaling)
         vom_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:VariableOM, value=vom_cost * scaling^2))
@@ -255,7 +261,7 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
         nsd_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:NonServedDemand, value=nsd_cost * scaling^2))
 
         # Supply cost
-        supply_cost = compute_supply_cost(node)
+        supply_cost = compute_residual_supply_cost(node, get(attributed_fuel_cost_by_node, id(node), 0.0))
         supply_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:Supply, value=supply_cost * scaling^2))
 
         # Slack cost

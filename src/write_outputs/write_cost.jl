@@ -237,16 +237,20 @@ end
 @doc raw"""
     compute_fuel_cost(e::AbstractEdge)
 
-Compute fuel cost for an edge: sum over time of `subperiod_weight * price(start_vertex) * flow`.
-Only applicable to edges with a start node.
+Compute attributed fuel cost for an edge using the postprocessed node price at the
+start node.
 Returns a Float64 value.
 """
 function compute_fuel_cost(e::AbstractEdge)::Float64
-    (!isa(start_vertex(e), Node) || isempty(price(start_vertex(e)))) && return 0.0
+    !isa(start_vertex(e), Node) && return 0.0
+    source_node = start_vertex(e)
+    isempty(supply_segments(source_node)) && return 0.0
+    isempty(price(source_node)) && return 0.0
+
     fuel_cost = 0.0
     for t in time_interval(e)
         w = current_subperiod(e, t)
-        fuel_cost += subperiod_weight(e, w) * price(start_vertex(e), t) * value(flow(e, t))
+        fuel_cost += subperiod_weight(e, w) * price(source_node, t) * value(flow(e, t))
     end
     return fuel_cost
 end
@@ -299,17 +303,24 @@ Only applicable to nodes with non-zero `max_supply`.
 Returns a Float64 value.
 """
 function compute_supply_cost(n::Node)::Float64
-    if all(iszero, max_supply(n))
+    if isempty(supply_segments(n))
         return 0.0
     end
     supply_cost = 0.0
     for t in time_interval(n)
         w = current_subperiod(n, t)
         for s in supply_segments(n)
-            supply_cost += subperiod_weight(n, w) * price_supply(n, s) * value(supply_flow(n, s, t))
+            supply_cost += subperiod_weight(n, w) * price_supply(n, s, t) * value(supply_flow(n, s, t))
         end
     end
     return supply_cost
+end
+
+function compute_residual_supply_cost(n::Node, attributed_fuel_cost::Float64=0.0)::Float64
+    total_supply_cost = compute_supply_cost(n)
+    residual_supply_cost = total_supply_cost - attributed_fuel_cost
+    tolerance = 1e-6 * max(abs(total_supply_cost), abs(attributed_fuel_cost), 1.0)
+    return abs(residual_supply_cost) <= tolerance ? 0.0 : residual_supply_cost
 end
 
 @doc raw"""
@@ -583,6 +594,7 @@ function get_detailed_costs(system::System, settings::NamedTuple; scaling::Float
     categories = Symbol[]
     values_discounted = Float64[]
     values_undiscounted = Float64[]
+    attributed_fuel_cost_by_node = Dict{Symbol,Float64}()
 
     edges, edge_asset_map = get_edges(system, return_ids_map=true)
     storages, storage_asset_map = get_storages(system, return_ids_map=true)
@@ -594,6 +606,11 @@ function get_detailed_costs(system::System, settings::NamedTuple; scaling::Float
         vom = compute_variable_om_cost(e)
         fuel = compute_fuel_cost(e)
         startup = compute_startup_cost(e)
+
+        if fuel > 0 && isa(start_vertex(e), Node)
+            source_node = start_vertex(e)
+            attributed_fuel_cost_by_node[id(source_node)] = get(attributed_fuel_cost_by_node, id(source_node), 0.0) + fuel
+        end
 
         (inv_pv == 0 && inv_cf == 0 && fom_pv == 0 && fom_cf == 0 && vom == 0 && fuel == 0 && startup == 0) && continue
 
@@ -655,7 +672,7 @@ function get_detailed_costs(system::System, settings::NamedTuple; scaling::Float
             push!(values_undiscounted, nsd_cost)
         end
 
-        supply_cost = compute_supply_cost(loc)
+        supply_cost = compute_residual_supply_cost(loc, get(attributed_fuel_cost_by_node, id(loc), 0.0))
         if supply_cost > 0
             push!(zones, zone)
             push!(types, asset_type)
