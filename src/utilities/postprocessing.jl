@@ -33,7 +33,7 @@ function postprocess!(n::Node, solution::Any)
     time_steps = collect(time_interval(n))
     effective_price = zeros(Float64, isempty(time_steps) ? 0 : maximum(time_steps))
 
-    if all(iszero, max_supply(n)) || isempty(supply_flow(n))
+    if isempty(supply_segments(n)) || isempty(supply_flow(n))
         n.price = effective_price
         return nothing
     end
@@ -45,7 +45,7 @@ function postprocess!(n::Node, solution::Any)
         for s in supply_segments(n)
             supplied = value(supply_flow(n, s, t))
             total_supply += supplied
-            total_cost += price_supply(n, s) * supplied
+            total_cost += price_supply(n, s, t) * supplied
         end
 
         effective_price[t] = iszero(total_supply) ? 0.0 : total_cost / total_supply

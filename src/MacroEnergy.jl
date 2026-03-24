@@ -139,7 +139,6 @@ function include_all_in_folder(folder::AbstractString, root_path::AbstractString
 end
 
 # include files
-# include_all_in_folder("utilities")
 include("utilities/file_io/json.jl")
 include("utilities/file_io/csv.jl")
 include("utilities/file_io/duckdb.jl")
@@ -155,6 +154,7 @@ include("utilities/model_templates.jl")
 include("utilities/run_tools.jl")
 include("utilities/user_additions.jl")
 include("utilities/utilities.jl")
+include_all_in_folder("utilities/model_converters")
 
 include("model/units.jl")
 include("model/time_management.jl")
@@ -260,6 +260,7 @@ export AbstractAsset,
     CO2StorageConstraint,
     CapacityConstraint,
     Commodity,
+    update_node_supply_inputs,
     create_optimizer,
     DirectReductionElectricArcFurnace,
     DirectReductionElectricArcFurnaceCCS,
