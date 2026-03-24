@@ -30,6 +30,7 @@ function full_default_data(::Type{Battery}, id=missing)
             :charge_edge => @edge_data(
                 :efficiency => 1.0,
                 :commodity => "Electricity",
+                :StorageChargeLimitConstraint => true
             ),
             :discharge_edge => @edge_data(
                 :efficiency => 1.0,
@@ -39,8 +40,7 @@ function full_default_data(::Type{Battery}, id=missing)
                 :can_retire => true,
                 :constraints => Dict{Symbol,Bool}(
                     :CapacityConstraint => true,
-                    :StorageDischargeLimitConstraint => true,
-                    :StorageChargeLimitConstraint => true
+                    :StorageDischargeLimitConstraint => true
                 )
             )
         )

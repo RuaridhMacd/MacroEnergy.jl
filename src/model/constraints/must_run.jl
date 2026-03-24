@@ -17,10 +17,10 @@ Add a must run constraint to the edge `e`. The functional form of the constraint
 for each time `t` in `time_interval(e)` for the edge `e`.
 
 !!! note "Must run constraint"
-    This constraint is available only for unidirectional edges.
+    This constraint is available only for unidirectional edges with capacity.
 """
 function add_model_constraint!(ct::MustRunConstraint, e::Edge, model::Model)
-    if e.unidirectional
+    if e.unidirectional && has_capacity(e)
 
         ct.constraint_ref = @constraint(
             model,
@@ -28,7 +28,7 @@ function add_model_constraint!(ct::MustRunConstraint, e::Edge, model::Model)
             flow(e, t) == availability(e, t) * capacity(e)
         )
     else
-         @warn "MustRunConstraint required for an edge that is not unidirectional so Macro will not create this constraint"
+         @warn "MustRunConstraint required for an edge that is not unidirectional or does not have capacity, so Macro will not create this constraint"
     end
 
     return nothing
