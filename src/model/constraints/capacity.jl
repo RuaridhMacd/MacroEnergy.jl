@@ -31,7 +31,7 @@ function add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, mo
 end
 
 @doc raw"""
-    add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, model::Model)
+    add_model_constraint!(ct::CapacityConstraint, e::BidirectionalEdge, model::Model)
 
 Add a capacity constraint to the edge `e`. If the edge is bidirectional, the constraint is:
 
