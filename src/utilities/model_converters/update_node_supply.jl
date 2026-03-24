@@ -14,6 +14,13 @@ function update_node_supply_inputs(
 
     destination = isnothing(output_path) ? file_path : output_path
     write_json(destination, data)
+
+    println("Updated node supply schema in $(file_path) and saved to $(destination)")
+    println(" ++ This update script does not modify BalanceConstraint inputs. ++
+    BalanceConstraint are now added to all Nodes by default.
+    If you have an infinite sink (e.g. a co2_sink) or source (e.g. an uncosted fuel source), 
+    then you must set constraints: {BalanceConstraint : false} in the input
+    ")
     return destination
 end
 
