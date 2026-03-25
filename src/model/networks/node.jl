@@ -257,6 +257,22 @@ end
 # We can do:
 #   Commodity -> Node{Commodity}
 
+function setup_balance_data!(node::Node, data::AbstractDict{Symbol,Any})
+    constraints = node.constraints
+    if any(isa.(constraints, BalanceConstraint))
+        node.balance_data = get(data, :balance_data, Dict(:demand => Dict{Symbol,Float64}()))
+    elseif any(isa.(constraints, CO2CapConstraint))
+        node.balance_data = get(data, :balance_data, Dict(:emissions => Dict{Symbol,Float64}()))
+    elseif any(isa.(constraints, CO2StorageConstraint))
+        node.balance_data = get(data, :balance_data, Dict(:co2_storage => Dict{Symbol,Float64}()))
+    elseif any(isa.(constraints, AggregatedDemandConstraint))
+        node.balance_data = get(data, :balance_data, Dict(:demand_flow => Dict{Symbol,Float64}()))
+    else
+        node.balance_data = get(data, :balance_data, Dict(:exogenous => Dict{Symbol,Float64}()))
+    end
+    return nothing
+end
+
 function make(commodity::Type{<:Commodity}, input_data::AbstractDict{Symbol,Any}, system)
 
     input_data = recursive_merge(clear_dict(node_default_data()), input_data)
@@ -269,22 +285,7 @@ function make(commodity::Type{<:Commodity}, input_data::AbstractDict{Symbol,Any}
     #### Note that not all nodes have a balance constraint, e.g., a NG source node does not have one. So the default should be empty.
     node.constraints = get(data, :constraints, Vector{AbstractTypeConstraint}())
 
-    if any(isa.(node.constraints, BalanceConstraint))
-        node.balance_data =
-            get(data, :balance_data, Dict(:demand => Dict{Symbol,Float64}()))
-    elseif any(isa.(node.constraints, CO2CapConstraint))
-        node.balance_data =
-            get(data, :balance_data, Dict(:emissions => Dict{Symbol,Float64}()))
-    elseif any(isa.(node.constraints, CO2StorageConstraint))
-        node.balance_data =
-            get(data, :balance_data, Dict(:co2_storage => Dict{Symbol,Float64}()))
-    elseif any(isa.(node.constraints, AggregatedDemandConstraint))
-        node.balance_data =
-            get(data, :balance_data, Dict(:demand_flow => Dict{Symbol,Float64}()))
-    else
-        node.balance_data =
-            get(data, :balance_data, Dict(:exogenous => Dict{Symbol,Float64}()))
-    end
+    setup_balance_data!(node, data)
 
     if haskey(data, :location) && data[:location] !== Symbol("")
         location_id = data[:location]
