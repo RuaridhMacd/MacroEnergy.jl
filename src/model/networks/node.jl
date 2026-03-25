@@ -4,6 +4,7 @@ macro AbstractNodeBaseAttributes()
         demand::Vector{Float64} = Vector{Float64}()
         min_nsd::Vector{Float64} = $node_defaults[:min_nsd]
         max_nsd::Vector{Float64} = $node_defaults[:max_nsd]
+        min_supply::OrderedDict{Symbol,Vector{Float64}} = $node_defaults[:min_supply]
         max_supply::OrderedDict{Symbol,Vector{Float64}} = $node_defaults[:max_supply]
         non_served_demand::JuMPVariable = Matrix{VariableRef}(undef, 0, 0)
         policy_budgeting_vars::Dict = Dict()
@@ -34,6 +35,7 @@ end
     # Fields
     - demand::Union{Vector{Float64},Dict{Int64,Float64}}: Time series of demand values
     - max_nsd::Vector{Float64}: Maximum allowed non-served demand for each segment
+    - min_supply::OrderedDict{Symbol,Vector{Float64}}: Minimum supply by segment, optionally varying over time
     - max_supply::OrderedDict{Symbol,Vector{Float64}}: Maximum supply by segment, optionally varying over time
     - non_served_demand::Union{JuMPVariable,Matrix{Float64}}: JuMP variables or matrix representing unmet demand
     - policy_budgeting_vars::Dict: Policy budgeting variables for constraints
@@ -80,6 +82,7 @@ function make_node(data::AbstractDict{Symbol,Any}, time_data::TimeData, commodit
         demand = get(node_data, :demand, Vector{Float64}()),
         location = as_symbol_or_missing(get(node_data, :location, missing)),
         max_nsd = get(node_data, :max_nsd, [0.0]),
+        min_supply = get(node_data, :min_supply, OrderedDict{Symbol,Vector{Float64}}()),
         max_supply = get(node_data, :max_supply, OrderedDict{Symbol,Vector{Float64}}()),
         price = get(node_data, :price, Vector{Float64}()),
         price_nsd = get(node_data, :price_nsd, [0.0]),
@@ -132,6 +135,10 @@ supply_flow(n::Node, s::Int64, t::Int64) = supply_flow(n)[s, t];
 supply_segment_names(n::Node) = n.supply_segment_names;
 supply_segment_name(n::Node, s::Int64) = supply_segment_names(n)[s];
 supply_segments(n::Node) = eachindex(supply_segment_names(n));
+min_supply(n::Node) = collect(values(n.min_supply));
+min_supply(n::Node, segment_name::Symbol) = get(n.min_supply, segment_name, [0.0]);
+min_supply(n::Node,s::Int64) = min_supply(n, supply_segment_name(n, s));
+min_supply(n::Node, s::Int64, t::Int64) = length(min_supply(n, s)) == 1 ? min_supply(n, s)[1] : min_supply(n, s)[t];
 max_supply(n::Node) = collect(values(n.max_supply));
 max_supply(n::Node, segment_name::Symbol) = n.max_supply[segment_name];
 max_supply(n::Node,s::Int64) = max_supply(n, supply_segment_name(n, s));
@@ -231,7 +238,11 @@ function operation_model!(n::Node, model::Model)
             w = current_subperiod(n,t)
             for s in supply_segments(n)
                 sf = supply_flow(n, s, t)
+                min_sf = min_supply(n, s, t)
                 max_sf = max_supply(n, s, t)
+                if isfinite(min_sf) && min_sf > 0.0
+                    @constraint(model, sf >= min_sf)
+                end
                 if isfinite(max_sf)                    
                     @constraint(model, sf <= max_sf)
                 end

@@ -120,6 +120,7 @@ function node_default_data()
         :price_nsd => [0.0],
         :supply_segment_names => Symbol[],
         :price_supply => OrderedDict{Symbol,Vector{Float64}}(),
+        :min_supply => OrderedDict{Symbol,Vector{Float64}}(),
         :max_supply => OrderedDict{Symbol,Vector{Float64}}(),
         :price_unmet_policy => Dict{Symbol,Any}(),
         :rhs_policy => Dict{Symbol,Any}(),

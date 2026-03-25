@@ -4,6 +4,7 @@
 Normalize node supply inputs into a consistent segmented representation:
 
 `price_supply::OrderedDict{Symbol,Vector{Float64}}`
+`min_supply::OrderedDict{Symbol,Vector{Float64}}`
 `max_supply::OrderedDict{Symbol,Vector{Float64}}`
 `supply_segment_names::Vector{Symbol}`
 
@@ -81,12 +82,14 @@ function check_and_convert_supply!(data)
     # We'll convert inputs to nothing if they're empty,
     # making it easier to parse by type
     price_supply = asnothing(data[:price_supply])
+    min_supply = asnothing(get(data, :min_supply, nothing))
     max_supply = asnothing(get(data, :max_supply, nothing))
     supply_segment_names = asnothing(get(data, :supply_segment_names, nothing))
 
     if isnothing(price_supply)
         # If not prices are supplied, we return empty inputs.
         data[:price_supply] = OrderedDict{Symbol,Vector{Float64}}()
+        data[:min_supply] = OrderedDict{Symbol,Vector{Float64}}()
         data[:max_supply] = OrderedDict{Symbol,Vector{Float64}}()
         data[:supply_segment_names] = Symbol[]
         return nothing
@@ -94,11 +97,91 @@ function check_and_convert_supply!(data)
 
     supply_segment_names = parse_supply_names(price_supply, max_supply, supply_segment_names)
     price_supply, max_supply, supply_segment_names = parse_supply(price_supply, max_supply, supply_segment_names)
+    min_supply = normalize_min_supply(min_supply, supply_segment_names)
+    validate_min_max_supply!(min_supply, max_supply)
 
     data[:price_supply] = price_supply
+    data[:min_supply] = min_supply
     data[:max_supply] = max_supply
     data[:supply_segment_names] = supply_segment_names
     return nothing
+end
+
+function normalize_min_supply(min_supply::Nothing, supply_segment_names::Vector{Symbol})
+    return OrderedDict{Symbol,Vector{Float64}}(
+        segment_name => [0.0] for segment_name in supply_segment_names
+    )
+end
+
+function normalize_min_supply(min_supply::AbstractVector, supply_segment_names::Vector{Symbol})
+    throw(ArgumentError("min_supply must be provided as a dictionary keyed by supply segment names. Vector inputs are not supported."))
+end
+
+function normalize_min_supply(min_supply::AbstractDict, supply_segment_names::Vector{Symbol})
+    normalized_min_supply = OrderedDict{Symbol,Vector{Float64}}()
+
+    segment_names_set = Set(supply_segment_names)
+    for k in keys(min_supply)
+        segment_name = Symbol(k)
+        if !(segment_name in segment_names_set)
+            throw(ArgumentError("min_supply contains segment $(segment_name), which is not present in supply_segment_names."))
+        end
+    end
+
+    for segment_name in supply_segment_names
+        raw_value = if haskey(min_supply, segment_name)
+            min_supply[segment_name]
+        elseif haskey(min_supply, string(segment_name))
+            min_supply[string(segment_name)]
+        else
+            0.0
+        end
+
+        if !(isa(raw_value, Number) || isa(raw_value, AbstractVector))
+            throw(ArgumentError("min_supply values must be numbers or vectors. Current input for segment $(segment_name) is $(typeof(raw_value))."))
+        end
+
+        min_values = as_vector(raw_value)
+        if any(x -> !isfinite(x), min_values)
+            throw(ArgumentError("min_supply must be finite for all segments and time steps. Segment $(segment_name) has non-finite values $(min_values)."))
+        end
+        normalized_min_supply[segment_name] = min_values
+    end
+
+    return normalized_min_supply
+end
+
+function validate_min_max_supply!(min_supply::OrderedDict{Symbol,Vector{Float64}}, max_supply::OrderedDict{Symbol,Vector{Float64}})
+    for (segment_name, min_values) in min_supply
+        if !haskey(max_supply, segment_name)
+            throw(ArgumentError("Segment $(segment_name) exists in min_supply but not in max_supply."))
+        end
+        max_values = max_supply[segment_name]
+
+        if length(min_values) > 1 && length(max_values) > 1 && length(min_values) != length(max_values)
+            throw(ArgumentError("min_supply and max_supply time series lengths must match when both are time-varying for segment $(segment_name). Found lengths $(length(min_values)) and $(length(max_values))."))
+        end
+
+        comparison_length = max(length(min_values), length(max_values))
+        expanded_min_values = expand_supply_values(min_values, comparison_length)
+        expanded_max_values = expand_supply_values(max_values, comparison_length)
+
+        if any(expanded_min_values .> expanded_max_values)
+            failing_step = findfirst(expanded_min_values .> expanded_max_values)
+            throw(ArgumentError("min_supply must be <= max_supply for all segments and time steps. Segment $(segment_name), step $(failing_step) has min $(expanded_min_values[failing_step]) > max $(expanded_max_values[failing_step])."))
+        end
+    end
+    return nothing
+end
+
+function expand_supply_values(values::Vector{Float64}, target_length::Int)
+    if length(values) == target_length
+        return values
+    elseif length(values) == 1
+        return fill(values[1], target_length)
+    end
+
+    throw(ArgumentError("Cannot expand supply values of length $(length(values)) to target length $(target_length)."))
 end
 
 function parse_supply_names(price_supply, max_supply, supply_segment_names)
