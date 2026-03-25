@@ -106,12 +106,12 @@ flowchart LR
     linkStyle 5 stroke:lightgray, stroke-width: 2px;
 ```
 
-### [Downstream Use](@ref)
+### [Downstream Emissions](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph "DownstreamUse"
+  subgraph "DownstreamEmissions"
   direction TB
     A{{..}}
     E((Commodity))
