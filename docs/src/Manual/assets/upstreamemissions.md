@@ -1,32 +1,32 @@
-# Upstream Supply
+# Upstream Emissions
 
 ## Contents
 
-[Overview](@ref upstreamsupply_overview) | [Asset Structure](@ref upstreamsupply_asset_structure) | [Flow Equations](@ref upstreamsupply_flow_equations) | [Input File (Standard Format)](@ref upstreamsupply_input_file) | [Types - Asset Structure](@ref upstreamsupply_type_definition) | [Constructors](@ref upstreamsupply_constructors) | [Examples](@ref upstreamsupply_examples) | [Best Practices](@ref upstreamsupply_best_practices) | [Input File (Advanced Format)](@ref upstreamsupply_advanced_json_csv_input_format)
+[Overview](@ref upstreamemissions_overview) | [Asset Structure](@ref upstreamemissions_asset_structure) | [Flow Equations](@ref upstreamemissions_flow_equations) | [Input File (Standard Format)](@ref upstreamemissions_input_file) | [Types - Asset Structure](@ref upstreamemissions_type_definition) | [Constructors](@ref upstreamemissions_constructors) | [Examples](@ref upstreamemissions_examples) | [Best Practices](@ref upstreamemissions_best_practices) | [Input File (Advanced Format)](@ref upstreamemissions_advanced_json_csv_input_format)
 
-## [Overview](@id upstreamsupply_overview)
+## [Overview](@id upstreamemissions_overview)
 
-Upstream supply assets in Macro represent commodity supply processes at the upstream end of a value chain. They take in a source commodity, pass that commodity into the modeled system, and optionally emit CO2 according to an `emission_rate`. These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `upstreamsupply.json` or `upstreamsupply.csv`.
+Upstream emissions assets in Macro represent upstream commodity supply processes where emissions are explicitly tracked. They take in a source commodity, pass that commodity into the modeled system, and route associated CO2 emissions to a sink according to an `emission_rate`. These assets are defined using either JSON or CSV input files placed in the `assets` directory, typically named with descriptive identifiers like `upstreamemissions.json` or `upstreamemissions.csv`.
 
-The current implementation is generic over commodity type, so the same asset can represent upstream supply of liquid fuels, natural gas, or other commodities supported by the model.
+The current implementation is generic over commodity type, so the same asset can represent upstream emissions for liquid fuels, natural gas, or other commodities supported by the model.
 
-For backward compatibility, `FossilFuelsUpstream` remains available as an alias of `UpstreamSupply`.
+For backward compatibility, `FossilFuelsUpstream` remains available as an alias of `UpstreamEmissions`.
 
-## [Asset Structure](@id upstreamsupply_asset_structure)
+## [Asset Structure](@id upstreamemissions_asset_structure)
 
-An upstream supply asset consists of four main components:
+An upstream emissions asset consists of four main components:
 
 1. **Transformation Component**: Balances commodity throughput and emissions
 2. **Source Commodity Edge**: Represents the incoming upstream commodity flow
 3. **Delivered Commodity Edge**: Represents the outgoing commodity flow into the modeled system
 4. **CO2 Edge**: Represents emitted CO2 sent to a sink or location
 
-Here is a graphical representation of the upstream supply asset:
+Here is a graphical representation of the upstream emissions asset:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph "UpstreamSupply"
+  subgraph "UpstreamEmissions"
   direction TB
     A{{..}}
     E((Commodity))
@@ -48,9 +48,9 @@ flowchart LR
     c@{ animate: true };
 ```
 
-## [Flow Equations](@id upstreamsupply_flow_equations)
+## [Flow Equations](@id upstreamemissions_flow_equations)
 
-The upstream supply asset follows these relationships:
+The upstream emissions asset follows these relationships:
 
 ```math
 \begin{aligned}
@@ -61,16 +61,16 @@ The upstream supply asset follows these relationships:
 
 Where:
 - `flow` represents the flow of each commodity
-- ``\epsilon`` represents the emission coefficient defined in the [Conversion Process Parameters](@ref upstreamsupply_conversion_process_parameters) section
+- ``\epsilon`` represents the emission coefficient defined in the [Conversion Process Parameters](@ref upstreamemissions_conversion_process_parameters) section
 
-## [Input File (Standard Format)](@id upstreamsupply_input_file)
+## [Input File (Standard Format)](@id upstreamemissions_input_file)
 
-The easiest way to include an upstream supply asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets.
+The easiest way to include an upstream emissions asset in a model is to create a new file (either JSON or CSV) and place it in the `assets` directory together with the other assets.
 
 ```
 your_case/
 ├── assets/
-│   ├── upstreamsupply.json    # or upstreamsupply.csv
+│   ├── upstreamemissions.json    # or upstreamemissions.csv
 │   ├── other_assets.json
 │   └── ...
 ├── system/
@@ -80,13 +80,13 @@ your_case/
 
 This file can either be created manually, or using the `template_asset` function, as shown in the [Adding an Asset to a System](@ref) section of the User Guide. The file will be automatically loaded when you run your Macro model.
 
-The following is an example of an upstream supply asset input file:
+The following is an example of an upstream emissions asset input file:
 
 ```json
 {
-    "upstream_supply": [
+    "upstream_emissions": [
         {
-            "type": "UpstreamSupply",
+            "type": "UpstreamEmissions",
             "instance_data": [
                 {
                     "id": "liquid_fuels_supply_SE",
@@ -106,18 +106,18 @@ The following is an example of an upstream supply asset input file:
 ```
 
 !!! tip "Global Data vs Instance Data"
-    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "upstreamsupply_examples") section below for an example.
+    When working with JSON input files, the `global_data` field can be used to group data that is common to all instances of the same asset type. This is useful for setting constraints that are common to all instances of the same asset type and avoid repeating the same data for each instance. See the [Examples](@ref "upstreamemissions_examples") section below for an example.
 
-The following tables outline the attributes that can be set for an upstream supply asset.
+The following tables outline the attributes that can be set for an upstream emissions asset.
 
 ### Essential Attributes
 | Field | Type | Description |
 |--------------|---------|------------|
-| `type` | String | Asset type identifier: "UpstreamSupply" |
-| `id` | String | Unique identifier for the upstream supply instance |
+| `type` | String | Asset type identifier: "UpstreamEmissions" |
+| `id` | String | Unique identifier for the upstream emissions instance |
 | `location` | String | Geographic location/node identifier |
 
-### [Conversion Process Parameters](@id upstreamsupply_conversion_process_parameters)
+### [Conversion Process Parameters](@id upstreamemissions_conversion_process_parameters)
 | Field | Type | Description | Units | Default |
 |--------------|---------|------------|----------------|----------|
 | `emission_rate` | Float64 | CO2 emissions per unit of source commodity throughput | commodity-dependent | 0.0 |
@@ -127,8 +127,8 @@ The following tables outline the attributes that can be set for an upstream supp
 
 Simple-format edge attributes use edge-specific prefixes. For example, delivered commodity edge fields are written as `fuel_investment_cost`, `fuel_existing_capacity`, and `fuel_constraints`; source commodity edge fields use the `fossil_fuel_` prefix; and CO2 edge fields use the `co2_` prefix.
 
-### [Constraints Configuration](@id "upstreamsupply_constraints")
-Upstream supply assets can have different constraints applied to them, and the user can configure them using the following fields:
+### [Constraints Configuration](@id "upstreamemissions_constraints")
+Upstream emissions assets can have different constraints applied to them, and the user can configure them using the following fields:
 
 | Field | Type | Description |
 |--------------|---------|------------|
@@ -137,10 +137,10 @@ Upstream supply assets can have different constraints applied to them, and the u
 | `fossil_fuel_constraints` | Dict{String,Bool} | List of constraints applied to the source commodity edge. |
 | `co2_constraints` | Dict{String,Bool} | List of constraints applied to the CO2 edge. |
 
-Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to an upstream supply asset.
+Users can refer to the [Adding Asset Constraints to a System](@ref) section of the User Guide for a list of all the constraints that can be applied to an upstream emissions asset.
 
 #### Default constraints
-To simplify the input file and the asset configuration, the following constraints are applied to the upstream supply asset by default:
+To simplify the input file and the asset configuration, the following constraints are applied to the upstream emissions asset by default:
 
 - [Balance constraint](@ref balance_constraint_ref) (applied to the transformation component)
 
@@ -199,12 +199,12 @@ If [`RampingLimitConstraint`](@ref ramping_limits_constraint_ref) is added to th
 | `fuel_ramp_up_fraction` | Float64 | Maximum increase in delivered flow between timesteps | fraction | 1.0 |
 | `fuel_ramp_down_fraction` | Float64 | Maximum decrease in delivered flow between timesteps | fraction | 1.0 |
 
-## [Types - Asset Structure](@id upstreamsupply_type_definition)
+## [Types - Asset Structure](@id upstreamemissions_type_definition)
 
-The `UpstreamSupply` asset is defined as follows:
+The `UpstreamEmissions` asset is defined as follows:
 
 ```julia
-struct UpstreamSupply{T} <: AbstractAsset
+struct UpstreamEmissions{T} <: AbstractAsset
     id::AssetId
     fossilfuelsupstream_transform::Transformation
     fossil_fuel_edge::Edge{<:T}
@@ -212,15 +212,15 @@ struct UpstreamSupply{T} <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-const FossilFuelsUpstream = UpstreamSupply
+const FossilFuelsUpstream = UpstreamEmissions
 ```
 
-## [Constructors](@id upstreamsupply_constructors)
+## [Constructors](@id upstreamemissions_constructors)
 
 ### Default constructors
 
 ```julia
-UpstreamSupply(
+UpstreamEmissions(
     id::AssetId,
     fossilfuelsupstream_transform::Transformation,
     fossil_fuel_edge::Edge{<:T},
@@ -228,7 +228,7 @@ UpstreamSupply(
     co2_edge::Edge{<:CO2}
 ) where {T<:LiquidFuels}
 
-UpstreamSupply(
+UpstreamEmissions(
     id::AssetId,
     fossilfuelsupstream_transform::Transformation,
     fossil_fuel_edge::Edge{<:T},
@@ -239,30 +239,30 @@ UpstreamSupply(
 
 ### Factory constructor
 ```julia
-make(asset_type::Type{UpstreamSupply}, data::AbstractDict{Symbol,Any}, system::System)
+make(asset_type::Type{UpstreamEmissions}, data::AbstractDict{Symbol,Any}, system::System)
 ```
 
 | Field | Type | Description |
 |--------------|---------|------------|
-| `asset_type` | `Type{UpstreamSupply}` | Macro type of the asset |
+| `asset_type` | `Type{UpstreamEmissions}` | Macro type of the asset |
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-## [Examples](@id upstreamsupply_examples)
+## [Examples](@id upstreamemissions_examples)
 
-This section contains examples of how to use the upstream supply asset in a Macro model.
+This section contains examples of how to use the upstream emissions asset in a Macro model.
 
-### Multiple upstream supply assets with shared defaults
+### Multiple upstream emissions assets with shared defaults
 
-This example shows how to create two upstream supply assets in different zones with shared global data and zone-specific `emission_rate` and cost assumptions.
+This example shows how to create two upstream emissions assets in different zones with shared global data and zone-specific `emission_rate` and cost assumptions.
 
 **JSON Format:**
 
 ```json
 {
-    "upstream_supply": [
+    "upstream_emissions": [
         {
-            "type": "UpstreamSupply",
+            "type": "UpstreamEmissions",
             "global_data": {
                 "fuel_commodity": "NaturalGas",
                 "fossil_fuel_commodity": "NaturalGas",
@@ -294,24 +294,24 @@ This example shows how to create two upstream supply assets in different zones w
 
 | Type | id | location | fuel_commodity | fossil_fuel_commodity | emission_rate | fuel_investment_cost | fuel_fixed_om_cost | fuel_variable_om_cost | co2_sink |
 |------|----|----------|----------------|-----------------------|---------------|-----------------|---------------|------------------|----------|
-| UpstreamSupply | natgas_supply_SE | SE | NaturalGas | NaturalGas | 0.18 | 1200 | 80 | 1.0 | co2_atm |
-| UpstreamSupply | natgas_supply_NE | NE | NaturalGas | NaturalGas | 0.16 | 1500 | 95 | 1.0 | co2_atm |
+| UpstreamEmissions | natgas_supply_SE | SE | NaturalGas | NaturalGas | 0.18 | 1200 | 80 | 1.0 | co2_atm |
+| UpstreamEmissions | natgas_supply_NE | NE | NaturalGas | NaturalGas | 0.16 | 1500 | 95 | 1.0 | co2_atm |
 
-## [Best Practices](@id upstreamsupply_best_practices)
+## [Best Practices](@id upstreamemissions_best_practices)
 
 1. Use explicit commodity names for both `fuel_commodity` and `fossil_fuel_commodity`, even when they are the same.
 2. Set `co2_sink` explicitly when emissions should be routed to a dedicated CO2 node rather than the asset location.
 3. Keep `emission_rate` units consistent with the commodity flow units used in the rest of the model.
-4. Use `global_data` for shared cost and commodity settings when creating many upstream supply assets.
+4. Use `global_data` for shared cost and commodity settings when creating many upstream emissions assets.
 5. If this asset represents a physical import interface, apply capacity and ramping constraints on the delivered commodity edge rather than the transformation.
 
-## [Input File (Advanced Format)](@id upstreamsupply_advanced_json_csv_input_format)
+## [Input File (Advanced Format)](@id upstreamemissions_advanced_json_csv_input_format)
 
-Macro provides an advanced format for defining upstream supply assets, offering users and modelers detailed control over transformation and edge specifications.
+Macro provides an advanced format for defining upstream emissions assets, offering users and modelers detailed control over transformation and edge specifications.
 
-To understand the advanced format, consider the [graph representation](@ref upstreamsupply_asset_structure) and the [type definition](@ref upstreamsupply_type_definition) of an upstream supply asset. The input file mirrors this hierarchical structure.
+To understand the advanced format, consider the [graph representation](@ref upstreamemissions_asset_structure) and the [type definition](@ref upstreamemissions_type_definition) of an upstream emissions asset. The input file mirrors this hierarchical structure.
 
-An upstream supply asset in Macro is composed of a `Transformation` object and three `Edge` objects. The input file for an upstream supply asset is therefore organized as follows:
+An upstream emissions asset in Macro is composed of a `Transformation` object and three `Edge` objects. The input file for an upstream emissions asset is therefore organized as follows:
 
 ```json
 {
@@ -332,13 +332,13 @@ An upstream supply asset in Macro is composed of a `Transformation` object and t
 }
 ```
 
-Below is an example of an advanced input file for an upstream supply asset:
+Below is an example of an advanced input file for an upstream emissions asset:
 
 ```json
 {
-    "upstream_supply": [
+    "upstream_emissions": [
         {
-            "type": "UpstreamSupply",
+            "type": "UpstreamEmissions",
             "instance_data": [
                 {
                     "id": "liquid_fuels_supply_SE",
@@ -377,6 +377,4 @@ Below is an example of an advanced input file for an upstream supply asset:
 ### Key Points
 
 - The `transforms` block configures the internal transformation object, including `timedata`, `constraints`, and `emission_rate`.
-- The `fossil_fuel_edge` and `fuel_edge` can be assigned any supported commodity type, allowing the asset to model upstream supply for multiple sectors.
-- The `co2_edge` always uses the `CO2` commodity and can terminate either at `co2_sink` or at the asset `location`.
-- For a comprehensive list of attributes that can be configured for edges and transformations, refer to the [edges](@ref manual-edges-fields) and [transformations](@ref manual-transformation-fields) pages of the Macro manual.
+- The `fossil_fuel_edge` and `fuel_edge` can be assigned any supported commodity type, allowing the asset to model upstream emissions for multiple sectors.

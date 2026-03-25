@@ -423,12 +423,12 @@ flowchart LR
     linkStyle 0 stroke:#FFD700, stroke-width: 2px;
 ```
 
-### [Upstream Supply](@ref)
+### [Upstream Emissions](@ref)
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'background': '#D1EBDE' }}}%%
 flowchart LR
-  subgraph "UpstreamSupply"
+  subgraph "UpstreamEmissions"
   direction TB
     A{{..}}
     E((Commodity))
