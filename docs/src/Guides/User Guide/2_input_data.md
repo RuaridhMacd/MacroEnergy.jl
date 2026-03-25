@@ -305,12 +305,17 @@ The attributes that can be set for each node (either in `global_data` or `instan
 | **constraints** | `Dict{String,Bool}` | Any Macro constraint type | Empty | List of constraints applied to the node. E.g. `{"BalanceConstraint": true, "MaxNonServedDemandConstraint": true}`.|
 | **demand** | `Dict` | Demand file path and header | Empty | Path to the demand file and column name for the demand time series to link to the node. E.g. `{"timeseries": {"path": "system/demand.csv", "header": "Demand_MW_z1"}}`.|
 | **max_nsd** | `Vector{Float64}` | Vector of numbers $\in$ [0,1] | [0.0] | Maximum allowed non-served demand for each demand segment as a fraction of the total demand. E.g. `[1.0]` for a single segment. |
-| **max_supply** | `Vector{Float64}` | Vector of numbers | [0.0] | Maximum allowed supply for each supply segment. E.g. `[1000.0]` for a single segment. |
-| **price** | `Dict` | Price file path and header | Empty | Path to the price file and column name for the price time series to link to the node. E.g. `{"timeseries": {"path": "system/fuel_prices.csv", "header": "natgas_SE"}}`.|
+| **supply_segment_names** | `Vector{String}` | Ordered segment names | Empty | Ordered names for supply segments. If omitted, default names such as `seg1`, `seg2`, ... are inferred when needed. |
+| **min_supply** | `Dict{String,Any}` | Segment-keyed numbers or vectors | Empty | Optional minimum supply by segment. Values may be a single number or a time series vector. Omitted segments default to `0.0`, and each entry must satisfy `min_supply <= max_supply`. |
+| **max_supply** | `Dict{String,Any}` | Segment-keyed numbers or vectors | Empty | Maximum allowed supply for each supply segment. |
+| **price** | `Vector{Float64}` | Postprocessed output | Empty | Effective node price computed during postprocessing from realized supply flows. This is typically not provided as an input. |
 | **price_nsd** | `Vector{Float64}` | Vector of numbers | [0.0] | Price/penalty for non-served demand by segment. E.g. `[5000.0]` for a single segment. |
-| **price_supply** | `Vector{Float64}` | Vector of numbers | [0.0] | Piecewise linear price for supply curves. E.g. `[0.0, 100.0, 200.0]`. |
+| **price_supply** | `Dict{String,Any}` | Segment-keyed numbers or vectors | Empty | Piecewise linear price for supply curves. |
 | **price\_unmet\_policy** | `Dict{DataType,Float64}` | Dict of Macro policy types and numbers | Empty | Price/penalty for unmet policy constraints. |
 | **rhs\_policy** | `Dict{DataType,Float64}` | Dict of Macro constraint types and numbers | Empty | Right hand side of the policy constraints. E.g. `{"CO2CapConstraint": 200}`, carbon price of 200 USD/ton. |
+
+!!! note "Supply input format"
+    The preferred format for node supply inputs is a set of named segments using `supply_segment_names`, `price_supply`, `max_supply`, and optionally `min_supply`. `price_supply` and `max_supply` still accept legacy vector inputs and are converted internally to the named-segment representation. `min_supply`, when provided, must be a segment-keyed dictionary.
 
 !!! tip "Constraints"
     One of the main features of Macro is the ability to include constraints on the system from a pre-defined library of constraints (see [Macro Constraint Library](@ref macro_constraint_library) for more details). To include a constraint to a node, the user needs to add the constraint name to the `constraints` attribute of the node. The example below will show how to include constraints to node instances. 
@@ -343,28 +348,46 @@ Therefore, the system has 4 networks and 8 nodes in total.
             "instance_data": [
                 {   // NaturalGas node 1
                     "id": "natgas_SE",
-                    "price": {
-                        "timeseries": {
-                            "path": "system/fuel_prices.csv", // path to the price file
-                            "header": "natgas_SE" // column name in the price file for the price time series
+                    "supply_segment_names": ["seg1"],
+                    "max_supply": {
+                        "seg1": [Infinity]
+                    },
+                    "price_supply": {
+                        "seg1": {
+                            "timeseries": {
+                                "path": "system/fuel_prices.csv", // path to the price file
+                                "header": "natgas_SE" // column name in the price file for the price time series
+                            }
                         }
                     }
                 },  // End of NaturalGas node 1
                 {   // NaturalGas node 2
                     "id": "natgas_MIDAT",
-                    "price": {
-                        "timeseries": {
-                            "path": "system/fuel_prices.csv",
-                            "header": "natgas_MIDAT"
+                    "supply_segment_names": ["seg1"],
+                    "max_supply": {
+                        "seg1": [Infinity]
+                    },
+                    "price_supply": {
+                        "seg1": {
+                            "timeseries": {
+                                "path": "system/fuel_prices.csv",
+                                "header": "natgas_MIDAT"
+                            }
                         }
                     }
                 },  // End of NaturalGas node 2
                 {   // NaturalGas node 3
                     "id": "natgas_NE",
-                    "price": {
-                        "timeseries": {
-                            "path": "system/fuel_prices.csv",
-                            "header": "natgas_NE"
+                    "supply_segment_names": ["seg1"],
+                    "max_supply": {
+                        "seg1": [Infinity]
+                    },
+                    "price_supply": {
+                        "seg1": {
+                            "timeseries": {
+                                "path": "system/fuel_prices.csv",
+                                "header": "natgas_NE"
+                            }
                         }
                     }
                 },  // End of NaturalGas node 3
@@ -453,16 +476,20 @@ Therefore, the system has 4 networks and 8 nodes in total.
                             "header": "Demand_Zero"
                         }
                     },
-                    "max_supply": [  // maximum allowed supply for each supply segment
-                        10000,
-                        20000,
-                        30000
-                    ],
-                    "price_supply": [  // piecewise linear price for supply curves
-                        40,
-                        60,
-                        80
-                    ]
+                    "supply_segment_names": ["base", "mid", "peak"],
+                    "min_supply": {
+                        "base": [500]
+                    },
+                    "max_supply": {
+                        "base": [10000],
+                        "mid": [20000],
+                        "peak": [30000]
+                    },
+                    "price_supply": {
+                        "base": [40],
+                        "mid": [60],
+                        "peak": [80]
+                    }
                 }
             ]
         }

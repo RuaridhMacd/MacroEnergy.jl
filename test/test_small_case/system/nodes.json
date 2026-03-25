@@ -3,8 +3,8 @@
         {
             "global_data": {
                 "constraints": {
-                    "MaxNonServedDemandConstraint": true,
                     "MaxNonServedDemandPerSegmentConstraint": true,
+                    "MaxNonServedDemandConstraint": true,
                     "BalanceConstraint": true
                 },
                 "max_nsd": [
@@ -13,41 +13,41 @@
                     0.024,
                     0.003
                 ],
-                "time_interval": "Electricity",
                 "price_nsd": [
                     50000,
                     45000,
                     27500.000000000004,
                     10000
-                ]
+                ],
+                "time_interval": "Electricity"
             },
             "instance_data": [
                 {
+                    "id": "elec_MA",
                     "demand": {
                         "timeseries": {
-                            "header": "elec_demand_MA",
-                            "path": "system/demand.csv"
+                            "path": "system/demand.csv",
+                            "header": "elec_demand_MA"
                         }
-                    },
-                    "id": "elec_MA"
+                    }
                 },
                 {
+                    "id": "elec_CT",
                     "demand": {
                         "timeseries": {
-                            "header": "elec_demand_CT",
-                            "path": "system/demand.csv"
+                            "path": "system/demand.csv",
+                            "header": "elec_demand_CT"
                         }
-                    },
-                    "id": "elec_CT"
+                    }
                 },
                 {
+                    "id": "elec_ME",
                     "demand": {
                         "timeseries": {
-                            "header": "elec_demand_ME",
-                            "path": "system/demand.csv"
+                            "path": "system/demand.csv",
+                            "header": "elec_demand_ME"
                         }
-                    },
-                    "id": "elec_ME"
+                    }
                 }
             ],
             "type": "Electricity"
@@ -58,23 +58,62 @@
             },
             "instance_data": [
                 {
-                    "price": [18.59617191],
-                    "id": "CT_NG"
+                    "id": "CT_NG",
+                    "max_supply": {
+                        "seg1": [
+                            Infinity
+                        ]
+                    },
+                    "supply_segment_names": [
+                        "seg1"
+                    ],
+                    "price_supply": {
+                        "seg1": [
+                            18.59617191
+                        ]
+                    }
                 },
                 {
-                    "price": [18.59617191],
-                    "id": "ME_NG"
+                    "id": "ME_NG",
+                    "max_supply": {
+                        "seg1": [
+                            Infinity
+                        ]
+                    },
+                    "supply_segment_names": [
+                        "seg1"
+                    ],
+                    "price_supply": {
+                        "seg1": [
+                            18.59617191
+                        ]
+                    }
                 },
                 {
-                    "price": [18.59617191],
-                    "id": "MA_NG"
+                    "id": "MA_NG",
+                    "max_supply": {
+                        "seg1": [
+                            Infinity
+                        ]
+                    },
+                    "supply_segment_names": [
+                        "seg1"
+                    ],
+                    "price_supply": {
+                        "seg1": [
+                            18.59617191
+                        ]
+                    }
                 }
             ],
             "type": "NaturalGas"
         },
         {
             "global_data": {
-                "time_interval": "Uranium"
+                "time_interval": "Uranium",
+                "constraints": {
+                    "BalanceConstraint": false
+                }
             },
             "instance_data": [
             ],
@@ -82,7 +121,10 @@
         },
         {
             "global_data": {
-                "time_interval": "CO2"
+                "time_interval": "CO2",
+                "constraints": {
+                    "BalanceConstraint": false
+                }
             },
             "instance_data": [
                 {
@@ -117,7 +159,10 @@
         },
         {
             "global_data": {
-                "time_interval": "Electricity"
+                "time_interval": "Electricity",
+                "constraints": {
+                    "BalanceConstraint": false
+                }
             },
             "instance_data": [
                 {

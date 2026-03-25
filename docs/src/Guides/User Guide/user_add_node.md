@@ -175,17 +175,19 @@ Each new Node will be added to the end of the existing Nodes in the Nodes file. 
                     "max_nsd": [
                         0
                     ],
+                    "supply_segment_names": [
+                    ],
+                    "min_supply": {
+                    },
                     "price": [
                     ],
                     "price_nsd": [
                         0
                     ],
-                    "max_supply": [
-                        0
-                    ],
-                    "price_supply": [
-                        0
-                    ],
+                    "max_supply": {
+                    },
+                    "price_supply": {
+                    },
                     "price_unmet_policy": {
                     },
                     "constraints": {
@@ -203,6 +205,8 @@ Each new Node will be added to the end of the existing Nodes in the Nodes file. 
 ```
 
 Macro will add all default fields to the new Node. Details on each of these fields can be found here. Most fields can be deleted if you do not want to assign a non-default value. The only field which should not be deleted is the "id" field.
+
+For external supply Nodes, the preferred format is to define named segments using `supply_segment_names`, `price_supply`, and `max_supply`, with optional `min_supply`. If `min_supply` is omitted it defaults to zero for all segments. `price_supply` and `max_supply` still accept legacy vector inputs, but `min_supply` must be provided as a segment-keyed dictionary if used.
 
 In the future we will add features to allow several Nodes of the same Commodity to be added at once with global data, as well as tools to automatically group Nodes with the same parameters.
 

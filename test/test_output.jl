@@ -5,6 +5,7 @@ using Random
 using MacroEnergy
 using CSV
 using DataFrames
+using OrderedCollections: OrderedDict
 import MacroEnergy:
     TimeData,
     compute_annualized_costs!,
@@ -21,6 +22,7 @@ import MacroEnergy:
     time_interval,
     start_vertex,
     price,
+    price_supply,
     total_years,
     present_value_factor,
     present_value_annuity_factor,
@@ -31,6 +33,8 @@ import MacroEnergy:
     new_capacity,
     storage_level,
     non_served_demand,
+    supply_flow,
+    supply_segments,
     segments_non_served_demand,
     price_non_served_demand,
     max_non_served_demand,
@@ -83,9 +87,10 @@ function test_writing_output()
             subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
         ),
         price = [10.0, 11.0, 12.0],
-        price_supply = [100.0, 110.0, 120.0],
-        max_supply = [100.0, 110.0, 120.0],
-        supply_flow = zeros(3, 3),  # 3 segments × 3 time steps
+        supply_segment_names = [:seg1, :seg2, :seg3],
+        price_supply = OrderedDict(:seg1 => [10.0, 11.0, 12.0], :seg2 => [110.0], :seg3 => [120.0]),
+        max_supply = OrderedDict(:seg1 => [100.0], :seg2 => [110.0], :seg3 => [120.0]),
+        supply_flow = [12.0 15.0 18.0; 0.0 0.0 0.0; 0.0 0.0 0.0],
         non_served_demand = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0],
         max_nsd=[10.0, 11.0, 12.0],
         price_nsd = [100.0, 110.0, 120.0],
@@ -1033,7 +1038,13 @@ function test_writing_output()
             subperiod_weight(edge_to_storage, current_subperiod(edge_to_storage, t)) * price(start_vertex(edge_to_storage), t) * value(flow(edge_to_storage, t))
             for t in time_interval(edge_to_storage)
         )
+        # Note: edge_between_nodes (edge1) is not part of any system asset and is not
+        # returned by get_edges(system), so it does not contribute to attributed fuel costs.
         fuel_raw_total = fuel_raw_transformation + fuel_raw_storage
+        supply_raw_total = sum(
+            subperiod_weight(node1, current_subperiod(node1, t)) * price_supply(node1, s, t) * value(supply_flow(node1, s, t))
+            for s in supply_segments(node1), t in time_interval(node1)
+        )
         # NonServedDemand from node1: sum over segment and time of (weight * price_nsd * nsd)
         nsd_raw_total = sum(
             subperiod_weight(node1, current_subperiod(node1, t)) * price_non_served_demand(node1, s) * value(non_served_demand(node1, s, t))
@@ -1062,8 +1073,8 @@ function test_writing_output()
         @test detailed_undisc.value[detailed_undisc.category .== :Investment] ≈ [inv_cf * new_cap_val]
         # VariableOM: raw * period_length
         @test detailed_undisc.value[detailed_undisc.category .== :VariableOM] ≈ [variable_om_raw * period_length]
-        # Fuel: raw * period_length (sum of all edges with fuel cost)
         @test sum(detailed_undisc.value[detailed_undisc.category .== :Fuel]) ≈ fuel_raw_total * period_length
+        @test sum(detailed_undisc.value[detailed_undisc.category .== :Supply]) ≈ (supply_raw_total - fuel_raw_total) * period_length
         # NonServedDemand: raw * period_length (from nodes with non_served_demand)
         @test sum(detailed_undisc.value[detailed_undisc.category .== :NonServedDemand]) ≈ nsd_raw_total * period_length
 
@@ -1079,8 +1090,8 @@ function test_writing_output()
         @test detailed_disc.value[detailed_disc.category .== :Investment] ≈ [inv_pv]
         # VariableOM: raw * discount_factor * opexmult
         @test detailed_disc.value[detailed_disc.category .== :VariableOM] ≈ [variable_om_raw * discount_factor * opexmult]
-        # Fuel: raw * discount_factor * opexmult (sum of all edges with fuel cost)
         @test sum(detailed_disc.value[detailed_disc.category .== :Fuel]) ≈ fuel_raw_total * discount_factor * opexmult
+        @test sum(detailed_disc.value[detailed_disc.category .== :Supply]) ≈ (supply_raw_total - fuel_raw_total) * discount_factor * opexmult
         # NonServedDemand: raw * discount_factor * opexmult
         @test sum(detailed_disc.value[detailed_disc.category .== :NonServedDemand]) ≈ nsd_raw_total * discount_factor * opexmult
 
