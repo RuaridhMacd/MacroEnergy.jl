@@ -79,7 +79,7 @@ const pages = [
             "Manual/assets/battery.md",
             "Manual/assets/beccselectricity.md",
             "Manual/assets/beccshydrogen.md",
-            "Manual/assets/downstreamuse.md",
+            "Manual/assets/downstreamemissions.md",
             "Manual/assets/electricdac.md",
             "Manual/assets/electricheating.md",
             "Manual/assets/electricsteam.md",
