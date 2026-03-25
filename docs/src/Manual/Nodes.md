@@ -81,6 +81,7 @@ For example, a city Location might contain `Node{Electricity}`, `Node{NaturalGas
 | Field                  | Type                                  | Description                                    | Units   | Default                                  |
 |------------------------|---------------------------------------|------------------------------------------------|---------|------------------------------------------|
 | `supply_segment_names` | `Vector{Symbol}`                      | Ordered names of supply segments               | `-`     | `Symbol[]`                               |
+| `min_supply`           | `OrderedDict{Symbol,Vector{Float64}}` | Minimum supply by segment, optionally varying over time | `MWh/hr` | `OrderedDict{Symbol,Vector{Float64}}()` |
 | `max_supply`           | `OrderedDict{Symbol,Vector{Float64}}` | Maximum supply by segment, optionally varying over time | `MWh/hr` | `OrderedDict{Symbol,Vector{Float64}}()` |
 | `price_supply`         | `OrderedDict{Symbol,Vector{Float64}}` | Cost of supply by segment, optionally varying over time | `$/MWh`  | `OrderedDict{Symbol,Vector{Float64}}()` |
 | `price`                | `Vector{Float64}`                     | Effective node price by time step, typically populated during postprocessing from realized supply flows | `$/MWh` | `Float64[]` |
@@ -145,6 +146,7 @@ Direct constructor using keyword arguments for all fields, where `T` is the type
 | `location`             | `Union{Missing, Symbol}`              | Location identifier                | `No`     |
 | `demand`               | `Vector{Float64}`                     | Time-varying demand                | `No`     |
 | `supply_segment_names` | `Vector{Symbol}`                      | Ordered names of supply segments   | `No`     |
+| `min_supply`           | `OrderedDict{Symbol,Vector{Float64}}` | Minimum supply by segment          | `No`     |
 | `max_supply`           | `OrderedDict{Symbol,Vector{Float64}}` | Maximum supply by segment          | `No`     |
 | `price`                | `Vector{Float64}`                     | Effective node price vector, usually populated during postprocessing rather than supplied directly | `No`     |
 | `price_supply`         | `OrderedDict{Symbol,Vector{Float64}}` | Supply prices by segment           | `No`     |
@@ -219,6 +221,9 @@ Methods for managing supply capabilities and flows.
 |--------|-------------|-------------|
 | `supply_segment_names(n::Node)` | Get ordered supply segment names | `Vector{Symbol}` |
 | `supply_segment_name(n::Node, s::Int64)` | Get the name of supply segment s | `Symbol` |
+| `min_supply(n::Node)` | Get minimum supply vectors by segment | `Vector{Vector{Float64}}` |
+| `min_supply(n::Node, s::Int64)` | Get the min supply vector for segment s | `Vector{Float64}` |
+| `min_supply(n::Node, s::Int64, t::Int64)` | Get minimum supply for segment s at time t, reusing the first value if the vector length is 1 | `Float64` |
 | `max_supply(n::Node)` | Get maximum supply vectors by segment | `Vector{Vector{Float64}}` |
 | `max_supply(n::Node, s::Int64)` | Get the max supply vector for segment s | `Vector{Float64}` |
 | `max_supply(n::Node, s::Int64, t::Int64)` | Get maximum supply for segment s at time t, reusing the first value if the vector length is 1 | `Float64` |
@@ -363,7 +368,7 @@ Lastly, we have added `location` fields to both Nodes. This is not required but 
 
 Nodes can also be used to supply Commodities from outside your System. Here, we define two Biomass Nodes which are used to supply biomass to the System for use as fuel. As in the previous example, we have used a mixture of `global_data` and `instance_data` to define the Nodes. We have also added both to Locations so that other components can connect to them by Location rather than by Node ID.
 
-Adding external supply is similar to adding demand, but we use the `max_supply` and `price_supply` fields and there is no need to add constraints beyond the basic `BalanceConstraint`. Supply is organized into named segments. Each segment has a `price_supply` vector and a `max_supply` vector. If either vector has length `1`, that value is reused for every modeled time step. These are individual segments of supply, not cumulative supply. We recommend listing the segments in order of increasing price. This is not necessary for Macro to handle them correctly but will make the results easier to interpret.
+Adding external supply is similar to adding demand, but we use the `min_supply`, `max_supply`, and `price_supply` fields and there is no need to add constraints beyond the basic `BalanceConstraint`. Supply is organized into named segments. Each segment has a `price_supply` vector, a `max_supply` vector, and optionally a `min_supply` vector. If any of these vectors has length `1`, that value is reused for every modeled time step. Omitted `min_supply` segments default to `0.0`, and Macro validates that `min_supply <= max_supply` for every segment and time step. These are individual segments of supply, not cumulative supply. We recommend listing the segments in order of increasing price. This is not necessary for Macro to handle them correctly but will make the results easier to interpret.
 
 The preferred input format uses dictionaries keyed by segment name together with an optional explicit `supply_segment_names` vector:
 
@@ -381,6 +386,11 @@ The preferred input format uses dictionaries keyed by segment name together with
             "id": "boston_bioherb",
             "location": "boston",
             "supply_segment_names": ["base", "mid", "peak"],
+            "min_supply": {
+                "base": [250.0],
+                "mid": [0.0],
+                "peak": [0.0]
+            },
             "max_supply": {
                 "base": [3000.0],
                 "mid": [1000.0],
@@ -396,6 +406,11 @@ The preferred input format uses dictionaries keyed by segment name together with
             "id": "princeton_bioherb",
             "location": "princeton",
             "supply_segment_names": ["base", "mid", "peak"],
+            "min_supply": {
+                "base": [100.0],
+                "mid": [0.0],
+                "peak": [0.0]
+            },
             "max_supply": {
                 "base": [500.0],
                 "mid": [3000.0],
@@ -411,7 +426,7 @@ The preferred input format uses dictionaries keyed by segment name together with
 }           
 ```
 
-Vector inputs are still accepted by the load-input schema for convenience and are converted into this named-segment representation during input processing.
+Vector inputs are still accepted by the load-input schema for `price_supply` and `max_supply` for convenience and are converted into this named-segment representation during input processing. `min_supply` must be provided as a segment-keyed dictionary if specified.
 
 #### Emissions Nodes
 
