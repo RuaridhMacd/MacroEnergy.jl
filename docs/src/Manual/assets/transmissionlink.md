@@ -21,7 +21,7 @@ Here is a graphical representation of the Transmission Link asset:
 flowchart LR
   subgraph TransmissionLink
   direction LR
-    A((Commodity)) e1@-->|Transmission| B((Commodity))
+    A((Commodity)) e1@<-->|Transmission| B((Commodity))
     e1@{ animate: true }
  end
     style A r:40,fill:#FFD700,stroke:black,color:black,stroke-dasharray: 3,5;
