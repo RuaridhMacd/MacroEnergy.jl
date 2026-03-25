@@ -6,7 +6,6 @@ struct DownstreamEmissions{T} <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-const DownstreamUse = DownstreamEmissions
 const FuelsEndUse = DownstreamEmissions
 
 DownstreamEmissions(id::AssetId, fuelsenduse_transform::Transformation, fuel_edge::Edge{T}, fuel_demand_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
