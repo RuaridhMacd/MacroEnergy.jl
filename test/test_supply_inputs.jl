@@ -168,6 +168,7 @@ function test_min_supply_is_enforced_in_operation_model()
 
     MacroEnergy.operation_model!(node, model)
     @objective(model, Min, model[:eVariableCost])
+    set_silent(model)
     optimize!(model)
 
     @test is_solved_and_feasible(model)
