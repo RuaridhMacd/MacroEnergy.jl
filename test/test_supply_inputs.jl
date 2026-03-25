@@ -2,6 +2,8 @@ module TestSupplyInputs
 
 using Test
 using MacroEnergy
+using JuMP
+using HiGHS
 using OrderedCollections: OrderedDict
 
 import MacroEnergy: check_and_convert_supply!
@@ -140,6 +142,39 @@ function test_min_supply_greater_than_max_supply_errors()
     @test_throws ArgumentError check_and_convert_supply!(data)
 end
 
+function test_min_supply_is_enforced_in_operation_model()
+    timedata = MacroEnergy.TimeData{MacroEnergy.Electricity}(;
+        time_interval=1:2,
+        hours_per_timestep=1,
+        subperiods=[1:1, 2:2],
+        subperiod_indices=[1, 2],
+        subperiod_weights=Dict(1 => 1.0, 2 => 1.0),
+        period_index=1,
+    )
+
+    node = MacroEnergy.Node{MacroEnergy.Electricity}(;
+        id=:supply_node,
+        timedata=timedata,
+        balance_data=Dict(:demand => Dict{Symbol,Float64}()),
+        supply_segment_names=[:seg1],
+        min_supply=OrderedDict(:seg1 => [2.0]),
+        max_supply=OrderedDict(:seg1 => [5.0]),
+        price_supply=OrderedDict(:seg1 => [3.0]),
+    )
+
+    model = Model(HiGHS.Optimizer)
+    model[:vREF] = @variable(model, base_name="vREF")
+    model[:eVariableCost] = AffExpr(0.0)
+
+    MacroEnergy.operation_model!(node, model)
+    @objective(model, Min, model[:eVariableCost])
+    optimize!(model)
+
+    @test is_solved_and_feasible(model)
+    @test value(MacroEnergy.supply_flow(node, 1, 1)) ≈ 2.0
+    @test value(MacroEnergy.supply_flow(node, 1, 2)) ≈ 2.0
+end
+
 function test_multi_segment_price_supply_without_max_supply_errors()
     data = Dict{Symbol,Any}(
         :price_supply => OrderedDict(:seg1 => [5.0], :seg2 => [9.0]),
@@ -168,6 +203,7 @@ end
     test_min_supply_defaults_to_zero_when_not_provided()
     test_min_supply_vector_input_errors()
     test_min_supply_greater_than_max_supply_errors()
+    test_min_supply_is_enforced_in_operation_model()
     test_multi_segment_price_supply_without_max_supply_errors()
     test_extra_names_without_max_supply_errors()
 end
