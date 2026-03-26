@@ -292,6 +292,46 @@ function test_update_node_supply_inputs_converts_price_to_supply()
     @test !haskey(instance, :price)
 end
 
+function test_update_node_supply_inputs_preserves_timeseries_supply_references()
+    data = Dict{Symbol,Any}(
+        :type => :NaturalGas,
+        :instance_data => [
+            Dict{Symbol,Any}(
+                :id => :fuel_node,
+                :price_supply => OrderedDict(
+                    :seg1 => Dict(
+                        :timeseries => Dict(
+                            :path => "system/fuel_prices.csv",
+                            :header => "CT_NG",
+                        ),
+                    ),
+                ),
+                :max_supply => OrderedDict(:seg1 => [Inf]),
+                :supply_segment_names => [:seg1],
+            ),
+        ],
+    )
+
+    update_node_supply_inputs(data)
+
+    instance = data[:instance_data][1]
+    @test instance[:supply] == OrderedDict(
+        :seg1 => OrderedDict(
+            :price => Dict(
+                :timeseries => Dict(
+                    :path => "system/fuel_prices.csv",
+                    :header => "CT_NG",
+                ),
+            ),
+            :min => [0.0],
+            :max => [Inf],
+        ),
+    )
+    @test !haskey(instance, :price_supply)
+    @test !haskey(instance, :max_supply)
+    @test !haskey(instance, :supply_segment_names)
+end
+
 @testset "Supply Inputs" begin
     test_typed_supply_parses_to_supply_segments()
     test_typed_supply_requires_price()
@@ -311,6 +351,7 @@ end
     test_extra_names_without_max_supply_errors()
     test_update_node_supply_inputs_converts_legacy_schema_to_supply()
     test_update_node_supply_inputs_converts_price_to_supply()
+    test_update_node_supply_inputs_preserves_timeseries_supply_references()
 end
 
 end # module TestSupplyInputs
