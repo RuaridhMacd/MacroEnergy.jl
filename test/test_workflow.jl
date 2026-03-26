@@ -47,6 +47,10 @@ import MacroEnergy:
     get_detailed_costs,
     write_flow,
     write_curtailment,
+    write_non_served_demand,
+    write_storage_level,
+    write_full_timeseries,
+    has_tdr,
     typesymbol,
     unidirectional
 
@@ -334,6 +338,93 @@ function test_writing_outputs(case,model)
     rm("test_undiscountedcosts.csv")        # clean up
     rm("test_flow.csv")         # clean up
     isfile("test_curtailment.csv") && rm("test_curtailment.csv")  # clean up
+
+    test_full_timeseries(case)
+
+    return nothing
+end
+
+function test_full_timeseries(case)
+    system = case.systems[1]
+    @test has_tdr(system)
+
+    # Force wide output layout so both rep-period and full timeseries CSVs
+    # share the same column structure (time + component columns)
+    saved_settings = system.settings
+    system.settings = merge(saved_settings, (OutputLayout="wide",))
+
+    # Create a temp directory, write rep-period + full timeseries files
+    results_dir = abspath(mktempdir("."))
+    write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system)
+    write_storage_level(joinpath(results_dir, "storage_level.csv"), system)
+    write_curtailment(joinpath(results_dir, "curtailment.csv"), system)
+    write_full_timeseries(results_dir, system)
+
+    # Load period map and time data
+    pmap_df = CSV.read(joinpath(test_path, "system", "Period_map.csv"), DataFrame)
+    time_data = JSON3.read(Base.read(joinpath(test_path, "system", "time_data.json"), String))
+    hours_per_subperiod = 168
+    total_hours = time_data[:TotalHoursModeled]
+
+    # Build rep-period offset lookup
+    rep_indices = sort(unique(pmap_df.Rep_Period_Index))
+    rep_offset = Dict(idx => (i - 1) * hours_per_subperiod for (i, idx) in enumerate(rep_indices))
+    sorted_periods = sort(pmap_df, :Period_Index)
+    n_mapped = nrow(sorted_periods) * hours_per_subperiod
+
+    # Validate each variable (skip flows — can be slow)
+    for (name, filename) in [
+        ("Non-served demand", "non_served_demand.csv"),
+        ("Storage level",     "storage_level.csv"),
+        ("Curtailment",       "curtailment.csv"),
+    ]
+        rep_path  = joinpath(results_dir, filename)
+        full_path = joinpath(results_dir, "full_time_series", filename)
+        isfile(rep_path)  || continue
+        isfile(full_path) || continue
+
+        rep_df  = CSV.read(rep_path, DataFrame)
+        full_df = CSV.read(full_path, DataFrame)
+        component_cols = setdiff(names(rep_df), ["time"])
+
+        @testset "Full timeseries — $name" begin
+            @test nrow(full_df) == total_hours
+
+            # Check every mapped subperiod
+            for row in eachrow(sorted_periods)
+                cal    = row.Period_Index
+                rep_id = row.Rep_Period_Index
+                f_start = (cal - 1) * hours_per_subperiod + 1
+                f_end   = min(cal * hours_per_subperiod, nrow(full_df))
+                r_start = rep_offset[rep_id] + 1
+                r_end   = rep_offset[rep_id] + hours_per_subperiod
+                for col in component_cols
+                    @test full_df[f_start:f_end, col] ≈ rep_df[r_start:r_end, col]
+                end
+            end
+
+            # Check padding (if mapped hours < total_hours)
+            if n_mapped < total_hours
+                last_rep_id = last(sorted_periods).Rep_Period_Index
+                rs = rep_offset[last_rep_id] + 1
+                re = rep_offset[last_rep_id] + hours_per_subperiod
+                pad_source = rep_df[rs:re, :]
+
+                pad_offset = 0
+                n_padded = total_hours - n_mapped
+                while pad_offset < n_padded
+                    chunk = min(hours_per_subperiod, n_padded - pad_offset)
+                    for col in component_cols
+                        @test full_df[(n_mapped + pad_offset + 1):(n_mapped + pad_offset + chunk), col] ≈ pad_source[1:chunk, col]
+                    end
+                    pad_offset += chunk
+                end
+            end
+        end
+    end
+
+    rm(results_dir; recursive=true)
+    system.settings = saved_settings
     return nothing
 end 
 
