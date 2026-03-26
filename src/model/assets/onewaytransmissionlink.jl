@@ -90,14 +90,18 @@ function make(asset_type::Type{<:OneWayTransmissionLink}, data::AbstractDict{Sym
         t_start_node,
         transmission_edge_data,
         commodity,
-        [(transmission_edge_data, :start_vertex), (data, :transmission_origin), (data, :location)],
+        [(transmission_edge_data, :start_vertex), (data, :transmission_origin)],
     )
     @end_vertex(
         t_end_node,
         transmission_edge_data,
         commodity,
-        [(transmission_edge_data, :end_vertex), (data, :transmission_dest), (data, :location)],
+        [(transmission_edge_data, :end_vertex), (data, :transmission_dest)],
     )
+
+    if t_start_node == t_end_node
+        @warn "OneWayTransmissionLink $id has identical start and end vertices: $(t_start_node.id)."
+    end
 
     transmission_edge = Edge(
         Symbol(id, "_", transmission_edge_key),

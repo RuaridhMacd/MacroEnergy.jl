@@ -90,14 +90,18 @@ function make(asset_type::Type{<:TransmissionLink}, data::AbstractDict{Symbol,An
         t_start_node,
         transmission_edge_data,
         commodity,
-        [(transmission_edge_data, :start_vertex), (data, :transmission_origin), (data, :location)],
+        [(transmission_edge_data, :start_vertex), (data, :transmission_origin)],
     )
     @end_vertex(
         t_end_node,
         transmission_edge_data,
         commodity,
-        [(transmission_edge_data, :end_vertex), (data, :transmission_dest), (data, :location)],
+        [(transmission_edge_data, :end_vertex), (data, :transmission_dest)],
     )
+
+    if t_start_node == t_end_node
+        @warn "TransmissionLink $id has identical start and end vertices: $(t_start_node.id)."
+    end
 
     transmission_edge = BidirectionalEdge(
         Symbol(id, "_", transmission_edge_key),
