@@ -1,8 +1,9 @@
 function check_and_convert_supply!(data)
-    if haskey(data, :supply)
-        return check_and_convert_supply_typed!(data)
-    elseif haskey(data, :price_supply)
+    if haskey(data, :price_supply)
+        @info("Using legacy parser for supply inputs of $(get(data, :id, :unknown)).")
         return check_and_convert_supply_legacy!(data)
+    elseif haskey(data, :supply)
+        return check_and_convert_supply_typed!(data)
     end
     return nothing
 end
