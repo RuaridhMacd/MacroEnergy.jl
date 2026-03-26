@@ -26,9 +26,15 @@ end
 
 function update_node_supply_inputs(data::AbstractDict{Symbol,Any})
     if !haskey(data, :type) || !haskey(data, :instance_data)
-        return nothing
+        return data
     end
-    convert_node_supply_schema!.(data[:instance_data])
+
+    if isa(data[:instance_data], AbstractDict{Symbol,Any})
+        convert_node_supply_schema!(data[:instance_data])
+    else
+        convert_node_supply_schema!.(data[:instance_data])
+    end
+
     if haskey(data, :global_data)
         convert_node_supply_schema!(data[:global_data])
     end
@@ -50,29 +56,45 @@ function update_node_supply_inputs(data)
 end
 
 function convert_node_supply_schema!(data::AbstractDict{Symbol,Any})
-    if haskey(data, :price_supply)
-        check_and_convert_supply!(data)
-    end
     convert_price_2_supply_schema!(data)
+
+    if haskey(data, :supply) || haskey(data, :price_supply)
+        check_and_convert_supply!(data)
+        data[:supply] = prepare_to_json(data[:supply])
+        remove_legacy_supply_schema!(data)
+    end
+    return nothing
+end
+
+function remove_legacy_supply_schema!(data::AbstractDict{Symbol,Any})
+    for key in (:price_supply, :min_supply, :max_supply, :supply_segment_names)
+        if haskey(data, key)
+            delete!(data, key)
+        end
+    end
     return nothing
 end
 
 function convert_price_2_supply_schema!(data::AbstractDict{Symbol,Any}; max_print_length::Int=5)
     if haskey(data, :price)
         price_data = data[:price]
-        if haskey(data, :price_supply)
+        if haskey(data, :price_supply) || haskey(data, :supply)
             if length(price_data) > max_print_length
                 price_preview = string(price_data[1:max_print_length], "...")
             else
                 price_preview = string(price_data)
             end
-            @warn("Data has both :price and :price_supply keys. :price = $(price_preview). This entry will be skipped to avoid overwriting existing :price_supply data.")
+            @warn("Data has both :price and an existing supply schema. :price = $(price_preview). This entry will be skipped to avoid overwriting existing supply data.")
             return nothing
         end
-            data[:price_supply] = OrderedDict(:seg1 => data[:price])
-            data[:max_supply] = OrderedDict(:seg1 => [Inf])
-            data[:supply_segment_names] = [:seg1]
-            delete!(data, :price)
+        data[:supply] = OrderedDict(
+            :seg1 => OrderedDict(
+                :price => as_vector(data[:price]),
+                :min => [0.0],
+                :max => [Inf],
+            ),
+        )
+        delete!(data, :price)
     end
     return nothing
 end
