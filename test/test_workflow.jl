@@ -50,6 +50,7 @@ import MacroEnergy:
     write_non_served_demand,
     write_storage_level,
     write_full_timeseries,
+    write_balance_duals,
     has_tdr,
     typesymbol,
     unidirectional
@@ -358,7 +359,8 @@ function test_full_timeseries(case)
     write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system)
     write_storage_level(joinpath(results_dir, "storage_level.csv"), system)
     write_curtailment(joinpath(results_dir, "curtailment.csv"), system)
-    write_full_timeseries(results_dir, system)
+    write_balance_duals(results_dir, system)
+    write_full_timeseries(results_dir, system; var_cost_discount=1.0)
 
     # Load period map and time data
     pmap_df = CSV.read(joinpath(test_path, "system", "Period_map.csv"), DataFrame)
@@ -377,6 +379,7 @@ function test_full_timeseries(case)
         ("Non-served demand", "non_served_demand.csv"),
         ("Storage level",     "storage_level.csv"),
         ("Curtailment",       "curtailment.csv"),
+        ("Balance duals",     "balance_duals.csv"),
     ]
         rep_path  = joinpath(results_dir, filename)
         full_path = joinpath(results_dir, "full_time_series", filename)

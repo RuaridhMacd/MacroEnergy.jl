@@ -118,6 +118,12 @@ MacroEnergy.write_flow
 MacroEnergy.write_full_timeseries
 ```
 
+## `write_balance_duals_full_timeseries`
+
+```@docs
+MacroEnergy.write_balance_duals_full_timeseries
+```
+
 ## `write_non_served_demand`
 
 ```@docs

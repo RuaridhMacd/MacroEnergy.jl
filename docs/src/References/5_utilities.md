@@ -39,6 +39,11 @@ MacroEnergy.create_output_path
 MacroEnergy.ensure_duals_available!
 ```
 
+## `_extract_balance_duals`
+```@docs
+MacroEnergy._extract_balance_duals
+```
+
 ## `get_asset_by_id`
 ```@docs
 MacroEnergy.get_asset_by_id
