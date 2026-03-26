@@ -203,8 +203,8 @@ include("model/assets/beccsliquidfuels.jl")
 include("model/assets/beccsnaturalgas.jl")
 include("model/assets/hydrores.jl")
 include("model/assets/mustrun.jl")
-include("model/assets/fossilfuelsupstream.jl")
-include("model/assets/fuelsenduse.jl")
+include("model/assets/upstreamemissions.jl")
+include("model/assets/downstreamemissions.jl")
 include("model/assets/syntheticnaturalgas.jl")
 include("model/assets/syntheticliquidfuels.jl")
 include("model/assets/syntheticammonia.jl")
@@ -276,9 +276,9 @@ export AbstractAsset,
     ElectricArcFurnace,
     ElectricHeating,
     ElectricSteam,
-    FossilFuelsUpstream,
+    UpstreamEmissions,
     FuelCell,
-    FuelsEndUse,
+    DownstreamEmissions,
     ThermalHeating,
     ThermalSteam,
     GasStorage,
