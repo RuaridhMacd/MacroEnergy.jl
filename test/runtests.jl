@@ -11,6 +11,10 @@ with_logger(test_logger) do
         include("test_supply_inputs.jl")
         include("test_user_additions.jl")
         include("test_registry_user_smoke.jl")
+
+        Test.@testset "Asset tests" begin
+            include("asset_tests/test_assets_transmission_links.jl")
+        end
     end
 
     Test.@testset verbose = true "Writing Outputs" begin

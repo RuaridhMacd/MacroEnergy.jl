@@ -186,6 +186,7 @@ include("model/assets/gasstorage.jl")
 include("model/assets/thermalhydrogen.jl")
 include("model/assets/thermalpower.jl")
 include("model/assets/transmissionlink.jl")
+include("model/assets/onewaytransmissionlink.jl")
 include("model/assets/vre.jl")
 include("model/assets/thermalammonia.jl")
 include("model/assets/thermalammoniaccs.jl")
@@ -345,6 +346,7 @@ export AbstractAsset,
     ThermalHydrogenCCS,
     ThermalPowerCCS,
     TransmissionLink,
+    OneWayTransmissionLink,
     Transformation,
     Uranium,
     VRE,
