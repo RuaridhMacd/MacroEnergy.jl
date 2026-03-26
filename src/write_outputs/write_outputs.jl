@@ -99,6 +99,15 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         # Sub-period weights (for downstream revenue and weighted-sum calculations)
         write_time_weights(joinpath(results_dir, "time_weights.csv"), period)
 
+        # Full time series reconstruction (if enabled and TDR is used)
+        if settings.WriteFullTimeseries
+            write_full_timeseries(results_dir, period,
+                flow_df[subop_indices_period], 
+                nsd_df[subop_indices_period],
+                storage_level_df[subop_indices_period], 
+                curtailment_df[subop_indices_period])
+        end
+
         # Cost results (system level)
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
 
@@ -174,6 +183,11 @@ function write_period_outputs(
 
     # Sub-period weights (for downstream revenue and weighted-sum calculations)
     write_time_weights(joinpath(results_dir, "time_weights.csv"), system)
+
+    # Full time series reconstruction (if enabled and TDR is used)
+    if settings.WriteFullTimeseries
+        write_full_timeseries(results_dir, system)
+    end
 
     # Write dual values (if enabled)
     if system.settings.DualExportsEnabled
