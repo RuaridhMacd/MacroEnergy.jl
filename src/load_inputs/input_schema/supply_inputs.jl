@@ -128,7 +128,7 @@ However, MacroEnergy will support a variety of alternative formats for user conv
 ```julia
 price_supply = [1.0, 4.0]
 max_supply = [15.0, 5.0]
-supply_segment_names = [:cheap, :expensive] # optional, will default to seg1, seg2, etc. if not provided
+supply_segment_names = [:cheap, :expensive] # optional, will default to segment1, segment2, etc. if not provided
 ```
 This will be converted to:
 ```julia
@@ -142,9 +142,9 @@ price_supply = [1.0, 1.5] # or price_supply = OrderedDict(:gas => [1.0, 1.5])
 ```
 This will be converted to:
 ```julia
-price_supply = OrderedDict(:seg1 => [1.0, 1.5]) 
-max_supply = OrderedDict(:seg1 => [Inf])
-supply_segment_names = [:seg1] # or [:gas] if the original price_supply was a single-segment dictionary with the name "gas"
+price_supply = OrderedDict(:segment1 => [1.0, 1.5]) 
+max_supply = OrderedDict(:segment1 => [Inf])
+supply_segment_names = [:segment1] # or [:gas] if the original price_supply was a single-segment dictionary with the name "gas"
 ```
 
 3. A mix of vector and dictionary inputs:
@@ -178,9 +178,9 @@ price_supply = [1.0, 1.5]
 ```
 This will be converted to:
 ```julia
-price_supply = OrderedDict(:seg1 => [1.0, 1.5])
-max_supply = OrderedDict(:seg1 => [Inf])
-supply_segment_names = [:seg1]
+price_supply = OrderedDict(:segment1 => [1.0, 1.5])
+max_supply = OrderedDict(:segment1 => [Inf])
+supply_segment_names = [:segment1]
 ```
 
 The function will throw errors for unsupported formats, such as mismatched lengths of vectors, or if there are multiple price segments but no max_supply provided.

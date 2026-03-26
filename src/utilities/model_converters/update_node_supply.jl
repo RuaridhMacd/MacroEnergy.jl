@@ -295,7 +295,7 @@ function convert_price_2_supply_schema!(data::AbstractDict{Symbol,Any}; max_prin
             return nothing
         end
         data[:supply] = OrderedDict(
-            :seg1 => OrderedDict(
+            :segment1 => OrderedDict(
                 :price => raw_supply_value(data[:price]),
                 :min => [0.0],
                 :max => [Inf],

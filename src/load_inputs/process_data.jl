@@ -146,7 +146,7 @@ function asnothing(x::AbstractDict)
 end
 
 function default_segment_names(num_segments::Int)
-    return [Symbol("seg$i") for i in 1:num_segments]
+    return [Symbol("segment$i") for i in 1:num_segments]
 end
 
 function as_vector(;NumberType=Float64)

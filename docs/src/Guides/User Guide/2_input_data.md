@@ -346,7 +346,7 @@ Therefore, the system has 4 networks and 8 nodes in total.
                 {   // NaturalGas node 1
                     "id": "natgas_SE",
                     "supply": {
-                        "seg1": {
+                        "segment1": {
                             "price": {
                                 "timeseries": {
                                     "path": "system/fuel_prices.csv", // path to the price file
@@ -360,7 +360,7 @@ Therefore, the system has 4 networks and 8 nodes in total.
                 {   // NaturalGas node 2
                     "id": "natgas_MIDAT",
                     "supply": {
-                        "seg1": {
+                        "segment1": {
                             "price": {
                                 "timeseries": {
                                     "path": "system/fuel_prices.csv",
@@ -374,7 +374,7 @@ Therefore, the system has 4 networks and 8 nodes in total.
                 {   // NaturalGas node 3
                     "id": "natgas_NE",
                     "supply": {
-                        "seg1": {
+                        "segment1": {
                             "price": {
                                 "timeseries": {
                                     "path": "system/fuel_prices.csv",

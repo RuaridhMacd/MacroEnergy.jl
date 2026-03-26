@@ -62,12 +62,12 @@ function test_single_vector_price_supply_defaults_to_inf_max_supply()
     check_and_convert_supply!(data)
 
     @test data[:supply] == OrderedDict(
-        :seg1 => MacroEnergy.SupplySegment(price = [5.0, 6.0], min = [0.0], max = [Inf]),
+        :segment1 => MacroEnergy.SupplySegment(price = [5.0, 6.0], min = [0.0], max = [Inf]),
     )
-    @test data[:price_supply] == OrderedDict(:seg1 => [5.0, 6.0])
-    @test data[:min_supply] == OrderedDict(:seg1 => [0.0])
-    @test data[:max_supply] == OrderedDict(:seg1 => [Inf])
-    @test data[:supply_segment_names] == [:seg1]
+    @test data[:price_supply] == OrderedDict(:segment1 => [5.0, 6.0])
+    @test data[:min_supply] == OrderedDict(:segment1 => [0.0])
+    @test data[:max_supply] == OrderedDict(:segment1 => [Inf])
+    @test data[:supply_segment_names] == [:segment1]
 end
 
 function test_single_segment_dict_preserves_segment_name_without_max_supply()
@@ -116,8 +116,8 @@ function test_vector_vector_inputs_pad_and_trim_names()
     check_and_convert_supply!(short_names)
     check_and_convert_supply!(long_names)
 
-    @test short_names[:supply_segment_names] == [:a, :seg1]
-    @test short_names[:price_supply] == OrderedDict(:a => [5.0], :seg1 => [9.0])
+    @test short_names[:supply_segment_names] == [:a, :segment1]
+    @test short_names[:price_supply] == OrderedDict(:a => [5.0], :segment1 => [9.0])
     @test long_names[:supply_segment_names] == [:a, :b]
     @test long_names[:price_supply] == OrderedDict(:a => [5.0], :b => [9.0])
 end
@@ -287,7 +287,7 @@ function test_update_node_supply_inputs_converts_price_to_supply()
 
     instance = data[:instance_data]
     @test instance[:supply] == OrderedDict(
-        :seg1 => OrderedDict(:price => [7.0, 8.0], :min => [0.0], :max => [Inf]),
+        :segment1 => OrderedDict(:price => [7.0, 8.0], :min => [0.0], :max => [Inf]),
     )
     @test !haskey(instance, :price)
 end
