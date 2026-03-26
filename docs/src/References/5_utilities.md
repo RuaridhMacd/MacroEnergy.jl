@@ -119,6 +119,12 @@ MacroEnergy.find_available_path
 MacroEnergy.find_node
 ```
 
+## `has_tdr`
+
+```@docs
+MacroEnergy.has_tdr
+```
+
 ## `id`
 ```@docs
 MacroEnergy.id
@@ -137,6 +143,16 @@ MacroEnergy.location_ids
 ## `print_struct_info`
 ```@docs
 MacroEnergy.print_struct_info
+```
+
+## `reconstruct_benders_variable`
+```@docs
+MacroEnergy.reconstruct_benders_variable
+```
+
+## `reconstruct_timeseries`
+```@docs
+MacroEnergy.reconstruct_timeseries
 ```
 
 ## `reshape_wide`
