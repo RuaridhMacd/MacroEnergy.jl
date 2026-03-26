@@ -1,4 +1,4 @@
-Base.@kwdef mutable struct SupplySegment
+Base.@kwdef struct SupplySegment
     price::Vector{Float64}
     min::Vector{Float64}
     max::Vector{Float64}
