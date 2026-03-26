@@ -1,3 +1,9 @@
+"""
+    check_and_convert_supply!(data)
+
+Normalize user inputs related to supply into `OrderedDict{Symbol,SupplySegment}`. This function serves as a wrapper that dispatches to either the legacy or typed parser based on the presence of certain keys in the input data dictionary.
+
+"""
 function check_and_convert_supply!(data)
     if haskey(data, :price_supply)
         @info("Using legacy parser for supply inputs of $(get(data, :id, :unknown)).")
