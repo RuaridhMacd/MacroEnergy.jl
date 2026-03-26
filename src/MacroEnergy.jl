@@ -138,7 +138,8 @@ function include_all_in_folder(folder::AbstractString, root_path::AbstractString
     return nothing
 end
 
-# include files
+include_all_in_folder("model/types/")
+
 include("utilities/file_io/json.jl")
 include("utilities/file_io/csv.jl")
 include("utilities/file_io/duckdb.jl")
