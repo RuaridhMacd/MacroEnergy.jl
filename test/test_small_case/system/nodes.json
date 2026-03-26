@@ -59,50 +59,50 @@
             "instance_data": [
                 {
                     "id": "CT_NG",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
-                        "seg1": [
-                            18.59617191
-                        ]
+                    "supply": {
+                        "seg1": {
+                            "price": [
+                                18.59617191
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
+                        }
                     }
                 },
                 {
                     "id": "ME_NG",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
-                        "seg1": [
-                            18.59617191
-                        ]
+                    "supply": {
+                        "seg1": {
+                            "price": [
+                                18.59617191
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
+                        }
                     }
                 },
                 {
                     "id": "MA_NG",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
-                        "seg1": [
-                            18.59617191
-                        ]
+                    "supply": {
+                        "seg1": {
+                            "price": [
+                                18.59617191
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
+                        }
                     }
                 }
             ],
@@ -110,10 +110,10 @@
         },
         {
             "global_data": {
-                "time_interval": "Uranium",
                 "constraints": {
                     "BalanceConstraint": false
-                }
+                },
+                "time_interval": "Uranium"
             },
             "instance_data": [
             ],
@@ -121,10 +121,10 @@
         },
         {
             "global_data": {
-                "time_interval": "CO2",
                 "constraints": {
                     "BalanceConstraint": false
-                }
+                },
+                "time_interval": "CO2"
             },
             "instance_data": [
                 {
@@ -159,10 +159,10 @@
         },
         {
             "global_data": {
-                "time_interval": "Electricity",
                 "constraints": {
                     "BalanceConstraint": false
-                }
+                },
+                "time_interval": "Electricity"
             },
             "instance_data": [
                 {

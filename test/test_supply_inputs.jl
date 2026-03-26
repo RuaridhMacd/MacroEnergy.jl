@@ -70,6 +70,24 @@ function test_single_vector_price_supply_defaults_to_inf_max_supply()
     @test data[:supply_segment_names] == [:segment1]
 end
 
+function test_legacy_price_supply_takes_precedence_over_empty_typed_supply()
+    data = Dict{Symbol,Any}(
+        :supply => OrderedDict{Symbol,Any}(),
+        :price_supply => OrderedDict(:seg1 => [5.0, 6.0]),
+        :max_supply => OrderedDict(:seg1 => [10.0]),
+        :supply_segment_names => [:seg1],
+    )
+
+    check_and_convert_supply!(data)
+
+    @test data[:supply] == OrderedDict(
+        :seg1 => MacroEnergy.SupplySegment(price = [5.0, 6.0], min = [0.0], max = [10.0]),
+    )
+    @test data[:price_supply] == OrderedDict(:seg1 => [5.0, 6.0])
+    @test data[:max_supply] == OrderedDict(:seg1 => [10.0])
+    @test data[:supply_segment_names] == [:seg1]
+end
+
 function test_single_segment_dict_preserves_segment_name_without_max_supply()
     data = Dict{Symbol,Any}(:price_supply => OrderedDict(:gas => [5.0, 6.0]))
 
