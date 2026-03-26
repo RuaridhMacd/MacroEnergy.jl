@@ -8,7 +8,7 @@
 
 #### `check_and_convert_supply!`
 ```@docs
-MacroEnergy.check_and_convert_supply_typed
+MacroEnergy.check_and_convert_supply!
 ```
 
 #### `check_and_convert_supply_typed!`
