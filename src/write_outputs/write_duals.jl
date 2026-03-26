@@ -83,8 +83,30 @@ function write_balance_duals(
     filename = "balance_duals.csv"
     file_path = joinpath(results_dir, filename)
 
+    balance_duals, node_ids, _ = _extract_balance_duals(system, scaling)
+
+    df = DataFrame(balance_duals, node_ids, copycols=false)
+    write_dataframe(file_path, df)
+    @debug "Wrote $(nrow(df)) time steps and $(length(node_ids)) nodes for balance constraints to CSV file: $file_path"
+
+    return nothing
+end
+
+
+"""
+    _extract_balance_duals(system::System, scaling::Float64=1.0; with_timedata::Bool=false)
+
+Extract and rescale balance constraint duals for all nodes.
+
+Returns `(duals, node_ids, timedata_vec)` where each element of `duals`
+is the rescaled dual vector for the corresponding node.
+When `with_timedata` is `true`, `timedata_vec` contains the `TimeData` for each node
+(for time-series reconstruction); otherwise it is `nothing`.
+"""
+function _extract_balance_duals(system::System, scaling::Float64=1.0; with_timedata::Bool=false)
     balance_duals = Vector{Vector{Float64}}()
     node_ids = Vector{Symbol}()
+    timedata_vec = with_timedata ? Vector{TimeData}() : nothing
 
     for node in filter(n -> n isa Node, system.locations)
         constraint = get_constraint_by_type(node, BalanceConstraint)
@@ -99,7 +121,7 @@ function write_balance_duals(
             set_constraint_dual!(constraint, node)
         end
         
-        # Get the dictornary of dual values for all balance equations
+        # Get the dictionary of dual values for all balance equations
         duals_dict = constraint_dual(constraint)
         
         # Export only the :demand balance duals (skip if not present)
@@ -108,18 +130,15 @@ function write_balance_duals(
         # Add node ID
         push!(node_ids, id(node))
 
-        # Compute subperiod weights for rescaling
+        # Compute subperiod weights and rescale dual values
         weights = Float64[subperiod_weight(node, current_subperiod(node, t)) for t in time_interval(node)]
 
         # Rescale dual values by subperiod weights
         push!(balance_duals, duals_dict[:demand] ./ (weights .* scaling))
+        with_timedata && push!(timedata_vec, node.timedata)
     end
 
-    df = DataFrame(balance_duals, node_ids, copycols=false)
-    write_dataframe(file_path, df)
-    @debug "Wrote $(nrow(df)) time steps and $(length(node_ids)) nodes for balance constraints to CSV file: $file_path"
-
-    return nothing
+    return balance_duals, node_ids, timedata_vec
 end
 
 """

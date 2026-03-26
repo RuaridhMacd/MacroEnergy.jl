@@ -99,15 +99,6 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         # Sub-period weights (for downstream revenue and weighted-sum calculations)
         write_time_weights(joinpath(results_dir, "time_weights.csv"), period)
 
-        # Full time series reconstruction (if enabled and TDR is used)
-        if settings.WriteFullTimeseries
-            write_full_timeseries(results_dir, period,
-                flow_df[subop_indices_period], 
-                nsd_df[subop_indices_period],
-                storage_level_df[subop_indices_period], 
-                curtailment_df[subop_indices_period])
-        end
-
         # Cost results (system level)
         costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
 
@@ -119,6 +110,8 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         write_detailed_costs_benders(results_dir, period, costs, operational_costs_df[subop_indices_period], settings)
 
         # Write dual values (if enabled)
+        # Scaling factor to account for discounting duals in multi-period models
+        var_cost_discount = compute_variable_cost_discount_scaling(period_idx, settings)
         if period.settings.DualExportsEnabled
             # Move slack variables from subproblems to planning problem
             if haskey(slack_vars, period_idx)
@@ -134,9 +127,17 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
                 @debug "No balance constraint duals found for period $period_idx"
             end
             
-            # Scaling factor to account for discounting in multi-period models
-            discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)
-            write_duals(results_dir, period, discount_scaling)
+            write_duals(results_dir, period, var_cost_discount)
+        end
+
+        # Full time series reconstruction (if enabled and TDR is used)
+        if settings.WriteFullTimeseries
+            write_full_timeseries(results_dir, period,
+                flow_df[subop_indices_period], 
+                nsd_df[subop_indices_period],
+                storage_level_df[subop_indices_period], 
+                curtailment_df[subop_indices_period];
+                var_cost_discount)
         end
     end
     	
@@ -184,17 +185,17 @@ function write_period_outputs(
     # Sub-period weights (for downstream revenue and weighted-sum calculations)
     write_time_weights(joinpath(results_dir, "time_weights.csv"), system)
 
-    # Full time series reconstruction (if enabled and TDR is used)
-    if settings.WriteFullTimeseries
-        write_full_timeseries(results_dir, system)
-    end
-
     # Write dual values (if enabled)
+    # Scaling factor to account for discounting duals in multi-period models
+    var_cost_discount = compute_variable_cost_discount_scaling(period_idx, settings)
     if system.settings.DualExportsEnabled
         ensure_duals_available!(model)
-        # Scaling factor for variable cost portion of objective function
-        discount_scaling = compute_variable_cost_discount_scaling(period_idx, settings)
-        write_duals(results_dir, system, discount_scaling)
+        write_duals(results_dir, system, var_cost_discount)
+    end
+
+    # Full time series reconstruction (if enabled and TDR is used)
+    if settings.WriteFullTimeseries
+        write_full_timeseries(results_dir, system; var_cost_discount)
     end
 
     return nothing
