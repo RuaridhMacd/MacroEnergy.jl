@@ -96,7 +96,7 @@ The `settings` folder currently contains only one file, `macro_settings.yml`, wh
 The `system` folder currently contains five main files:
 
 - [commodities.json](@ref): Defines the sectors/commodities used in the system.
-- [time_data.json](@ref): Defines the time resolution data for each sector.
+- **`time_data.json`**: Defines the time resolution data for each sector.
 - [nodes.json](@ref): Defines the nodes in the system.
 - [demand.csv](@ref): Contains the demand data.
 - [fuel_prices.csv](@ref): Contains the prices of fuels.

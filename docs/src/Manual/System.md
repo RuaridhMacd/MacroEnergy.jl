@@ -235,7 +235,7 @@ file_path = joinpath(pwd(), "system_data.json")  # Path to your system data file
 system = load_system(file_path)  # Load system directly from file
 ```
 
-### System Data File Structure
+### [System Data File Structure](@id manual-system-data-structure)
 
 `Systems` and `Cases` are typically defined in the `system_data.json` file, which contains all the necessary data to define the energy system. Full details on the structure of this file can be found in the [Inputs](@ref) section. Here, we review the structure of the `system_data.json` file:
 
