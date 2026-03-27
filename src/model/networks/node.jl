@@ -4,18 +4,15 @@ macro AbstractNodeBaseAttributes()
         demand::Vector{Float64} = Vector{Float64}()
         min_nsd::Vector{Float64} = $node_defaults[:min_nsd]
         max_nsd::Vector{Float64} = $node_defaults[:max_nsd]
-        min_supply::OrderedDict{Symbol,Vector{Float64}} = $node_defaults[:min_supply]
-        max_supply::OrderedDict{Symbol,Vector{Float64}} = $node_defaults[:max_supply]
         non_served_demand::JuMPVariable = Matrix{VariableRef}(undef, 0, 0)
         policy_budgeting_vars::Dict = Dict()
         policy_budgeting_constraints::Dict{DataType,JuMPConstraint} = Dict{DataType,JuMPConstraint}()  # Store policy budget constraint references
         policy_slack_vars::Dict = Dict()
         price::Vector{Float64} = Vector{Float64}()
         price_nsd::Vector{Float64} = $node_defaults[:price_nsd]
-        price_supply::OrderedDict{Symbol,Vector{Float64}} = $node_defaults[:price_supply]
         price_unmet_policy::Dict{DataType,Float64} = Dict{DataType,Float64}()
         rhs_policy::Dict{DataType,Float64} = Dict{DataType,Float64}()
-        supply_segment_names::Vector{Symbol} = $node_defaults[:supply_segment_names]
+        supply::OrderedDict{Symbol,SupplySegment} = $node_defaults[:supply]
         supply_flow::JuMPVariable = Matrix{VariableRef}(undef, 0, 0)
     end)
 end
@@ -35,18 +32,15 @@ end
     # Fields
     - demand::Union{Vector{Float64},Dict{Int64,Float64}}: Time series of demand values
     - max_nsd::Vector{Float64}: Maximum allowed non-served demand for each segment
-    - min_supply::OrderedDict{Symbol,Vector{Float64}}: Minimum supply by segment, optionally varying over time
-    - max_supply::OrderedDict{Symbol,Vector{Float64}}: Maximum supply by segment, optionally varying over time
     - non_served_demand::Union{JuMPVariable,Matrix{Float64}}: JuMP variables or matrix representing unmet demand
     - policy_budgeting_vars::Dict: Policy budgeting variables for constraints
     - policy_budgeting_constraints::Dict{DataType,JuMPConstraint}: Policy budget constraint references (sum across subperiods, keyed by :ConstraintType)
     - policy_slack_vars::Dict: Policy slack variables for constraints
     - price::Union{Vector{Float64},Dict{Int64,Float64}}: Time series of prices
     - price_nsd::Vector{Float64}: Penalties for non-served demand by segment
-    - price_supply::OrderedDict{Symbol,Vector{Float64}}: Supply costs by segment, optionally varying over time
     - price_unmet_policy::Dict{DataType,Float64}: Mapping of policy types to penalty costs
     - rhs_policy::Dict{DataType,Float64}: Mapping of policy types to right-hand side values
-    - supply_segment_names::Vector{Symbol}: Ordered names of supply segments used to map segment indices to named supply blocks
+    - supply::OrderedDict{Symbol,SupplySegment}: Supply segments keyed by segment name, each storing price, minimum, and maximum supply vectors
     - supply_flow::Union{JuMPVariable,Matrix{Float64}}: JuMP variables or matrix representing supply flows
 
     Note: Base attributes are inherited from AbstractVertex via @AbstractVertexBaseAttributes macro.
@@ -64,6 +58,7 @@ end
 
 function make_node(data::AbstractDict{Symbol,Any}, time_data::TimeData, commodity::DataType)
     node_data = copy(data)
+    supply = get(node_data, :supply, OrderedDict{Symbol,SupplySegment}())
 
     node_kwargs = Base.fieldnames(Node)
     filtered_data = Dict{Symbol, Any}(
@@ -82,14 +77,11 @@ function make_node(data::AbstractDict{Symbol,Any}, time_data::TimeData, commodit
         demand = get(node_data, :demand, Vector{Float64}()),
         location = as_symbol_or_missing(get(node_data, :location, missing)),
         max_nsd = get(node_data, :max_nsd, [0.0]),
-        min_supply = get(node_data, :min_supply, OrderedDict{Symbol,Vector{Float64}}()),
-        max_supply = get(node_data, :max_supply, OrderedDict{Symbol,Vector{Float64}}()),
         price = get(node_data, :price, Vector{Float64}()),
         price_nsd = get(node_data, :price_nsd, [0.0]),
-        price_supply = get(node_data, :price_supply, OrderedDict{Symbol,Vector{Float64}}()),
         price_unmet_policy = get(node_data, :price_unmet_policy, Dict{DataType,Float64}()),
         rhs_policy = get(node_data, :rhs_policy, Dict{DataType,Float64}()),
-        supply_segment_names = get(node_data, :supply_segment_names, Symbol[])
+        supply = supply
         # filtered_data...
     )
     
@@ -132,18 +124,19 @@ rhs_policy(n::Node, c::DataType) = rhs_policy(n)[c];
 segments_non_served_demand(n::Node) = 1:length(n.max_nsd);
 supply_flow(n::Node) = n.supply_flow;
 supply_flow(n::Node, s::Int64, t::Int64) = supply_flow(n)[s, t];
-supply_segment_names(n::Node) = n.supply_segment_names;
+supply(n::Node) = n.supply;
+supply_segment_names(n::Node) = collect(keys(supply(n)));
 supply_segment_name(n::Node, s::Int64) = supply_segment_names(n)[s];
 supply_segments(n::Node) = eachindex(supply_segment_names(n));
-min_supply(n::Node) = collect(values(n.min_supply));
-min_supply(n::Node, segment_name::Symbol) = get(n.min_supply, segment_name, [0.0]);
+min_supply(n::Node) = [segment.min for segment in values(supply(n))];
+min_supply(n::Node, segment_name::Symbol) = get(supply(n), segment_name, SupplySegment(price=Float64[], min=[0.0], max=[Inf])).min;
 min_supply(n::Node,s::Int64) = min_supply(n, supply_segment_name(n, s));
 min_supply(n::Node, s::Int64, t::Int64) = length(min_supply(n, s)) == 1 ? min_supply(n, s)[1] : min_supply(n, s)[t];
-max_supply(n::Node) = collect(values(n.max_supply));
-max_supply(n::Node, segment_name::Symbol) = n.max_supply[segment_name];
+max_supply(n::Node) = [segment.max for segment in values(supply(n))];
+max_supply(n::Node, segment_name::Symbol) = supply(n)[segment_name].max;
 max_supply(n::Node,s::Int64) = max_supply(n, supply_segment_name(n, s));
 max_supply(n::Node, s::Int64, t::Int64) = length(max_supply(n, s)) == 1 ? max_supply(n, s)[1] : max_supply(n, s)[t];
-price_supply(n::Node, segment_name::Symbol) = n.price_supply[segment_name];
+price_supply(n::Node, segment_name::Symbol) = supply(n)[segment_name].price;
 price_supply(n::Node,s::Int64) = price_supply(n, supply_segment_name(n, s));
 price_supply(n::Node,s::Int64,t::Int64) = length(price_supply(n, s)) == 1 ? price_supply(n, s)[1] : price_supply(n, s)[t];
 ######### Node interface #########

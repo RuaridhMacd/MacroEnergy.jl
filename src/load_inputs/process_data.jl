@@ -8,7 +8,7 @@ function process_data(data::AbstractDict{Symbol,Any})
     check_and_convert_symbol!(data, :startup_fuel_balance_id)
     check_and_convert_symbol!(data, :location)
     haskey(data, :demand) && check_and_convert_demand!(data)
-    haskey(data, :price_supply) && check_and_convert_supply!(data)
+    (haskey(data, :supply) || haskey(data, :price_supply)) && check_and_convert_supply!(data)
     haskey(data, :constraints) && check_and_convert_constraints!(data)
     haskey(data, :rhs_policy) && check_and_convert_rhs_policy!(data)
     haskey(data, :price_unmet_policy) && check_and_convert_price_unmet_policy!(data)
@@ -146,7 +146,7 @@ function asnothing(x::AbstractDict)
 end
 
 function default_segment_names(num_segments::Int)
-    return [Symbol("seg$i") for i in 1:num_segments]
+    return [Symbol("segment$i") for i in 1:num_segments]
 end
 
 function as_vector(;NumberType=Float64)

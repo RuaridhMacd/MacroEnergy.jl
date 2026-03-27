@@ -1,7 +1,121 @@
 """
-     check_and_convert_supply!(data)
+    check_and_convert_supply!(data)
 
-Normalize node supply inputs into a consistent segmented representation:
+Normalize user inputs related to supply into `OrderedDict{Symbol,SupplySegment}`. This function serves as a wrapper that dispatches to either the legacy or typed parser based on the presence of certain keys in the input data dictionary.
+
+"""
+function check_and_convert_supply!(data)
+    if haskey(data, :price_supply)
+        @info("Using legacy parser for supply inputs of $(get(data, :id, :unknown)).")
+        return check_and_convert_supply_legacy!(data)
+    elseif haskey(data, :supply)
+        return check_and_convert_supply_typed!(data)
+    end
+    return nothing
+end
+
+"""
+    check_and_convert_supply_typed!(data)
+
+Normalize the preferred node `supply` input into
+`OrderedDict{Symbol,SupplySegment}`.
+
+Expected input shape:
+```julia
+supply = OrderedDict(
+    :cheap => Dict(:price => [1.0, 1.5], :min => [0.0], :max => [15.0]),
+    :firm => Dict(:price => [4.0], :max => [5.0]),
+)
+```
+
+Rules:
+- each segment must define `price`
+- missing `min` defaults to `[0.0]`
+- missing `max` defaults to `[Inf]`
+"""
+function check_and_convert_supply_typed!(data)
+    raw_supply = asnothing(get(data, :supply, nothing))
+
+    if isnothing(raw_supply)
+        data[:supply] = OrderedDict{Symbol,SupplySegment}()
+        return nothing
+    end
+
+    if !(raw_supply isa AbstractDict)
+        throw(ArgumentError("supply must be provided as a dictionary keyed by segment names. Current input is $(typeof(raw_supply))."))
+    end
+
+    supply = OrderedDict{Symbol,SupplySegment}()
+    min_supply = OrderedDict{Symbol,Vector{Float64}}()
+    max_supply = OrderedDict{Symbol,Vector{Float64}}()
+
+    for (raw_segment_name, raw_segment) in pairs(raw_supply)
+        if !(raw_segment isa AbstractDict)
+            throw(ArgumentError("Each supply segment must be a dictionary containing at least a price entry. Segment $(raw_segment_name) has type $(typeof(raw_segment))."))
+        end
+
+        segment_name = Symbol(raw_segment_name)
+        price = get_supply_field(raw_segment, :price, nothing)
+        min = get_supply_field(raw_segment, :min, 0.0)
+        max = get_supply_field(raw_segment, :max, Inf)
+
+        if isnothing(price)
+            throw(ArgumentError("Supply segment $(segment_name) is missing a price entry."))
+        end
+
+        price_values = as_vector(price)
+        min_values = as_vector(min)
+        max_values = as_vector(max)
+
+        if any(x -> !isfinite(x), min_values)
+            throw(ArgumentError("min supply must be finite for all segments and time steps. Segment $(segment_name) has non-finite values $(min_values)."))
+        end
+
+        supply[segment_name] = SupplySegment(
+            price = price_values,
+            min = min_values,
+            max = max_values,
+        )
+        min_supply[segment_name] = min_values
+        max_supply[segment_name] = max_values
+    end
+
+    validate_min_max_supply!(min_supply, max_supply)
+    data[:supply] = supply
+    return nothing
+end
+
+function make_supply_segments(
+    price_supply::OrderedDict{Symbol,Vector{Float64}},
+    min_supply::OrderedDict{Symbol,Vector{Float64}},
+    max_supply::OrderedDict{Symbol,Vector{Float64}},
+    supply_segment_names::Vector{Symbol},
+)
+    supply = OrderedDict{Symbol,SupplySegment}()
+    for segment_name in supply_segment_names
+        supply[segment_name] = SupplySegment(
+            price = price_supply[segment_name],
+            min = min_supply[segment_name],
+            max = max_supply[segment_name],
+        )
+    end
+    return supply
+end
+
+function get_supply_field(segment::AbstractDict, key::Symbol, default)
+    if haskey(segment, key)
+        return segment[key]
+    elseif haskey(segment, String(key))
+        return segment[String(key)]
+    end
+
+    return default
+end
+
+"""
+    check_and_convert_supply_legacy!(data)
+
+Normalize legacy node supply inputs into the older segmented representation:
 
 `price_supply::OrderedDict{Symbol,Vector{Float64}}`
 `min_supply::OrderedDict{Symbol,Vector{Float64}}`
@@ -21,7 +135,7 @@ However, MacroEnergy will support a variety of alternative formats for user conv
 ```julia
 price_supply = [1.0, 4.0]
 max_supply = [15.0, 5.0]
-supply_segment_names = [:cheap, :expensive] # optional, will default to seg1, seg2, etc. if not provided
+supply_segment_names = [:cheap, :expensive] # optional, will default to segment1, segment2, etc. if not provided
 ```
 This will be converted to:
 ```julia
@@ -35,9 +149,9 @@ price_supply = [1.0, 1.5] # or price_supply = OrderedDict(:gas => [1.0, 1.5])
 ```
 This will be converted to:
 ```julia
-price_supply = OrderedDict(:seg1 => [1.0, 1.5]) 
-max_supply = OrderedDict(:seg1 => [Inf])
-supply_segment_names = [:seg1] # or [:gas] if the original price_supply was a single-segment dictionary with the name "gas"
+price_supply = OrderedDict(:segment1 => [1.0, 1.5]) 
+max_supply = OrderedDict(:segment1 => [Inf])
+supply_segment_names = [:segment1] # or [:gas] if the original price_supply was a single-segment dictionary with the name "gas"
 ```
 
 3. A mix of vector and dictionary inputs:
@@ -71,14 +185,14 @@ price_supply = [1.0, 1.5]
 ```
 This will be converted to:
 ```julia
-price_supply = OrderedDict(:seg1 => [1.0, 1.5])
-max_supply = OrderedDict(:seg1 => [Inf])
-supply_segment_names = [:seg1]
+price_supply = OrderedDict(:segment1 => [1.0, 1.5])
+max_supply = OrderedDict(:segment1 => [Inf])
+supply_segment_names = [:segment1]
 ```
 
 The function will throw errors for unsupported formats, such as mismatched lengths of vectors, or if there are multiple price segments but no max_supply provided.
 """
-function check_and_convert_supply!(data)
+function check_and_convert_supply_legacy!(data)
     # We'll convert inputs to nothing if they're empty,
     # making it easier to parse by type
     price_supply = asnothing(data[:price_supply])
@@ -88,6 +202,7 @@ function check_and_convert_supply!(data)
 
     if isnothing(price_supply)
         # If not prices are supplied, we return empty inputs.
+        data[:supply] = OrderedDict{Symbol,SupplySegment}()
         data[:price_supply] = OrderedDict{Symbol,Vector{Float64}}()
         data[:min_supply] = OrderedDict{Symbol,Vector{Float64}}()
         data[:max_supply] = OrderedDict{Symbol,Vector{Float64}}()
@@ -104,6 +219,7 @@ function check_and_convert_supply!(data)
     data[:min_supply] = min_supply
     data[:max_supply] = max_supply
     data[:supply_segment_names] = supply_segment_names
+    data[:supply] = make_supply_segments(price_supply, min_supply, max_supply, supply_segment_names)
     return nothing
 end
 

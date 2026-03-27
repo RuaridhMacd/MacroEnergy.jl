@@ -87,9 +87,11 @@ function test_writing_output()
             subperiod_weights=Dict(1 => 0.3, 2 => 0.5, 3 => 0.2)
         ),
         price = [10.0, 11.0, 12.0],
-        supply_segment_names = [:seg1, :seg2, :seg3],
-        price_supply = OrderedDict(:seg1 => [10.0, 11.0, 12.0], :seg2 => [110.0], :seg3 => [120.0]),
-        max_supply = OrderedDict(:seg1 => [100.0], :seg2 => [110.0], :seg3 => [120.0]),
+        supply = OrderedDict(
+            :seg1 => MacroEnergy.SupplySegment(price = [10.0, 11.0, 12.0], min = [0.0], max = [100.0]),
+            :seg2 => MacroEnergy.SupplySegment(price = [110.0], min = [0.0], max = [110.0]),
+            :seg3 => MacroEnergy.SupplySegment(price = [120.0], min = [0.0], max = [120.0]),
+        ),
         supply_flow = [12.0 15.0 18.0; 0.0 0.0 0.0; 0.0 0.0 0.0],
         non_served_demand = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0],
         max_nsd=[10.0, 11.0, 12.0],

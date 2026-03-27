@@ -8,58 +8,58 @@
             "instance_data": [
                 {
                     "id": "natgas_MA",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
+                    "supply": {
                         "seg1": {
-                            "timeseries": {
-                                "path": "system/fuel_prices.csv",
-                                "header": "natgas_MA"
-                            }
+                            "price": {
+                                "timeseries": {
+                                    "path": "system/fuel_prices.csv",
+                                    "header": "natgas_MA"
+                                }
+                            },
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
                         }
                     }
                 },
                 {
                     "id": "natgas_CT",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
+                    "supply": {
                         "seg1": {
-                            "timeseries": {
-                                "path": "system/fuel_prices.csv",
-                                "header": "natgas_CT"
-                            }
+                            "price": {
+                                "timeseries": {
+                                    "path": "system/fuel_prices.csv",
+                                    "header": "natgas_CT"
+                                }
+                            },
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
                         }
                     }
                 },
                 {
                     "id": "natgas_ME",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
+                    "supply": {
                         "seg1": {
-                            "timeseries": {
-                                "path": "system/fuel_prices.csv",
-                                "header": "natgas_ME"
-                            }
+                            "price": {
+                                "timeseries": {
+                                    "path": "system/fuel_prices.csv",
+                                    "header": "natgas_ME"
+                                }
+                            },
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
                         }
                     }
                 }
@@ -195,10 +195,10 @@
         },
         {
             "global_data": {
-                "time_interval": "CO2Captured",
                 "constraints": {
                     "BalanceConstraint": false
-                }
+                },
+                "time_interval": "CO2Captured"
             },
             "type": "CO2Captured",
             "instance_data": [
@@ -215,20 +215,20 @@
             "instance_data": [
                 {
                     "id": "uranium_source",
-                    "max_supply": {
-                        "seg1": [
-                            Infinity
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1"
-                    ],
-                    "price_supply": {
+                    "supply": {
                         "seg1": {
-                            "timeseries": {
-                                "path": "system/fuel_prices.csv",
-                                "header": "uranium_source"
-                            }
+                            "price": {
+                                "timeseries": {
+                                    "path": "system/fuel_prices.csv",
+                                    "header": "uranium_source"
+                                }
+                            },
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                Infinity
+                            ]
                         }
                     }
                 }
@@ -245,210 +245,258 @@
             "instance_data": [
                 {
                     "id": "bioherb_MA",
-                    "max_supply": {
-                        "seg1": [
-                            10000
-                        ],
-                        "seg2": [
-                            20000
-                        ],
-                        "seg3": [
-                            30000
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                20000
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                30000
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                10000
+                            ]
+                        }
+                    }
                 },
                 {
                     "id": "bioherb_CT",
-                    "max_supply": {
-                        "seg1": [
-                            80000
-                        ],
-                        "seg2": [
-                            160000
-                        ],
-                        "seg3": [
-                            240000
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                160000
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                240000
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                80000
+                            ]
+                        }
+                    }
                 },
                 {
                     "id": "bioherb_ME",
-                    "max_supply": {
-                        "seg1": [
-                            400
-                        ],
-                        "seg2": [
-                            800
-                        ],
-                        "seg3": [
-                            1200
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                800
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                1200
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                400
+                            ]
+                        }
+                    }
                 },
                 {
                     "id": "biowood_MA",
-                    "max_supply": {
-                        "seg1": [
-                            8000
-                        ],
-                        "seg2": [
-                            16000
-                        ],
-                        "seg3": [
-                            24000
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                16000
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                24000
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                8000
+                            ]
+                        }
+                    }
                 },
                 {
                     "id": "biowood_CT",
-                    "max_supply": {
-                        "seg1": [
-                            15000
-                        ],
-                        "seg2": [
-                            30000
-                        ],
-                        "seg3": [
-                            45000
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                30000
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                45000
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                15000
+                            ]
+                        }
+                    }
                 },
                 {
                     "id": "biowood_ME",
-                    "max_supply": {
-                        "seg1": [
-                            4000
-                        ],
-                        "seg2": [
-                            8000
-                        ],
-                        "seg3": [
-                            12000
-                        ]
-                    },
                     "demand": [
                         0
                     ],
-                    "price_supply": {
-                        "seg1": [
-                            40
-                        ],
-                        "seg2": [
-                            60
-                        ],
-                        "seg3": [
-                            80
-                        ]
-                    },
-                    "supply_segment_names": [
-                        "seg1",
-                        "seg2",
-                        "seg3"
-                    ]
+                    "supply": {
+                        "seg2": {
+                            "price": [
+                                60
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                8000
+                            ]
+                        },
+                        "seg3": {
+                            "price": [
+                                80
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                12000
+                            ]
+                        },
+                        "seg1": {
+                            "price": [
+                                40
+                            ],
+                            "min": [
+                                0
+                            ],
+                            "max": [
+                                4000
+                            ]
+                        }
+                    }
                 }
             ]
         },
         {
             "global_data": {
-                "time_interval": "Electricity",
                 "constraints": {
                     "BalanceConstraint": false
-                }
+                },
+                "time_interval": "Electricity"
             },
             "type": "Electricity",
             "instance_data": [
