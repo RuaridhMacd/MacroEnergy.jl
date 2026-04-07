@@ -277,6 +277,7 @@ end
 
 function test_model_generation_and_optimization()
     case = load_case(test_path)
+    @test case.settings.WriteFullTimeseries
     optimizer = create_optimizer(optim)
     model = generate_model(case,optimizer)
     optimize!(model)
