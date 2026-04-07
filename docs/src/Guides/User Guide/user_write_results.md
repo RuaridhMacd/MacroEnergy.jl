@@ -9,6 +9,7 @@ Currently, Macro supports the following types of outputs:
 - [Non-Served Demand Results](@ref): non-served demand for each node with demand.
 - [Storage Level Results](@ref): storage level for each storage unit over time.
 - [Time Weights](@ref time_weights_results): timestep-to-weight mapping for annualization when using time-domain reduction (TDR).
+- [Full Time Series Reconstruction](@ref full_time_series_reconstruction): expand representative-period results back to the full modeled year when using TDR.
 
 For detailed information about output formats and layouts, please refer to the [Output Format](@ref) and [Output Files Layout](@ref) sections below.
 
@@ -172,6 +173,60 @@ Output columns:
 - `time`: 1-based timestep index
 - `subperiod_index`: index of the representative sub-period that the timestep belongs to
 - `weight`: weight of the representative sub-period (hours it represents in the full year)
+
+## [Full Time Series Reconstruction](@id full_time_series_reconstruction)
+
+When using time-domain reduction (TDR), the optimization model runs on a reduced set of representative sub-periods (e.g., 3 representative weeks of 168 hours each instead of a full year of 8760 hours). The full time series reconstruction feature expands the optimized results back to the full `TotalHoursModeled` hours using the sub-period map (`Period_map.csv`).
+
+### Enabling Full Time Series Output
+
+Set the `WriteFullTimeseries` option to `true` in your `case_settings.json`:
+
+```json
+{
+  "WriteFullTimeseries": true
+}
+```
+
+When enabled, the following time-series outputs are reconstructed and written to a `full_time_series/` subdirectory inside the results directory:
+
+| File | Description |
+|------|-------------|
+| `flows.csv` | Commodity flow through each edge |
+| `non_served_demand.csv` | Non-served demand for each node |
+| `storage_level.csv` | Storage state for each storage unit |
+| `curtailment.csv` | VRE curtailment |
+| `balance_duals.csv` | Balance constraint duals (only when `DualExportsEnabled` is also `true`) |
+
+Each file contains one row per hour for the full modeled year (e.g., 8760 rows), with the same column structure as the corresponding representative-period output file.
+
+### How Reconstruction Works
+
+The reconstruction uses the `Period_map.csv` file (in the `system/` folder) to map each calendar sub-period to its representative sub-period. For example, if the period map assigns weeks 1, 2, and 4 to representative week 1, then the optimized values for representative week 1 are copied into the full time series at positions corresponding to weeks 1, 2, and 4.
+
+If the period map covers fewer hours than `TotalHoursModeled` (e.g., 52 × 168 = 8736 < 8760), the remaining hours are padded by repeating values from the representative period that corresponds to the last calendar sub-period.
+
+### Calling Directly
+
+You can also call the reconstruction function directly after solving:
+
+```julia
+write_full_timeseries(results_dir, system)
+```
+
+This writes all four time-series files to `results_dir/full_time_series/`. The function checks whether TDR is active and skips silently if no time-domain reduction is detected.
+
+To check whether a system uses TDR:
+
+```julia
+has_tdr(system)  # returns true if the system uses time-domain reduction
+```
+
+!!! note "Output Layout and Compression"
+    Full time series files follow the same `OutputLayout` setting as other outputs. In *long* format, files are written as compressed `.csv.gz` to reduce disk usage (a full-year long-format file can be very large). In *wide* format, files are written as plain `.csv`.
+
+!!! note "Solution Algorithms"
+    Full time series reconstruction is supported for all solution algorithms: Monolithic, Myopic, and Benders decomposition. When `WriteFullTimeseries` is enabled, reconstruction happens automatically as part of `write_outputs`.
 
 ## Writing Case Settings
 

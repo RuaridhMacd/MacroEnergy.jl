@@ -19,6 +19,7 @@ with_logger(test_logger) do
 
     Test.@testset verbose = true "Writing Outputs" begin
         include("test_output.jl")
+        include("test_full_timeseries.jl")
     end
     
     Test.@testset verbose = true "Dual Value Exports" begin

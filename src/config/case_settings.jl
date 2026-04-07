@@ -6,7 +6,8 @@ function default_case_settings()
     return Dict(
         :PeriodLengths => [1],
         :DiscountRate => 0.,
-        :SolutionAlgorithm => "Monolithic"
+        :SolutionAlgorithm => "Monolithic",
+        :WriteFullTimeseries => false
     )
 end
 
@@ -140,6 +141,7 @@ function validate_case_settings(case_settings::AbstractDict{Symbol,Any})
     @assert all(case_settings[:PeriodLengths].>0)
     @assert case_settings[:DiscountRate] >= 0
     @assert isa(case_settings[:SolutionAlgorithm], AbstractSolutionAlgorithm)
+    @assert isa(case_settings[:WriteFullTimeseries], Bool)
 end
 
 function set_period_lengths!(case_settings::AbstractDict{Symbol,Any})
