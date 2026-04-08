@@ -84,6 +84,41 @@ function make_test_transformation_with_edges(num_steps::Int = 1)
     return (; input_node, output_node, transform, elec_edge, h2_edge)
 end
 
+function make_test_storage_with_edges(num_steps::Int = 1)
+    timedata = make_test_timedata(num_steps)
+
+    start_node = Node{Electricity}(;
+        id = :storage_input_node,
+        timedata = timedata,
+    )
+    end_node = Node{Electricity}(;
+        id = :storage_output_node,
+        timedata = timedata,
+    )
+    storage = Storage{Electricity}(;
+        id = :balance_storage,
+        timedata = timedata,
+        capacity = 4.0,
+        balance_data = Dict(:storage => BalanceData()),
+    )
+    charge_edge = UnidirectionalEdge{Electricity}(;
+        id = :storage_charge_edge,
+        timedata = timedata,
+        start_vertex = start_node,
+        end_vertex = storage,
+        capacity = 6.0,
+    )
+    discharge_edge = UnidirectionalEdge{Electricity}(;
+        id = :storage_discharge_edge,
+        timedata = timedata,
+        start_vertex = storage,
+        end_vertex = end_node,
+        capacity = 6.0,
+    )
+
+    return (; start_node, end_node, storage, charge_edge, discharge_edge)
+end
+
 function find_term(data::BalanceData, obj, var::Symbol)
     return only(filter(term -> term.obj === obj && term.var == var, data.terms))
 end
@@ -237,6 +272,33 @@ end
         @test constraint_object(ct.constraint_ref[:le_energy][1]).set isa MOI.LessThan{Float64}
     end
 
+    @testset "Edge balance_data Supports Time-Varying Coefficients" begin
+        parts = make_test_storage_with_edges(3)
+        storage = parts.storage
+        charge_edge = parts.charge_edge
+        discharge_edge = parts.discharge_edge
+
+        charge_eff = [0.5, 0.6, 0.7]
+        discharge_eff = 1.25
+
+        @add_balance(
+            storage,
+            :storage,
+            discharge_eff * flow(discharge_edge) + charge_eff * flow(charge_edge) == 0.0
+        )
+
+        @test_throws ErrorException balance_data(charge_edge, storage, :storage)
+
+        @test balance_data(charge_edge, storage, :storage, 1) == charge_eff[1]
+        @test balance_data(charge_edge, storage, :storage, 2) == charge_eff[2]
+        @test balance_data(charge_edge, storage, :storage, 3) == charge_eff[3]
+
+        @test balance_data(discharge_edge, storage, :storage) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 1) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 2) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 3) == discharge_eff
+    end
+
     @testset "Legacy Flow Balances Still Update Node Balance Expressions" begin
         timedata = make_test_timedata()
 
@@ -251,6 +313,44 @@ end
         )
         edge = UnidirectionalEdge{Electricity}(;
             id = :legacy_edge,
+            timedata = timedata,
+            start_vertex = start_node,
+            end_vertex = end_node,
+        )
+
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+        model[:vREF] = @variable(model, base_name = "vREF")
+
+        operation_model!(start_node, model)
+        operation_model!(end_node, model)
+        operation_model!(edge, model)
+
+        ct = BalanceConstraint()
+        add_model_constraint!(ct, end_node, model)
+
+        @objective(model, Max, flow(edge, 1))
+        optimize!(model)
+
+        @test is_solved_and_feasible(model)
+        @test value(flow(edge, 1)) ≈ 0.0 atol = 1e-8
+        @test value(get_balance(end_node, :demand, 1)) ≈ 0.0 atol = 1e-8
+    end
+
+    @testset "Empty BalanceData Preserves Default Edge Contribution" begin
+        timedata = make_test_timedata()
+
+        start_node = Node{Electricity}(;
+            id = :empty_start_node,
+            timedata = timedata,
+        )
+        end_node = Node{Electricity}(;
+            id = :empty_end_node,
+            timedata = timedata,
+            balance_data = Dict(:demand => BalanceData()),
+        )
+        edge = UnidirectionalEdge{Electricity}(;
+            id = :empty_balance_edge,
             timedata = timedata,
             start_vertex = start_node,
             end_vertex = end_node,
@@ -342,6 +442,47 @@ end
         for (t, eff) in enumerate(efficiency_profile)
             @test value(flow(h2_edge, t)) ≈ 1.0 atol = 1e-8
             @test value(flow(elec_edge, t)) ≈ eff atol = 1e-8
+            @test value(get_balance(transform, :energy, t)) ≈ 0.0 atol = 1e-8
+        end
+    end
+
+    @testset "Incoming Edge Coefficients Preserve Electrolyzer-Style Efficiency" begin
+        parts = make_test_transformation_with_edges(3)
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+
+        efficiency_profile = [0.6, 0.7, 0.8]
+
+        @add_balance(
+            transform,
+            :energy,
+            efficiency_profile * flow(elec_edge) + flow(h2_edge) == 0.0
+        )
+
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+        model[:vREF] = @variable(model, base_name = "vREF")
+
+        operation_model!(parts.input_node, model)
+        operation_model!(parts.output_node, model)
+        operation_model!(transform, model)
+        operation_model!(elec_edge, model)
+        operation_model!(h2_edge, model)
+
+        ct = BalanceConstraint()
+        add_model_constraint!(ct, transform, model)
+
+        for t in 1:3
+            @constraint(model, flow(elec_edge, t) == 1.0)
+        end
+        @objective(model, Max, sum(flow(h2_edge, t) for t in 1:3))
+        optimize!(model)
+
+        @test is_solved_and_feasible(model)
+        for (t, eff) in enumerate(efficiency_profile)
+            @test value(flow(elec_edge, t)) ≈ 1.0 atol = 1e-8
+            @test value(flow(h2_edge, t)) ≈ eff atol = 1e-8
             @test value(get_balance(transform, :energy, t)) ≈ 0.0 atol = 1e-8
         end
     end
