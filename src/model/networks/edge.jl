@@ -821,12 +821,19 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
     end
     for i in balance_ids(v)
         data = balance_data(v, i)
+        if isempty(data.terms) && data.constant == 0.0
+            balance_expr = get_balance(v, i)
+            for t in time_interval(e)
+                add_to_expression!(balance_expr[t], flow_dir, effective_flow[t])
+            end
+            continue
+        end
         matching_terms = [
             term for term in data.terms if balance_term_matches(term, e, :flow)
         ]
         if !isempty(matching_terms)
             balance_expr = get_balance(v, i)
-            for (time_index, t) in enumerate(time_interval(v))
+            for (time_index, t) in enumerate(time_interval(e))
                 balance_coeff = flow_dir * sum(
                     resolve_balance_coeff(term, v, time_index) for term in matching_terms;
                     init = 0.0,
