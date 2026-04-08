@@ -741,14 +741,29 @@ function edges(assets::Vector{AbstractAsset})
     return edges
 end
 
+function balance_term_matches(term::BalanceTerm, e::AbstractEdge, var::Symbol)
+    if term.var != var
+        return false
+    elseif term.obj === e
+        return true
+    elseif term.obj isa Symbol
+        return term.obj == id(e)
+    elseif term.obj isa AbstractEdge
+        return id(term.obj) == id(e)
+    end
+    return false
+end
+
 function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol, var::Symbol = :flow)
     data = balance_data(v, i)
-    if isempty(data)
+    coeff = sum(
+        (term.coeff for term in data.terms if balance_term_matches(term, e, var));
+        init = 0.0,
+    )
+    if coeff != 0.0
+        return coeff
+    elseif isempty(data.terms) && data.constant == 0.0
         return 1.0
-    end
-    index = find_balance(data, id(e), var)
-    if !isnothing(index)
-        return data[index].coeff
     end
     return 0.0
 end

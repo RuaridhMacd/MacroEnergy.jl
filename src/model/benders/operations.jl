@@ -222,12 +222,12 @@ function get_all_balance_constraints(system::System)
         if isa(n,Node) #### && isempty(non_served_demand(n)) 
             for c in n.constraints
                 if isa(c, BalanceConstraint)
-                    for i in balance_ids(n)
-                        for t in time_interval(n)
-                            push!(balance_constraints, c.constraint_ref[i,t])
+                        for i in balance_ids(n)
+                            for t in time_interval(n)
+                                push!(balance_constraints, c.constraint_ref[i][t])
+                            end
                         end
                     end
-                end
             end
         end
     end 
@@ -241,7 +241,7 @@ function get_all_balance_constraints(system::System)
                         STARTS = [first(sp) for sp in subperiods(g)];
                         for i in balance_ids(g)
                             for t in STARTS
-                                push!(balance_constraints, c.constraint_ref[i,t])
+                                push!(balance_constraints, c.constraint_ref[i][t])
                             end
                         end
                     end

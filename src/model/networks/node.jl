@@ -25,7 +25,7 @@ end
     # Inherited Attributes
     - id::Symbol: Unique identifier for the node
     - timedata::TimeData: Time-related data for the node
-    - balance_data::Dict{Symbol,Dict{Symbol,Float64}}: Balance equations data
+    - balance_data::Dict{Symbol,Any}: Balance equations data
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the node
     - operation_expr::Dict: Operational JuMP expressions for the node
 
@@ -182,21 +182,7 @@ function planning_model!(n::Node, model::Model)
 end
 
 function operation_model!(n::Node, model::Model)
-
-    if !isempty(balance_ids(n))
-        for i in balance_ids(n)
-            if i == :demand
-                n.operation_expr[:demand] = @expression(
-                    model,
-                    [t in time_interval(n)],
-                    -demand(n, t) * model[:vREF]
-                )
-            else
-                n.operation_expr[i] =
-                    @expression(model, [t in time_interval(n)], 0 * model[:vREF])
-            end
-        end
-    end
+    build_balance_expressions!(n, model)
 
     if !all(max_non_served_demand(n) .== 0)
         n.non_served_demand = @variable(
@@ -251,6 +237,17 @@ function operation_model!(n::Node, model::Model)
     return nothing
 end
 
+function initialize_balance_expression(n::Node, balance_id::Symbol, model::Model)
+    if balance_id == :demand
+        return @expression(
+            model,
+            [t in time_interval(n)],
+            -demand(n, t) * model[:vREF]
+        )
+    end
+    return @expression(model, [t in time_interval(n)], 0 * model[:vREF])
+end
+
 
 function get_nodes_sametype(nodes::Vector{Node}, commodity::DataType)
     return filter(n -> commodity_type(n) == commodity, nodes)
@@ -275,19 +272,19 @@ function make(commodity::Type{<:Commodity}, input_data::AbstractDict{Symbol,Any}
 
     if any(isa.(node.constraints, BalanceConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:demand => BalanceData[]))
+            get(data, :balance_data, Dict(:demand => BalanceData()))
     elseif any(isa.(node.constraints, CO2CapConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:emissions => BalanceData[]))
+            get(data, :balance_data, Dict(:emissions => BalanceData()))
     elseif any(isa.(node.constraints, CO2StorageConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:co2_storage => BalanceData[]))
+            get(data, :balance_data, Dict(:co2_storage => BalanceData()))
     elseif any(isa.(node.constraints, AggregatedDemandConstraint))
         node.balance_data =
-            get(data, :balance_data, Dict(:demand_flow => Dict{Symbol,Float64}()))
+            get(data, :balance_data, Dict(:demand_flow => BalanceData()))
     else
         node.balance_data =
-            get(data, :balance_data, Dict(:exogenous => BalanceData[]))
+            get(data, :balance_data, Dict(:exogenous => BalanceData()))
     end
 
     if haskey(data, :location) && data[:location] !== Symbol("")

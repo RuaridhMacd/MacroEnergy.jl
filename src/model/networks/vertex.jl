@@ -1,6 +1,14 @@
-const BalanceData = @NamedTuple{id::Symbol, var::Symbol, coeff::Float64}
-macro empty_balance_data()
-    (id = :empty, var = :empty, coeff = 0.0)
+Base.@kwdef struct BalanceTerm
+    obj::Any
+    var::Symbol = :flow
+    coeff::Float64 = 1.0
+    lag::Int = 0
+end
+
+Base.@kwdef struct BalanceData
+    sense::Symbol = :eq
+    terms::Vector{BalanceTerm} = BalanceTerm[]
+    constant::Float64 = 0.0
 end
 """
     @AbstractVertexBaseAttributes()
@@ -10,7 +18,7 @@ end
     # Generated Fields
     - id::Symbol: Unique identifier for the vertex
     - timedata::TimeData: Time-related data for the vertex
-    - balance_data::Dict{Symbol,Dict{Symbol,Float64}}: Dictionary mapping balance equation IDs to coefficients
+    - balance_data::Dict{Symbol,Any}: Dictionary mapping balance equation IDs to balance definitions
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the vertex
     - operation_expr::Dict: Dictionary storing operational JuMP expressions for the vertex
 
@@ -22,7 +30,7 @@ macro AbstractVertexBaseAttributes()
             id::Symbol
             timedata::TimeData
             location::Union{Missing, Symbol} = missing
-            balance_data::Dict{Symbol, Vector{BalanceData}} = Dict{Symbol, Vector{BalanceData}}()
+            balance_data::Dict{Symbol, Any} = Dict{Symbol, Any}()
             constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
             operation_expr::Dict = Dict()
         end,
@@ -65,16 +73,6 @@ balance_ids = balance_ids(elec_node)
 """
 balance_ids(v::AbstractVertex) = collect(keys(v.balance_data))
 
-balance_ids(data::BalanceData) = data.id
-
-balance_ids(data::Vector{BalanceData}) = [d.id for d in data]
-
-# Function find_balance(data::Vector{BalanceData}, id::Symbol, var::Symbol) which 
-# return the index of the first BalanceData with matching id and var
-function find_balance(data::Vector{BalanceData}, id::Symbol, var::Symbol)
-    return findfirst(d -> d.id == id && d.var == var, data)
-end
-
 """
     balance_data(v::AbstractVertex, i::Symbol)
 
@@ -92,7 +90,18 @@ Get the input data for a specific balance equation in a vertex.
 demand_data = balance_data(elec_node, :demand)
 ```
 """
-balance_data(v::AbstractVertex, i::Symbol) = v.balance_data[i]
+function balance_data(v::AbstractVertex, i::Symbol)
+    data = v.balance_data[i]
+    if data isa BalanceData
+        return data
+    end
+    normalized = normalize_balance_data(data)
+    v.balance_data[i] = normalized
+    return normalized
+end
+
+balance_sense(v::AbstractVertex, i::Symbol) = balance_data(v, i).sense
+balance_terms(v::AbstractVertex, i::Symbol) = balance_data(v, i).terms
 
 """
     get_balance(v::AbstractVertex, i::Symbol)
@@ -177,36 +186,180 @@ function get_constraint_by_type(v::AbstractVertex, constraint_type::Type{<:Abstr
 end
 
 location(v::AbstractVertex) = v.location;
-function reformat_balance_data(data::Dict{Symbol,Float64}, var::Symbol = :flow)
-    return BalanceData[
-        (id = k, var = var, coeff = v) for (k, v) in data
-    ]
+
+function normalize_balance_sense(sense::Symbol)
+    if sense in (:eq, :(==), :(=))
+        return :eq
+    elseif sense in (:le, :(<=), :(<))
+        return :le
+    elseif sense in (:ge, :(>=), :(>))
+        return :ge
+    end
+    error("Unsupported balance sense: $sense")
 end
 
-function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Dict{Symbol, Float64})
+function normalize_balance_data(data::BalanceData)
+    return BalanceData(
+        sense = normalize_balance_sense(data.sense),
+        terms = data.terms,
+        constant = data.constant,
+    )
+end
+
+function normalize_balance_data(data::Dict{Symbol,<:Number})
+    return BalanceData(
+        terms = BalanceTerm[
+            BalanceTerm(obj = k, var = :flow, coeff = Float64(v)) for (k, v) in data
+        ],
+    )
+end
+
+function normalize_balance_data(data::Vector{BalanceTerm})
+    return BalanceData(terms = data)
+end
+
+function normalize_balance_data(data::AbstractVector{<:NamedTuple{(:id, :var, :coeff)}})
+    constant = 0.0
+    terms = BalanceTerm[]
+    for term in data
+        coeff = Float64(term.coeff)
+        if term.id == :constant
+            constant += coeff
+        else
+            push!(terms, BalanceTerm(obj = term.id, var = term.var, coeff = coeff))
+        end
+    end
+    return BalanceData(terms = terms, constant = constant)
+end
+
+function merge_balance_data(lhs::BalanceData, rhs::BalanceData)
+    lhs_sense = normalize_balance_sense(lhs.sense)
+    rhs_sense = normalize_balance_sense(rhs.sense)
+    if lhs_sense != rhs_sense
+        error("Cannot merge balance data with senses $lhs_sense and $rhs_sense")
+    end
+    return BalanceData(
+        sense = lhs_sense,
+        terms = vcat(lhs.terms, rhs.terms),
+        constant = lhs.constant + rhs.constant,
+    )
+end
+
+function add_balance_data(v::AbstractVertex, balance_id::Symbol, data)
+    normalized = normalize_balance_data(data)
     if haskey(v.balance_data, balance_id)
-        append!(v.balance_data[balance_id], reformat_balance_data(data))
+        v.balance_data[balance_id] = merge_balance_data(balance_data(v, balance_id), normalized)
     else
-        v.balance_data[balance_id] = reformat_balance_data(data)
+        v.balance_data[balance_id] = normalized
     end
     return nothing
 end
 
-function add_balance_data(v::AbstractVertex, balance_id::Symbol, data::Vector{BalanceData})
-    if haskey(v.balance_data, balance_id)
-        append!(v.balance_data[balance_id], data)
+function initialize_balance_expression(v::AbstractVertex, balance_id::Symbol, model::Model)
+    return @expression(model, [t in time_interval(v)], 0 * model[:vREF])
+end
+
+function balance_term_added_by_edge_updates(term::BalanceTerm)
+    return term.var == :flow && (term.obj isa AbstractEdge || term.obj isa Symbol)
+end
+
+function shifted_balance_time_index(obj, t::Int64, lag::Int)
+    if lag == 0
+        return t
+    elseif lag < 0
+        error("Negative balance lags are not supported: $lag")
+    end
+    return timestepbefore(t, lag, subperiods(obj))
+end
+
+resolve_balance_property(value, ::Int64) = value
+resolve_balance_property(value::AbstractArray, t::Int64) = value[t]
+
+function resolve_balance_var(obj::AbstractEdge, var::Symbol, t::Int64, lag::Int = 0)
+    tt = shifted_balance_time_index(obj, t, lag)
+    if var == :flow
+        return flow(obj, tt)
+    elseif var == :capacity
+        return capacity(obj)
+    elseif var == :existing_capacity
+        return existing_capacity(obj)
+    elseif var == :new_capacity
+        return new_capacity(obj)
+    elseif var == :retired_capacity
+        return retired_capacity(obj)
+    elseif hasproperty(obj, var)
+        return resolve_balance_property(getproperty(obj, var), tt)
+    end
+    error("Unsupported balance variable $var on edge $(id(obj))")
+end
+
+function resolve_balance_var(obj::AbstractStorage, var::Symbol, t::Int64, lag::Int = 0)
+    tt = shifted_balance_time_index(obj, t, lag)
+    if var == :capacity
+        return capacity(obj)
+    elseif var == :existing_capacity
+        return existing_capacity(obj)
+    elseif var == :new_capacity
+        return new_capacity(obj)
+    elseif var == :retired_capacity
+        return retired_capacity(obj)
+    elseif var == :storage_level
+        return storage_level(obj, tt)
+    elseif hasproperty(obj, var)
+        return resolve_balance_property(getproperty(obj, var), tt)
+    end
+    error("Unsupported balance variable $var on storage $(id(obj))")
+end
+
+function resolve_balance_var(obj::AbstractVertex, var::Symbol, t::Int64, lag::Int = 0)
+    tt = shifted_balance_time_index(obj, t, lag)
+    if hasproperty(obj, var)
+        return resolve_balance_property(getproperty(obj, var), tt)
+    end
+    error("Unsupported balance variable $var on vertex $(id(obj))")
+end
+
+function add_balance_term_to_expression!(expr, term::BalanceTerm, t::Int64)
+    resolved = resolve_balance_var(term.obj, term.var, t, term.lag)
+    if resolved isa Number
+        add_to_expression!(expr, term.coeff * resolved)
     else
-        v.balance_data[balance_id] = data
+        add_to_expression!(expr, term.coeff, resolved)
+    end
+    return nothing
+end
+
+function compile_balance_data!(v::AbstractVertex, balance_id::Symbol, model::Model)
+    expr = v.operation_expr[balance_id]
+    data = balance_data(v, balance_id)
+    for t in time_interval(v)
+        for term in data.terms
+            if balance_term_added_by_edge_updates(term)
+                continue
+            end
+            add_balance_term_to_expression!(expr[t], term, t)
+        end
+        if data.constant != 0.0
+            add_to_expression!(expr[t], data.constant)
+        end
+    end
+    return nothing
+end
+
+function build_balance_expressions!(v::AbstractVertex, model::Model)
+    for balance_id in balance_ids(v)
+        v.operation_expr[balance_id] = initialize_balance_expression(v, balance_id, model)
+        compile_balance_data!(v, balance_id, model)
     end
     return nothing
 end
 
 function parse_balance_eq(ex)
     if isa(ex, Number)
-        return [(id = :constant, var = :constant, coeff = Float64(ex))]
+        return [(obj = nothing, var = :constant, coeff = Float64(ex))]
 
     elseif isa(ex, Symbol)
-        return [(id = :constant, var = :constant, coeff = 0.0)]  # Just in case
+        return [(obj = nothing, var = :constant, coeff = 0.0)]  # Just in case
 
     elseif isa(ex, Expr)
         if ex.head == :call
@@ -217,12 +370,10 @@ function parse_balance_eq(ex)
                 error("Functions with no arguments are not supported: $ex")
             elseif len == 2
                 if f == :-
-                    terms = parse_balance_eq(args[2])[1]
-                    return [(id = terms[2], var = terms[1], coeff = -terms[3])]
+                    term = only(parse_balance_eq(args[2]))
+                    return [(obj = term.obj, var = term.var, coeff = -term.coeff)]
                 else
-                    # Extract symbol from QuoteNode if needed
-                    # id_val = args[2] isa QuoteNode ? args[2].value : args[2]
-                    return [(id = args[2], var = args[1], coeff = 1.0)]
+                    return [(obj = args[2], var = args[1], coeff = 1.0)]
                 end
             else
                 if f == :+
@@ -238,13 +389,13 @@ function parse_balance_eq(ex)
                     
                     rhs = [
                         (
-                            id = t.id, 
+                            obj = t.obj,
                             var = t.var, 
                             coeff = (isa(t.coeff, Number)) ? -t.coeff : Expr(:call, :-, t.coeff)
                         ) for t in rhs
                     ]
                     return vcat(lhs, rhs)
-                elseif f == :*
+                elseif f == :* || f == :/
                     # Multiplication, where we assume the last term is the variable
                     # as associativity means we can have any number of terms
                     if len == 3
@@ -258,13 +409,18 @@ function parse_balance_eq(ex)
                             coeff = Float64(ex.args[2])
                             terms = parse_balance_eq(ex.args[3])
                         elseif isa(ex.args[3], Number)
-                            coeff = Float64(ex.args[3])
+                            coeff = f == :/ ? 1 / Float64(ex.args[3]) : Float64(ex.args[3])
                             terms = parse_balance_eq(ex.args[2])
                         end
-                        return [(id = t.id, var = t.var, coeff = coeff * t.coeff) for t in terms]
+                        return [(obj = t.obj, var = t.var, coeff = coeff * t.coeff) for t in terms]
                     end
                     terms = parse_balance_eq(term2)
-                    return [t.coeff == 1.0 ? (id = t.id, var = t.var, coeff = term1) : (id = t.id, var = t.var, coeff = Expr(:call, :*, term1, t.coeff)) for t in terms]
+                    return [
+                        t.coeff == 1.0 ?
+                        (obj = t.obj, var = t.var, coeff = term1) :
+                        (obj = t.obj, var = t.var, coeff = Expr(:call, :*, term1, t.coeff))
+                        for t in terms
+                    ]
                 end
             end
             error("Unrecognized expression format: $ex")
@@ -273,34 +429,24 @@ function parse_balance_eq(ex)
     error("Unrecognized expression: $ex")
 end
 
-function post_process_terms(terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
-    constant_terms = filter(t -> t.id == :constant, terms)
-    constant_term = combine_constants!(constant_terms)
-
-    terms = filter(t -> t.id != :constant, terms)
+function post_process_terms(terms::Vector{<:NamedTuple{(:obj, :var, :coeff)}}, balance_term_type)
+    constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
     terms_expr = [
-        :((id=$(Expr(:., t.id, QuoteNode(:id))), var=$(QuoteNode(t.var)), coeff=$(t.coeff))) for t in terms
+        :($balance_term_type(obj = $(t.obj), var = $(QuoteNode(t.var)), coeff = $(t.coeff)))
+        for t in terms if !isnothing(t.obj)
     ]
-
-    if !isnothing(constant_term)
-        constant_term_expr = :((id=$(QuoteNode(constant_term.id)), var=$(QuoteNode(constant_term.var)), coeff=$(constant_term.coeff)))
-        terms_expr = vcat(terms_expr, constant_term_expr)
-    end
-
-    return terms_expr
+    return terms_expr, constant
 end
 
 
-function combine_constants!(constant_terms::Vector{<:NamedTuple{(:id, :var, :coeff)}})
-    # If terms contains any id = :constant terms
-    # then add together all id = :constant terms
+function combine_constants!(constant_terms::Vector{<:NamedTuple{(:obj, :var, :coeff)}})
     if !isempty(constant_terms)
         constant_value = sum(t.coeff for t in constant_terms)
         if constant_value != 0.0
-            return (id = :constant, var = :constant, coeff = constant_value)
+            return constant_value
         end
     end
-    return nothing
+    return 0.0
 end
 
 """
@@ -320,6 +466,10 @@ A macro to add balance equation data to a component in a structured format.
 ```
 """
 macro add_balance_data(component, balance_id, equation)
+    add_balance_data_fn = GlobalRef(@__MODULE__, :add_balance_data)
+    balance_data_type = GlobalRef(@__MODULE__, :BalanceData)
+    balance_term_type = GlobalRef(@__MODULE__, :BalanceTerm)
+
     # Step 1: Parse the equation and identify the operator
     if !isa(equation, Expr) || equation.head != :call
         error("Expected an equation expression, got: $equation")
@@ -335,31 +485,31 @@ macro add_balance_data(component, balance_id, equation)
         error("Your balance constraint has an unsupported operator: $expr. Supported operators: $supported_ops")
     end
     
-    # Step 2: Handle >= and > by flipping sides and converting to <= and <
-    if operator == :(>=)
-        operator = :(<=)
-        left_side, right_side = right_side, left_side
-        @debug("Converted >= to <= by flipping sides")
-    elseif operator == :(>)
-        operator = :(<)
-        left_side, right_side = right_side, left_side
-        @debug("Converted > to < by flipping sides")
+    # Step 2: Normalize the operator to an internal sense symbol.
+    if operator == :(>=) || operator == :(>)
+        operator = :ge
+    elseif operator == :(<=) || operator == :(<)
+        operator = :le
+    else
+        operator = :eq
     end
     
     # Step 3: Move everything to left side (LHS - RHS)
-    # For now, let's just normalize to LHS - RHS and return the normalized expression
     normalized_expr = :($left_side - $right_side)
-    @debug("Normalized (LHS - RHS): $normalized_expr")
 
     terms = parse_balance_eq(normalized_expr)
-    terms = post_process_terms(terms)
+    terms, constant = post_process_terms(terms, balance_term_type)
 
     # Embed the computed terms directly into the generated code
     return esc(quote
-        add_balance_data(
+        $add_balance_data_fn(
             $component,
             $balance_id,
-            BalanceData[ $(terms...) ]  # splices into array
+            $balance_data_type(
+                sense = $(QuoteNode(operator)),
+                terms = [$(terms...)],
+                constant = $constant,
+            )
         )
     end)
 end
@@ -396,7 +546,7 @@ function find_expr_terms(equation::Expr, negative_term::Bool=false)::Vector{Tupl
             return [(Expr(:call, equation.args[1], coeff_multiplier, equation.args[2:end-1]...), equation.args[end])]
         end
     elseif equation.args[1] == :+
-        terms = []
+        terms = Tuple{EXPR_COEFF, Expr}[]
         for arg in equation.args[2:end]
             if isa(arg, Expr)
                 sub_terms = find_expr_terms(arg, negative_term)
@@ -405,11 +555,13 @@ function find_expr_terms(equation::Expr, negative_term::Bool=false)::Vector{Tupl
         end
         return terms
     elseif equation.args[1] == :-
-        terms = []
-        for arg in equation.args[2:end]
+        terms = Tuple{EXPR_COEFF, Expr}[]
+        if length(equation.args) >= 2 && isa(equation.args[2], Expr)
+            append!(terms, find_expr_terms(equation.args[2], negative_term))
+        end
+        for arg in equation.args[3:end]
             if isa(arg, Expr)
-                sub_terms = find_expr_terms(arg, !negative_term)
-                append!(terms, sub_terms)
+                append!(terms, find_expr_terms(arg, !negative_term))
             end
         end
         return terms
@@ -456,6 +608,9 @@ macro add_balance(component, balance_id, equation, base_term)
     else
         base_coeff = find_term_coeff(output_terms, base_term)
     end
+    if isnothing(base_coeff)
+        error("Base term $base_term was not found in balance equation $equation")
+    end
 
     # Now, we work through each other term, creating balance data entries
     balance_calls = Expr[]
@@ -469,7 +624,6 @@ macro add_balance(component, balance_id, equation, base_term)
             end
             balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
             new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-            println("Creating input balance data, $new_balance_id: $balance_equation")
             balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end
@@ -484,7 +638,6 @@ macro add_balance(component, balance_id, equation, base_term)
             end
             balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
             new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-            println("Creating output balance data, $new_balance_id: $balance_equation")
             balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end

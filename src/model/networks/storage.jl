@@ -54,7 +54,7 @@ end
     # Inherited Attributes
     - id::Symbol: Unique identifier for the storage
     - timedata::TimeData: Time-related data for the storage
-    - balance_data::Dict{Symbol,Dict{Symbol,Float64}}: Dictionary mapping balance equation IDs to coefficients
+    - balance_data::Dict{Symbol,Any}: Dictionary mapping balance equation IDs to balance definitions
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the storage
     - operation_expr::Dict: Dictionary storing operational JuMP expressions for the storage
 
@@ -259,21 +259,7 @@ function operation_model!(g::Storage, model::Model)
     )
 
     if :storage ∈ balance_ids(g)
-
-        for i in balance_ids(g)
-            if i == :storage 
-                g.operation_expr[:storage] = @expression(
-                    model,
-                    [t in time_interval(g)],
-                    -storage_level(g, t) +
-                    (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                    storage_level(g, timestepbefore(t, 1, subperiods(g)))
-                )
-            else
-                g.operation_expr[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
-            end
-        end
+        build_balance_expressions!(g, model)
     else
         error("A storage vertex requires to have a balance named :storage")
     end
@@ -290,6 +276,16 @@ storage_initial(g::LongDurationStorage) = g.storage_initial;
 storage_initial(g::LongDurationStorage, r::Int64) = g.storage_initial[r];
 storage_change(g::LongDurationStorage) = g.storage_change;
 storage_change(g::LongDurationStorage, w::Int64) =  g.storage_change[w];
+
+function resolve_balance_var(g::LongDurationStorage, var::Symbol, t::Int64, lag::Int = 0)
+    tt = shifted_balance_time_index(g, t, lag)
+    if var == :storage_initial
+        return storage_initial(g, current_subperiod(g, tt))
+    elseif var == :storage_change
+        return storage_change(g, current_subperiod(g, tt))
+    end
+    return invoke(resolve_balance_var, Tuple{AbstractStorage, Symbol, Int64, Int64}, g, var, t, lag)
+end
 
 function make_long_duration_storage(
     id::Symbol,
@@ -374,28 +370,7 @@ function operation_model!(g::LongDurationStorage, model::Model)
 
     
     if :storage ∈ balance_ids(g)
-
-        for i in balance_ids(g)
-            if i == :storage 
-                STARTS = [first(sp) for sp in subperiods(g)];
-                g.operation_expr[:storage] = @expression(
-                    model,
-                    [t in time_interval(g)],
-                    if t ∈ STARTS 
-                        -storage_level(g, t) +
-                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                        (storage_level(g, timestepbefore(t, 1, subperiods(g))) - storage_change(g, current_subperiod(g,t)))
-                    else
-                        -storage_level(g, t) +
-                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                        storage_level(g, timestepbefore(t, 1, subperiods(g)))
-                    end
-                )
-            else
-                g.operation_expr[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
-            end
-        end
+        build_balance_expressions!(g, model)
     else
         error("A storage vertex requires to have a balance named :storage")
     end
@@ -410,6 +385,39 @@ function operation_model!(g::LongDurationStorage, model::Model)
     #     storage_initial(g, w) ==  storage_level(g,subperiod_end[w]) - storage_change(g, w)
     # )
 
+end
+
+function initialize_balance_expression(g::Storage, balance_id::Symbol, model::Model)
+    if balance_id == :storage
+        return @expression(
+            model,
+            [t in time_interval(g)],
+            -storage_level(g, t) +
+            (1 - loss_fraction(g, timestepbefore(t, 1, subperiods(g)))) *
+            storage_level(g, timestepbefore(t, 1, subperiods(g)))
+        )
+    end
+    return @expression(model, [t in time_interval(g)], 0 * model[:vREF])
+end
+
+function initialize_balance_expression(g::LongDurationStorage, balance_id::Symbol, model::Model)
+    if balance_id == :storage
+        starts = Set(first(sp) for sp in subperiods(g))
+        return @expression(
+            model,
+            [t in time_interval(g)],
+            if t in starts
+                -storage_level(g, t) +
+                (1 - loss_fraction(g, timestepbefore(t, 1, subperiods(g)))) *
+                (storage_level(g, timestepbefore(t, 1, subperiods(g))) - storage_change(g, current_subperiod(g, t)))
+            else
+                -storage_level(g, t) +
+                (1 - loss_fraction(g, timestepbefore(t, 1, subperiods(g)))) *
+                storage_level(g, timestepbefore(t, 1, subperiods(g)))
+            end
+        )
+    end
+    return @expression(model, [t in time_interval(g)], 0 * model[:vREF])
 end
 
 function compute_investment_costs!(g::AbstractStorage, model::Model, cost_type::Function=pv_period_investment_cost)
