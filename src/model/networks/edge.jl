@@ -754,12 +754,51 @@ function balance_term_matches(term::BalanceTerm, e::AbstractEdge, var::Symbol)
     return false
 end
 
+function balance_time_index(y::Union{AbstractVertex,AbstractEdge}, t::Int64)
+    time_idx = findfirst(isequal(t), time_interval(y))
+    isnothing(time_idx) && error("Time $t is not in the time interval for $(id(y))")
+    return time_idx
+end
+
 function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol, var::Symbol = :flow)
     data = balance_data(v, i)
+    coeff = 0.0
+    has_time_varying_coeff = false
+    for term in data.terms
+        if balance_term_matches(term, e, var)
+            if term.coeff isa Float64
+                coeff += term.coeff
+            else
+                has_time_varying_coeff = true
+            end
+        end
+    end
+    if has_time_varying_coeff
+        error(
+            "balance_data($(id(e)), $(id(v)), $i, $var) requires a timestep when time-varying coefficients are present",
+        )
+    end
+    if coeff != 0.0
+        return coeff
+    elseif isempty(data.terms) && data.constant == 0.0
+        return 1.0
+    end
+    return 0.0
+end
+
+function balance_data(
+    e::AbstractEdge,
+    v::AbstractVertex,
+    i::Symbol,
+    t::Int64,
+    var::Symbol = :flow,
+)
+    data = balance_data(v, i)
+    time_index = balance_time_index(e, t)
     coeff = sum(
         (
-            term.coeff for term in data.terms
-            if balance_term_matches(term, e, var) && term.coeff isa Float64
+            resolve_balance_coeff(term, v, time_index) for term in data.terms
+            if balance_term_matches(term, e, var)
         );
         init = 0.0,
     )
