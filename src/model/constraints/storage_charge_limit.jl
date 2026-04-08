@@ -28,7 +28,7 @@ function add_model_constraint!(ct::StorageChargeLimitConstraint, e::AbstractEdge
         ct.constraint_ref = @constraint(
             model,
             [t in time_interval(e)],
-            balance_data(e, end_vertex(e), :storage) * flow(e, t) <=
+            balance_data(e, end_vertex(e), :storage, t) * flow(e, t) <=
             capacity(end_vertex(e)) - storage_level(end_vertex(e), timestepbefore(t, 1, subperiods(e)))
         )
     end

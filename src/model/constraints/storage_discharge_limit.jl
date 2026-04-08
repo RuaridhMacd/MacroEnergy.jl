@@ -29,7 +29,7 @@ function add_model_constraint!(ct::StorageDischargeLimitConstraint, e::AbstractE
         ct.constraint_ref = @constraint(
             model,
             [t in time_interval(e)],
-            balance_data(e, start_vertex(e), :storage) * flow(e, t) <=
+            balance_data(e, start_vertex(e), :storage, t) * flow(e, t) <=
             storage_level(start_vertex(e), timestepbefore(t, 1, subperiods(e)))
         )
     end
