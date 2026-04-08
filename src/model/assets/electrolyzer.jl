@@ -160,7 +160,7 @@ function make(asset_type::Type{Electrolyzer}, data::AbstractDict{Symbol,Any}, sy
         h2_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         electrolyzer,
         :energy,
         flow(elec_edge) --> get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge),

@@ -8,7 +8,7 @@ using MacroEnergy
 const MOI = JuMP.MOI
 
 import MacroEnergy:
-    @add_balance_data,
+    @add_balance,
     BalanceConstraint,
     BalanceData,
     Electricity,
@@ -107,12 +107,12 @@ end
         @test transform.balance_data[:energy] isa BalanceData
     end
 
-    @testset "@add_balance_data Creates BalanceData" begin
+    @testset "@add_balance Creates BalanceData" begin
         storage = make_test_storage(id = :macro_storage, capacity_value = 8.0)
 
-        @add_balance_data(storage, :upper, storage_level(storage) <= capacity(storage))
-        @add_balance_data(storage, :equal, storage_level(storage) == 0.5 * capacity(storage))
-        @add_balance_data(storage, :lower, storage_level(storage) >= 0.25 * capacity(storage))
+        @add_balance(storage, :upper, storage_level(storage) <= capacity(storage))
+        @add_balance(storage, :equal, storage_level(storage) == 0.5 * capacity(storage))
+        @add_balance(storage, :lower, storage_level(storage) >= 0.25 * capacity(storage))
 
         upper = balance_data(storage, :upper)
         equal = balance_data(storage, :equal)
@@ -139,7 +139,7 @@ end
         @test lower_terms[:capacity].coeff == -0.25
     end
 
-    @testset "@add_balance_data Handles Mixed Flow And Capacity Terms" begin
+    @testset "@add_balance Handles Mixed Flow And Capacity Terms" begin
         parts = make_test_transformation_with_edges()
         transform = parts.transform
         elec_edge = parts.elec_edge
@@ -148,17 +148,17 @@ end
         eff = 0.8
         area = 0.1
 
-        @add_balance_data(
+        @add_balance(
             transform,
             :ge_energy,
             flow(elec_edge) >= eff * flow(h2_edge) - area * capacity(h2_edge)
         )
-        @add_balance_data(
+        @add_balance(
             transform,
             :eq_energy,
             flow(elec_edge) == eff * flow(h2_edge) - area * capacity(h2_edge)
         )
-        @add_balance_data(
+        @add_balance(
             transform,
             :le_energy,
             flow(elec_edge) <= eff * flow(h2_edge) - area * capacity(h2_edge)
@@ -238,9 +238,9 @@ end
     @testset "BalanceConstraint Honors Eq Le Ge Senses" begin
         storage = make_test_storage(id = :constraint_storage, capacity_value = 4.0)
 
-        @add_balance_data(storage, :eq_balance, storage_level(storage) == 0.5 * capacity(storage))
-        @add_balance_data(storage, :le_balance, storage_level(storage) <= 0.75 * capacity(storage))
-        @add_balance_data(storage, :ge_balance, storage_level(storage) >= 0.25 * capacity(storage))
+        @add_balance(storage, :eq_balance, storage_level(storage) == 0.5 * capacity(storage))
+        @add_balance(storage, :le_balance, storage_level(storage) <= 0.75 * capacity(storage))
+        @add_balance(storage, :ge_balance, storage_level(storage) >= 0.25 * capacity(storage))
 
         model = Model(HiGHS.Optimizer)
         set_silent(model)

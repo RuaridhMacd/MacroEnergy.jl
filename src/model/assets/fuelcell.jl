@@ -159,7 +159,7 @@ function make(asset_type::Type{FuelCell}, data::AbstractDict{Symbol,Any}, system
         h2_end_node,
     )
 
-    @add_balance_data(
+    @add_balance(
         fuelcell,
         :energy,
         flow(elec_edge) + get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge) == 0.0

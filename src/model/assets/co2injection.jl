@@ -134,7 +134,7 @@ function make(asset_type::Type{CO2Injection}, data::AbstractDict{Symbol,Any}, sy
         co2_storage_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         co2injection_transform,
         :co2_injection_to_storage,
         flow(co2_captured_edge) --> flow(co2_storage_edge),

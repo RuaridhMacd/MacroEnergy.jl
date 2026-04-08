@@ -163,12 +163,12 @@ function make(asset_type::Type{ElectricDAC}, data::AbstractDict{Symbol,Any}, sys
         co2_captured_end_node,
     )
 
-    @add_balance_data(
+    @add_balance(
         electricdac_transform,
         :energy,
         flow(elec_edge) + get(transform_data, :electricity_consumption, 0.0) * flow(co2_captured_edge) == 0.0
     )
-    @add_balance_data(
+    @add_balance(
         electricdac_transform,
         :capture,
         flow(co2_edge) + flow(co2_captured_edge) == 0.0

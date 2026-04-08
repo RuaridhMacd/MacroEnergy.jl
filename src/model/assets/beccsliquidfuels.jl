@@ -369,7 +369,7 @@ function make(asset_type::Type{BECCSLiquidFuels}, data::AbstractDict{Symbol,Any}
         co2_captured_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         beccs_transform,
         :beccselec_flow,
         flow(biomass_edge) 

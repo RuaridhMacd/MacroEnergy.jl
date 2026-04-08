@@ -245,7 +245,7 @@ function merge_balance_data(lhs::BalanceData, rhs::BalanceData)
     )
 end
 
-function add_balance_data(v::AbstractVertex, balance_id::Symbol, data)
+function add_balance(v::AbstractVertex, balance_id::Symbol, data)
     normalized = normalize_balance_data(data)
     if haskey(v.balance_data, balance_id)
         v.balance_data[balance_id] = merge_balance_data(balance_data(v, balance_id), normalized)
@@ -450,7 +450,7 @@ function combine_constants!(constant_terms::Vector{<:NamedTuple{(:obj, :var, :co
 end
 
 """
-    @add_balance_data(component, balance_id, equation)
+    @add_balance(component, balance_id, equation)
 
 A macro to add balance equation data to a component in a structured format.
 
@@ -461,12 +461,12 @@ A macro to add balance equation data to a component in a structured format.
 
 # Examples
 ```julia
-@add_balance_data(node, :energy, flow(:power) == 0.5 * flow(:hydrogen))
-@add_balance_data(node, :mass, flow(:input) <= 2.0 * flow(:output))
+@add_balance(node, :energy, flow(:power) == 0.5 * flow(:hydrogen))
+@add_balance(node, :mass, flow(:input) <= 2.0 * flow(:output))
 ```
 """
-macro add_balance_data(component, balance_id, equation)
-    add_balance_data_fn = GlobalRef(@__MODULE__, :add_balance_data)
+macro add_balance(component, balance_id, equation)
+    add_balance_fn = GlobalRef(@__MODULE__, :add_balance)
     balance_data_type = GlobalRef(@__MODULE__, :BalanceData)
     balance_term_type = GlobalRef(@__MODULE__, :BalanceTerm)
 
@@ -502,7 +502,7 @@ macro add_balance_data(component, balance_id, equation)
 
     # Embed the computed terms directly into the generated code
     return esc(quote
-        $add_balance_data_fn(
+        $add_balance_fn(
             $component,
             $balance_id,
             $balance_data_type(
@@ -579,11 +579,27 @@ function find_term_coeff(terms::Vector{Tuple{EXPR_COEFF, Expr}}, target_term::Ex
     return nothing
 end
 
-macro add_balance(component, balance_id, equation, base_term)
+"""
+    @add_stoichiometric_balance(component, balance_id, equation, base_term)
+
+Expand a stoichiometric-style balance written with the `-->` operator into
+multiple pairwise balances anchored on `base_term`.
+
+# Example
+```julia
+@add_stoichiometric_balance(
+    electrolyzer,
+    :energy,
+    flow(elec_edge) --> efficiency * flow(h2_edge),
+    flow(h2_edge),
+)
+```
+"""
+macro add_stoichiometric_balance(component, balance_id, equation, base_term)
 
     # Check that the head of equation is :-->
     if !isa(equation, Expr) || equation.head != :-->
-        error("@add_balance expected a balance equation with --> operator, got: $equation")
+        error("@add_stoichiometric_balance expected a balance equation with --> operator, got: $equation")
     end
 
     # Choose a term to base the balances on
@@ -624,7 +640,7 @@ macro add_balance(component, balance_id, equation, base_term)
             end
             balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
             new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-            balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+            balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end
     end
@@ -638,7 +654,7 @@ macro add_balance(component, balance_id, equation, base_term)
             end
             balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
             new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-            balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+            balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end
     end
@@ -649,10 +665,10 @@ macro add_balance(component, balance_id, equation, base_term)
 
     #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
-    #     # Otherwise, create a @add_balance_data entry
+    #     # Otherwise, create a @add_balance entry
     #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
     #     println("Creating balance data, $new_balance_id: $balance_equation")
-    #     balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #     balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
     #     push!(balance_calls, balance_call)
     # else
     #     for term in input_terms.args
@@ -671,10 +687,10 @@ macro add_balance(component, balance_id, equation, base_term)
 
     #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
-    #         # Otherwise, create a @add_balance_data entry
+    #         # Otherwise, create a @add_balance entry
     #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
     #         println("Creating balance data, $new_balance_id: $balance_equation")
-    #         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #         balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
     #         push!(balance_calls, balance_call)
     #     end
     # end
@@ -685,10 +701,10 @@ macro add_balance(component, balance_id, equation, base_term)
 
     #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
-    #     # Otherwise, create a @add_balance_data entry
+    #     # Otherwise, create a @add_balance entry
     #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
     #     println("Creating input balance data, $new_balance_id: $balance_equation")
-    #     balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #     balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
     #     push!(balance_calls, balance_call)
     # else
     #     for term in output_terms.args
@@ -707,10 +723,10 @@ macro add_balance(component, balance_id, equation, base_term)
 
     #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
 
-    #         # Otherwise, create a @add_balance_data entry
+    #         # Otherwise, create a @add_balance entry
     #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
     #         println("Creating output balance data, $new_balance_id: $balance_equation")
-    #         balance_call = :(@add_balance_data($component, $(QuoteNode(new_balance_id)), $balance_equation))
+    #         balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
     #         push!(balance_calls, balance_call)
     #     end
     # end

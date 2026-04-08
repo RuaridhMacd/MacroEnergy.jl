@@ -265,7 +265,7 @@ function make(asset_type::Type{BECCSHydrogen}, data::AbstractDict{Symbol,Any}, s
         co2_captured_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         beccs_transform,
         :beccs_hydrogen_balance,
         flow(biomass_edge)
