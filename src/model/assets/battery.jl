@@ -240,10 +240,6 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
         :storage,
         1 / discharge_efficiency * flow(battery_discharge) + charge_efficiency * flow(battery_charge) == 0.0
     )
-    println("$id")
-    println("value: $discharge_efficiency")
-    println(battery_storage.balance_data[:storage])
-    println("-----")
 
     return Battery(id, battery_storage, battery_discharge, battery_charge)
 end
