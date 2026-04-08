@@ -757,7 +757,10 @@ end
 function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol, var::Symbol = :flow)
     data = balance_data(v, i)
     coeff = sum(
-        (term.coeff for term in data.terms if balance_term_matches(term, e, var));
+        (
+            term.coeff for term in data.terms
+            if balance_term_matches(term, e, var) && term.coeff isa Float64
+        );
         init = 0.0,
     )
     if coeff != 0.0
@@ -817,10 +820,20 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
         flow_dir = 1.0
     end
     for i in balance_ids(v)
-        balance_coeff = flow_dir * balance_data(e, v, i)
-        if balance_coeff != 0.0
-            balance_expr = get_balance(v,i)
-            for t in time_interval(e)
+        data = balance_data(v, i)
+        matching_terms = [
+            term for term in data.terms if balance_term_matches(term, e, :flow)
+        ]
+        if !isempty(matching_terms)
+            balance_expr = get_balance(v, i)
+            for (time_index, t) in enumerate(time_interval(v))
+                balance_coeff = flow_dir * sum(
+                    resolve_balance_coeff(term, v, time_index) for term in matching_terms;
+                    init = 0.0,
+                )
+                if balance_coeff == 0.0
+                    continue
+                end
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
         end

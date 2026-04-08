@@ -1,15 +1,3 @@
-Base.@kwdef struct BalanceTerm
-    obj::Any
-    var::Symbol = :flow
-    coeff::Float64 = 1.0
-    lag::Int = 0
-end
-
-Base.@kwdef struct BalanceData
-    sense::Symbol = :eq
-    terms::Vector{BalanceTerm} = BalanceTerm[]
-    constant::Float64 = 0.0
-end
 """
     @AbstractVertexBaseAttributes()
 
@@ -222,8 +210,10 @@ function normalize_balance_data(data::AbstractVector{<:NamedTuple{(:id, :var, :c
     constant = 0.0
     terms = BalanceTerm[]
     for term in data
-        coeff = Float64(term.coeff)
+        coeff = normalize_balance_coeff(term.coeff)
         if term.id == :constant
+            coeff isa Vector{Float64} &&
+                error("Vector-valued constants are not supported in balance data")
             constant += coeff
         else
             push!(terms, BalanceTerm(obj = term.id, var = term.var, coeff = coeff))
@@ -275,6 +265,21 @@ end
 resolve_balance_property(value, ::Int64) = value
 resolve_balance_property(value::AbstractArray, t::Int64) = value[t]
 
+resolve_balance_coeff(coeff::Float64, ::AbstractVertex, ::Int64) = coeff
+
+function resolve_balance_coeff(coeff::Vector{Float64}, v::AbstractVertex, time_index::Int64)
+    expected_length = length(time_interval(v))
+    if length(coeff) != expected_length
+        error(
+            "Balance coefficient vector length $(length(coeff)) does not match time interval length $expected_length on vertex $(id(v))",
+        )
+    end
+    return coeff[time_index]
+end
+
+resolve_balance_coeff(term::BalanceTerm, v::AbstractVertex, time_index::Int64) =
+    resolve_balance_coeff(term.coeff, v, time_index)
+
 function resolve_balance_var(obj::AbstractEdge, var::Symbol, t::Int64, lag::Int = 0)
     tt = shifted_balance_time_index(obj, t, lag)
     if var == :flow
@@ -319,12 +324,13 @@ function resolve_balance_var(obj::AbstractVertex, var::Symbol, t::Int64, lag::In
     error("Unsupported balance variable $var on vertex $(id(obj))")
 end
 
-function add_balance_term_to_expression!(expr, term::BalanceTerm, t::Int64)
+function add_balance_term_to_expression!(expr, term::BalanceTerm, v::AbstractVertex, t::Int64, time_index::Int64)
     resolved = resolve_balance_var(term.obj, term.var, t, term.lag)
+    coeff = resolve_balance_coeff(term, v, time_index)
     if resolved isa Number
-        add_to_expression!(expr, term.coeff * resolved)
+        add_to_expression!(expr, coeff * resolved)
     else
-        add_to_expression!(expr, term.coeff, resolved)
+        add_to_expression!(expr, coeff, resolved)
     end
     return nothing
 end
@@ -332,12 +338,12 @@ end
 function compile_balance_data!(v::AbstractVertex, balance_id::Symbol, model::Model)
     expr = v.operation_expr[balance_id]
     data = balance_data(v, balance_id)
-    for t in time_interval(v)
+    for (time_index, t) in enumerate(time_interval(v))
         for term in data.terms
             if balance_term_added_by_edge_updates(term)
                 continue
             end
-            add_balance_term_to_expression!(expr[t], term, t)
+            add_balance_term_to_expression!(expr[t], term, v, t, time_index)
         end
         if data.constant != 0.0
             add_to_expression!(expr[t], data.constant)

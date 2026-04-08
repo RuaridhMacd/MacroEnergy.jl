@@ -26,29 +26,33 @@ import MacroEnergy:
     operation_model!,
     storage_level
 
-function make_test_timedata()
+function make_test_timedata(num_steps::Int = 1)
     return TimeData{Electricity}(;
-        time_interval = 1:1,
+        time_interval = 1:num_steps,
         hours_per_timestep = 1,
         period_index = 1,
-        subperiods = [1:1],
+        subperiods = [1:num_steps],
         subperiod_indices = [1],
         subperiod_weights = Dict(1 => 1.0),
         subperiod_map = Dict(1 => 1),
     )
 end
 
-function make_test_storage(; id::Symbol = :test_storage, capacity_value::Float64 = 4.0)
+function make_test_storage(;
+    id::Symbol = :test_storage,
+    capacity_value::Float64 = 4.0,
+    num_steps::Int = 1,
+)
     return Storage{Electricity}(;
         id = id,
-        timedata = make_test_timedata(),
+        timedata = make_test_timedata(num_steps),
         capacity = capacity_value,
         balance_data = Dict(:storage => BalanceData()),
     )
 end
 
-function make_test_transformation_with_edges()
-    timedata = make_test_timedata()
+function make_test_transformation_with_edges(num_steps::Int = 1)
+    timedata = make_test_timedata(num_steps)
 
     input_node = Node{Electricity}(;
         id = :balance_input_node,
@@ -67,6 +71,7 @@ function make_test_transformation_with_edges()
         timedata = timedata,
         start_vertex = input_node,
         end_vertex = transform,
+        capacity = 6.0,
     )
     h2_edge = UnidirectionalEdge{Electricity}(;
         id = :balance_h2_edge,
@@ -137,6 +142,41 @@ end
         @test all(term.obj === storage for term in lower.terms)
         @test lower_terms[:storage_level].coeff == 1.0
         @test lower_terms[:capacity].coeff == -0.25
+    end
+
+    @testset "@add_balance Normalizes Scalar And Vector Coefficients" begin
+        parts = make_test_transformation_with_edges(3)
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+
+        scalar_eff = 0.8
+        singleton_eff = [0.7]
+        profile_eff = [0.6, 0.7, 0.8]
+
+        @add_balance(
+            transform,
+            :scalar_energy,
+            flow(elec_edge) == scalar_eff * flow(h2_edge)
+        )
+        @add_balance(
+            transform,
+            :singleton_energy,
+            flow(elec_edge) == singleton_eff * flow(h2_edge)
+        )
+        @add_balance(
+            transform,
+            :profile_energy,
+            flow(elec_edge) == profile_eff * flow(h2_edge)
+        )
+
+        scalar_term = find_term(balance_data(transform, :scalar_energy), h2_edge, :flow)
+        singleton_term = find_term(balance_data(transform, :singleton_energy), h2_edge, :flow)
+        profile_term = find_term(balance_data(transform, :profile_energy), h2_edge, :flow)
+
+        @test scalar_term.coeff == -scalar_eff
+        @test singleton_term.coeff == -only(singleton_eff)
+        @test profile_term.coeff == -profile_eff
     end
 
     @testset "@add_balance Handles Mixed Flow And Capacity Terms" begin
@@ -263,6 +303,47 @@ end
         @test value(get_balance(storage, :eq_balance, 1)) ≈ 0.0 atol = 1e-8
         @test value(get_balance(storage, :le_balance, 1)) <= 1e-8
         @test value(get_balance(storage, :ge_balance, 1)) >= -1e-8
+    end
+
+    @testset "Time-Varying Flow Coefficients Apply By Timestep" begin
+        parts = make_test_transformation_with_edges(3)
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+
+        efficiency_profile = [0.6, 0.7, 0.8]
+
+        @add_balance(
+            transform,
+            :energy,
+            flow(elec_edge) + efficiency_profile * flow(h2_edge) == 0.0
+        )
+
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+        model[:vREF] = @variable(model, base_name = "vREF")
+
+        operation_model!(parts.input_node, model)
+        operation_model!(parts.output_node, model)
+        operation_model!(transform, model)
+        operation_model!(elec_edge, model)
+        operation_model!(h2_edge, model)
+
+        ct = BalanceConstraint()
+        add_model_constraint!(ct, transform, model)
+
+        for t in 1:3
+            @constraint(model, flow(h2_edge, t) == 1.0)
+        end
+        @objective(model, Max, sum(flow(elec_edge, t) for t in 1:3))
+        optimize!(model)
+
+        @test is_solved_and_feasible(model)
+        for (t, eff) in enumerate(efficiency_profile)
+            @test value(flow(h2_edge, t)) ≈ 1.0 atol = 1e-8
+            @test value(flow(elec_edge, t)) ≈ eff atol = 1e-8
+            @test value(get_balance(transform, :energy, t)) ≈ 0.0 atol = 1e-8
+        end
     end
 end
 
