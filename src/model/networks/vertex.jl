@@ -345,14 +345,16 @@ function add_balance_term_to_expression!(expr, term::BalanceTerm, v::AbstractVer
     return nothing
 end
 
+function local_balance_terms(data::BalanceData)
+    return [term for term in data.terms if !balance_term_added_by_edge_updates(term)]
+end
+
 function compile_balance_data!(v::AbstractVertex, balance_id::Symbol, model::Model)
     expr = v.operation_expr[balance_id]
     data = balance_data(v, balance_id)
+    terms = local_balance_terms(data)
     for (time_index, t) in enumerate(time_interval(v))
-        for term in data.terms
-            if balance_term_added_by_edge_updates(term)
-                continue
-            end
+        for term in terms
             add_balance_term_to_expression!(expr[t], term, v, t, time_index)
         end
         if data.constant != 0.0
