@@ -85,7 +85,9 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         end
 
         @info(" -- Including age-based retirements")
-        add_age_based_retirements!.(system.assets, model)
+        for asset in system.assets
+            add_age_based_retirements!(asset, model)
+        end
 
         @info(" -- Generating operational model")
         operation_model!(system, model)

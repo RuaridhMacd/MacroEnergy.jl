@@ -49,7 +49,9 @@ function generate_model(case::Case,opt::Optimizer)
         end
 
         @info(" -- Including age-based retirements")
-        add_age_based_retirements!.(system.assets, model)
+        for asset in system.assets
+            add_age_based_retirements!(asset, model)
+        end
 
         if period_idx < num_periods
             @info(" -- Available capacity in period $(period_idx) is being carried over to period $(period_idx+1)")
@@ -103,9 +105,13 @@ end
 
 function planning_model!(system::System, model::Model)
 
-    planning_model!.(system.locations, Ref(model))
+    for location in system.locations
+        planning_model!(location, model)
+    end
 
-    planning_model!.(system.assets, Ref(model))
+    for asset in system.assets
+        planning_model!(asset, model)
+    end
 
     add_constraints_by_type!(system, model, PlanningConstraint)
 
@@ -114,12 +120,16 @@ end
 
 function operation_model!(system::System, model::Model)
 
-    operation_model!.(system.locations, Ref(model))
+    for location in system.locations
+        operation_model!(location, model)
+    end
 
-    operation_model!.(system.assets, Ref(model))
+    for asset in system.assets
+        operation_model!(asset, model)
+    end
 
     add_constraints_by_type!(system, model, OperationConstraint)
-
+    
 end
 
 function planning_model!(a::AbstractAsset, model::Model)
@@ -138,10 +148,13 @@ end
 
 function add_linking_variables!(system::System, model::Model)
 
-    add_linking_variables!.(system.locations, model)
+    for location in system.locations
+        add_linking_variables!(location, model)
+    end
 
-    add_linking_variables!.(system.assets, model)
-
+    for asset in system.assets
+        add_linking_variables!(asset, model)
+    end
 end
 
 function add_linking_variables!(a::AbstractAsset, model::Model)
@@ -152,10 +165,13 @@ end
 
 function define_available_capacity!(system::System, model::Model)
 
-    define_available_capacity!.(system.locations, model)
+    for location in system.locations
+        define_available_capacity!(location, model)
+    end
 
-    define_available_capacity!.(system.assets, model)
-
+    for asset in system.assets
+        define_available_capacity!(asset, model)
+    end
 end
 
 function define_available_capacity!(a::AbstractAsset, model::Model)
