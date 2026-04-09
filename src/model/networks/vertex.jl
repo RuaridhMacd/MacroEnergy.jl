@@ -88,6 +88,16 @@ function balance_data(v::AbstractVertex, i::Symbol)
     return normalized
 end
 
+function normalize_balance_data!(v::AbstractVertex)
+    for balance_id in keys(v.balance_data)
+        data = v.balance_data[balance_id]
+        if !(data isa BalanceData)
+            v.balance_data[balance_id] = normalize_balance_data(data)
+        end
+    end
+    return nothing
+end
+
 balance_sense(v::AbstractVertex, i::Symbol) = balance_data(v, i).sense
 balance_terms(v::AbstractVertex, i::Symbol) = balance_data(v, i).terms
 
@@ -353,7 +363,8 @@ function compile_balance_data!(v::AbstractVertex, balance_id::Symbol, model::Mod
 end
 
 function build_balance_expressions!(v::AbstractVertex, model::Model)
-    for balance_id in balance_ids(v)
+    normalize_balance_data!(v)
+    for balance_id in keys(v.balance_data)
         v.operation_expr[balance_id] = initialize_balance_expression(v, balance_id, model)
         compile_balance_data!(v, balance_id, model)
     end
