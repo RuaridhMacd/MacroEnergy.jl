@@ -126,10 +126,18 @@ function load_user_additions(case_path::AbstractString)
     return nothing
 end
 
-function create_user_additions_module(case_path::AbstractString=pwd())
+function refresh_user_type_registries!()
+    register_commodity_types!()
+    register_constraint_types!()
+    return nothing
+end
+
+function setup_user_additions(case_path::AbstractString=pwd())
     """
-    Setup user additions by loading the user additions module.
-    This function is called to ensure that the user additions are loaded before running any cases.
+    Setup the user additions directory structure for a case.
+
+    This ensures the expected `user_additions` folders exist before loading any
+    user-defined commodities or assets.
     """
     mkpath(user_additions_path(case_path))
     mkpath(user_additions_assets_dir(case_path))

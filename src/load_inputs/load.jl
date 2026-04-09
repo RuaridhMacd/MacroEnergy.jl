@@ -42,8 +42,7 @@ function load!(system::System, data::AbstractDict{Symbol,Any})::Nothing
                 make_retrofit_options(system, data) # Make retrofitting assets for assets with retrofit_options
             end
 
-            asset_instance = Base.invokelatest(
-                make,
+            asset_instance = make(
                 data[:instance_data][:type],
                 data[:instance_data],
                 system,
@@ -121,7 +120,7 @@ function check_and_convert_type(data::AbstractDict{Symbol,Any}, m::Module = Macr
         return commodity_types(m)[type]
     end
     validate_type_attribute(type, m)
-    return Base.invokelatest(getfield, m, type)
+    return getfield(m, type)
 end
 
 function data_has_only_instance_data(data::AbstractDict{Symbol,Any})::Bool

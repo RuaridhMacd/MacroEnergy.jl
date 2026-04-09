@@ -18,7 +18,7 @@ import MacroEnergy:
     commodity_types,
     Commodity,
     register_commodity_types!,
-    create_user_additions_module,
+    setup_user_additions,
     load_user_additions,
     user_additions_path,
     user_additions_assets_dir,
@@ -258,7 +258,7 @@ function test_user_asset_load_scope()
         println(io, "make(::Type{<:$(asset_name_b)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
     end
 
-    create_user_additions_module(case_path)
+    setup_user_additions(case_path)
     load_user_additions(case_path)
 
     macroenergy_module = parentmodule(load_commodities)
@@ -289,7 +289,7 @@ function test_user_asset_file_and_folder_load_together()
         println(io, "make(::Type{<:$(asset_name_folder)}, data::AbstractDict{Symbol,Any}, system::System) = nothing")
     end
 
-    create_user_additions_module(case_path)
+    setup_user_additions(case_path)
     load_user_additions(case_path)
 
     macroenergy_module = parentmodule(load_commodities)

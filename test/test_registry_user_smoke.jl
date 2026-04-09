@@ -23,7 +23,7 @@ function test_registry_user_smoke()
     case_path = joinpath(examples_dir, "multisector_3zone")
     isdir(case_path) || error("Downloaded case path not found: " * case_path)
 
-    MacroEnergy.create_user_additions_module(case_path)
+    MacroEnergy.setup_user_additions(case_path)
     MacroEnergy.load_user_additions(case_path)
     MacroEnergy.load_case(case_path)
     """

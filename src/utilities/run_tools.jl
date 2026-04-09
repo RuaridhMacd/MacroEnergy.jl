@@ -122,54 +122,82 @@ function run_case(
     try 
         @info("Running case at $(case_path)")
 
-        create_user_additions_module(case_path)
+        setup_user_additions(case_path)
         load_user_additions(case_path)
+        refresh_user_type_registries!()
 
-        case = load_case(case_path; lazy_load=lazy_load)
-
-        # Create optimizer based on solution algorithm
-        optimizer = if isa(solution_algorithm(case), Monolithic) || isa(solution_algorithm(case), Myopic)
-            create_optimizer(optimizer, optimizer_env, optimizer_attributes)
-        elseif isa(solution_algorithm(case), Benders)
-            create_optimizer_benders(planning_optimizer, subproblem_optimizer,
-                planning_optimizer_attributes, subproblem_optimizer_attributes)
-        else
-            error("The solution algorithm is not Monolithic, Myopic, or Benders. Please double check the `SolutionAlgorithm` in the `settings/case_settings.json` file.")
-        end
-
-        # If Benders, create processes for subproblems optimization
-        if isa(solution_algorithm(case), Benders)
-            if case.settings.BendersSettings[:Distributed]
-                number_of_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
-                start_distributed_processes!(number_of_subproblems, case_path)
-            end
-        end
-
-        (case, solution) = solve_case(case, optimizer)
-
-        postprocess!(case, solution)
-
-        # Myopic outputs are written during iteration, so we don't need to write them here
-        if !isa(solution_algorithm(case), Myopic)
-            if length(case.systems) ≥ 1
-                case_path = create_output_path(case.systems[1], case_path)
-            end
-            write_outputs(case_path, case, solution)
-        end
-
-        # If Benders, delete processes
-        if isa(solution_algorithm(case), Benders)
-            if case.settings.BendersSettings[:Distributed] && nprocs() > 1
-                rmprocs(workers())
-            end
-        end
-
-        return case.systems, solution
+        return Base.invokelatest(
+            _run_case_impl,
+            case_path,
+            lazy_load,
+            optimizer,
+            optimizer_env,
+            optimizer_attributes,
+            planning_optimizer,
+            subproblem_optimizer,
+            planning_optimizer_attributes,
+            subproblem_optimizer_attributes,
+        )
     catch e
         rethrow(e)
     finally
         case_cleanup()  # Ensure all processes are removed
     end
+end
+
+function _run_case_impl(
+    case_path::AbstractString,
+    lazy_load::Bool,
+    optimizer::DataType,
+    optimizer_env,
+    optimizer_attributes::Tuple,
+    planning_optimizer::DataType,
+    subproblem_optimizer::DataType,
+    planning_optimizer_attributes::Tuple,
+    subproblem_optimizer_attributes::Tuple,
+)
+    case = load_case(case_path; lazy_load=lazy_load)
+
+    optimizer_instance = if isa(solution_algorithm(case), Monolithic) || isa(solution_algorithm(case), Myopic)
+        create_optimizer(optimizer, optimizer_env, optimizer_attributes)
+    elseif isa(solution_algorithm(case), Benders)
+        create_optimizer_benders(
+            planning_optimizer,
+            subproblem_optimizer,
+            planning_optimizer_attributes,
+            subproblem_optimizer_attributes,
+        )
+    else
+        error("The solution algorithm is not Monolithic, Myopic, or Benders. Please double check the `SolutionAlgorithm` in the `settings/case_settings.json` file.")
+    end
+
+    if isa(solution_algorithm(case), Benders)
+        if case.settings.BendersSettings[:Distributed]
+            number_of_subproblems = sum(
+                length(system.time_data[:Electricity].subperiods) for system in case.systems
+            )
+            start_distributed_processes!(number_of_subproblems, case_path)
+        end
+    end
+
+    case, solution = solve_case(case, optimizer_instance)
+
+    postprocess!(case, solution)
+
+    if !isa(solution_algorithm(case), Myopic)
+        if length(case.systems) ≥ 1
+            case_path = create_output_path(case.systems[1], case_path)
+        end
+        write_outputs(case_path, case, solution)
+    end
+
+    if isa(solution_algorithm(case), Benders)
+        if case.settings.BendersSettings[:Distributed] && nprocs() > 1
+            rmprocs(workers())
+        end
+    end
+
+    return case.systems, solution
 end
 
 function case_cleanup()
