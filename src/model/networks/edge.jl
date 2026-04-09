@@ -867,21 +867,47 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
             end
             continue
         end
-        matching_terms = [
-            term for term in data.terms if balance_term_matches(term, e, :flow)
-        ]
-        if !isempty(matching_terms)
-            balance_expr = get_balance(v, i)
-            for (time_index, t) in enumerate(time_interval(e))
-                balance_coeff = flow_dir * sum(
-                    resolve_balance_coeff(term, v, time_index) for term in matching_terms;
-                    init = 0.0,
-                )
-                if balance_coeff == 0.0
-                    continue
+        scalar_coeff = 0.0
+        has_matching_flow_term = false
+        has_time_varying_coeff = false
+        for term in data.terms
+            if balance_term_matches(term, e, :flow)
+                has_matching_flow_term = true
+                if term.coeff isa Float64
+                    scalar_coeff += term.coeff
+                else
+                    has_time_varying_coeff = true
                 end
+            end
+        end
+        if !has_matching_flow_term
+            continue
+        end
+
+        balance_expr = get_balance(v, i)
+        if !has_time_varying_coeff
+            balance_coeff = flow_dir * scalar_coeff
+            if balance_coeff == 0.0
+                continue
+            end
+            for t in time_interval(e)
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
+            continue
+        end
+
+        for (time_index, t) in enumerate(time_interval(e))
+            balance_coeff = scalar_coeff
+            for term in data.terms
+                if balance_term_matches(term, e, :flow) && !(term.coeff isa Float64)
+                    balance_coeff += resolve_balance_coeff(term, v, time_index)
+                end
+            end
+            balance_coeff *= flow_dir
+            if balance_coeff == 0.0
+                continue
+            end
+            add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
         end
     end
 end
