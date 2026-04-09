@@ -401,6 +401,40 @@ end
               balance_signature(balance_data(transform, :expected_2))
     end
 
+    @testset "@add_stoichiometric_balance Handles Input-Side Base Term With Outputs" begin
+        parts = make_test_transformation_with_four_edges()
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+        co2_edge = parts.co2_edge
+
+        hydrogen_production = 1.7
+        emission_rate = 0.2
+
+        @add_stoichiometric_balance(
+            transform,
+            :beccs_style,
+            flow(elec_edge) --> hydrogen_production * flow(h2_edge) + emission_rate * flow(co2_edge),
+            flow(elec_edge),
+        )
+
+        @add_balance(
+            transform,
+            :expected_1,
+            hydrogen_production * flow(elec_edge) + flow(h2_edge) == 0.0,
+        )
+        @add_balance(
+            transform,
+            :expected_2,
+            emission_rate * flow(elec_edge) + flow(co2_edge) == 0.0,
+        )
+
+        @test balance_signature(balance_data(transform, :beccs_style_1)) ==
+              balance_signature(balance_data(transform, :expected_1))
+        @test balance_signature(balance_data(transform, :beccs_style_2)) ==
+              balance_signature(balance_data(transform, :expected_2))
+    end
+
     @testset "@add_stoichiometric_balance Rejects Negative Terms And Constants" begin
         @test_throws ErrorException macroexpand(
             @__MODULE__,

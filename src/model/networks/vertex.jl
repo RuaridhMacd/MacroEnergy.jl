@@ -699,7 +699,7 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
                 continue
             end
             if found_in_input
-                balance_equation = :($base_coeff * $base_term + $term_coeff * $term_variable == 0)
+                balance_equation = :($term_coeff * $base_term + $base_coeff * $term_variable == 0)
             else
                 balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
             end
