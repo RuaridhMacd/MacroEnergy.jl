@@ -9,6 +9,7 @@ const MOI = JuMP.MOI
 
 import MacroEnergy:
     @add_balance,
+    @add_stoichiometric_balance,
     BalanceConstraint,
     BalanceData,
     Electricity,
@@ -84,6 +85,61 @@ function make_test_transformation_with_edges(num_steps::Int = 1)
     return (; input_node, output_node, transform, elec_edge, h2_edge)
 end
 
+function make_test_transformation_with_four_edges(num_steps::Int = 1)
+    timedata = make_test_timedata(num_steps)
+
+    input_node_1 = Node{Electricity}(;
+        id = :balance_input_node_1,
+        timedata = timedata,
+    )
+    input_node_2 = Node{Electricity}(;
+        id = :balance_input_node_2,
+        timedata = timedata,
+    )
+    output_node_1 = Node{Electricity}(;
+        id = :balance_output_node_1,
+        timedata = timedata,
+    )
+    output_node_2 = Node{Electricity}(;
+        id = :balance_output_node_2,
+        timedata = timedata,
+    )
+    transform = Transformation(;
+        id = :balance_transform_four_edges,
+        timedata = timedata,
+    )
+    elec_edge = UnidirectionalEdge{Electricity}(;
+        id = :balance_elec_edge_four,
+        timedata = timedata,
+        start_vertex = input_node_1,
+        end_vertex = transform,
+        capacity = 6.0,
+    )
+    water_edge = UnidirectionalEdge{Electricity}(;
+        id = :balance_water_edge_four,
+        timedata = timedata,
+        start_vertex = input_node_2,
+        end_vertex = transform,
+        capacity = 6.0,
+    )
+    h2_edge = UnidirectionalEdge{Electricity}(;
+        id = :balance_h2_edge_four,
+        timedata = timedata,
+        start_vertex = transform,
+        end_vertex = output_node_1,
+        capacity = 6.0,
+    )
+    co2_edge = UnidirectionalEdge{Electricity}(;
+        id = :balance_co2_edge_four,
+        timedata = timedata,
+        start_vertex = transform,
+        end_vertex = output_node_2,
+        capacity = 6.0,
+    )
+
+    return (; input_node_1, input_node_2, output_node_1, output_node_2, transform, elec_edge, water_edge, h2_edge, co2_edge)
+end
+
 function make_test_storage_with_edges(num_steps::Int = 1)
     timedata = make_test_timedata(num_steps)
 
@@ -121,6 +177,11 @@ end
 
 function find_term(data::BalanceData, obj, var::Symbol)
     return only(filter(term -> term.obj === obj && term.var == var, data.terms))
+end
+
+function balance_signature(data::BalanceData)
+    terms = Dict((term.obj, term.var) => term.coeff for term in data.terms)
+    return (sense = data.sense, constant = data.constant, terms = terms)
 end
 
 @testset "Balance Data" begin
@@ -270,6 +331,112 @@ end
         @test constraint_object(ct.constraint_ref[:ge_energy][1]).set isa MOI.GreaterThan{Float64}
         @test constraint_object(ct.constraint_ref[:eq_energy][1]).set isa MOI.EqualTo{Float64}
         @test constraint_object(ct.constraint_ref[:le_energy][1]).set isa MOI.LessThan{Float64}
+    end
+
+    @testset "@add_stoichiometric_balance Expands Multiple Inputs To Pairwise Balances" begin
+        parts = make_test_transformation_with_four_edges()
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        water_edge = parts.water_edge
+        h2_edge = parts.h2_edge
+
+        efficiency_rate = 0.8
+        water_consumption = 0.3
+
+        @add_stoichiometric_balance(
+            transform,
+            :energy,
+            efficiency_rate * flow(elec_edge) + water_consumption * flow(water_edge) --> flow(h2_edge),
+            flow(h2_edge),
+        )
+
+        @add_balance(
+            transform,
+            :expected_1,
+            flow(h2_edge) + efficiency_rate * flow(elec_edge) == 0.0,
+        )
+        @add_balance(
+            transform,
+            :expected_2,
+            flow(h2_edge) + water_consumption * flow(water_edge) == 0.0,
+        )
+
+        @test balance_signature(balance_data(transform, :energy_1)) ==
+              balance_signature(balance_data(transform, :expected_1))
+        @test balance_signature(balance_data(transform, :energy_2)) ==
+              balance_signature(balance_data(transform, :expected_2))
+    end
+
+    @testset "@add_stoichiometric_balance Expands Mixed-Side Outputs Around Base Term" begin
+        parts = make_test_transformation_with_four_edges()
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+        co2_edge = parts.co2_edge
+
+        fuel_consumption = 1.7
+        emission_rate = 0.2
+
+        @add_stoichiometric_balance(
+            transform,
+            :conversion,
+            fuel_consumption * flow(elec_edge) --> flow(h2_edge) + emission_rate * flow(co2_edge),
+            flow(h2_edge),
+        )
+
+        @add_balance(
+            transform,
+            :expected_1,
+            flow(h2_edge) + fuel_consumption * flow(elec_edge) == 0.0,
+        )
+        @add_balance(
+            transform,
+            :expected_2,
+            emission_rate * flow(h2_edge) - flow(co2_edge) == 0.0,
+        )
+
+        @test balance_signature(balance_data(transform, :conversion_1)) ==
+              balance_signature(balance_data(transform, :expected_1))
+        @test balance_signature(balance_data(transform, :conversion_2)) ==
+              balance_signature(balance_data(transform, :expected_2))
+    end
+
+    @testset "@add_stoichiometric_balance Rejects Negative Terms And Constants" begin
+        @test_throws ErrorException macroexpand(
+            @__MODULE__,
+            :(
+                @add_stoichiometric_balance(
+                    x,
+                    :bad_unary,
+                    -flow(e1) --> flow(e2),
+                    flow(e2),
+                )
+            ),
+        )
+
+        @test_throws ErrorException macroexpand(
+            @__MODULE__,
+            :(
+                @add_stoichiometric_balance(
+                    x,
+                    :bad_binary,
+                    flow(e1) - flow(e2) --> flow(e3),
+                    flow(e3),
+                )
+            ),
+        )
+
+        @test_throws ErrorException macroexpand(
+            @__MODULE__,
+            :(
+                @add_stoichiometric_balance(
+                    x,
+                    :bad_constant,
+                    flow(e1) + 3 --> flow(e2),
+                    flow(e2),
+                )
+            ),
+        )
     end
 
     @testset "Edge balance_data Supports Time-Varying Coefficients" begin
