@@ -839,7 +839,7 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
     i = startup_fuel_balance_id(e)
 
-    if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
+    if haskey(v.balance_data, i) && startup_fuel_consumption(e) > 0
         balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
         balance_expr = get_balance(v,i)
         for t in time_interval(e)
@@ -858,7 +858,7 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
     else
         flow_dir = 1.0
     end
-    for i in balance_ids(v)
+    for i in keys(v.balance_data)
         data = balance_data(v, i)
         if isempty(data.terms) && data.constant == 0.0
             balance_expr = get_balance(v, i)

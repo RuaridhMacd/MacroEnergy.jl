@@ -258,7 +258,7 @@ function operation_model!(g::Storage, model::Model)
         base_name = "vSTOR_$(g.id)_period$(period_index(g))"
     )
 
-    if :storage ∈ balance_ids(g)
+    if haskey(g.balance_data, :storage)
         build_balance_expressions!(g, model)
     else
         error("A storage vertex requires to have a balance named :storage")
@@ -369,7 +369,7 @@ function operation_model!(g::LongDurationStorage, model::Model)
     )
 
     
-    if :storage ∈ balance_ids(g)
+    if haskey(g.balance_data, :storage)
         build_balance_expressions!(g, model)
     else
         error("A storage vertex requires to have a balance named :storage")

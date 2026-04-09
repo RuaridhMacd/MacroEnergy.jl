@@ -20,7 +20,7 @@ Add a balance constraint to the vertex `v`.
 """
 function add_model_constraint!(ct::BalanceConstraint, v::AbstractVertex, model::Model)
     ct.constraint_ref = Dict{Symbol,Any}()
-    for balance_id in balance_ids(v)
+    for balance_id in keys(v.balance_data)
         sense = balance_sense(v, balance_id)
         if sense == :eq
             ct.constraint_ref[balance_id] = @constraint(
@@ -77,7 +77,7 @@ function set_constraint_dual!(
 
     # Extract dual values for all balance IDs
     constraint.constraint_dual = Dict{Symbol, Vector{Float64}}()
-    for balance_id in balance_ids(v)
+    for balance_id in keys(v.balance_data)
         constraint.constraint_dual[balance_id] = [
             dual(constraint.constraint_ref[balance_id][t]) for t in time_interval(v)
         ]
