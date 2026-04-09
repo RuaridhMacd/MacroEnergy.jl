@@ -174,7 +174,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         steelscrap_start_node,
         steelscrap_end_node,
     )
-    steelscrap_edge.unidirectional = true
 
     # metalurgical coal edge
 
@@ -205,7 +204,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         metcoal_start_node,
         metcoal_end_node,
     )
-    metcoal_edge.unidirectional = true;
 
     # thermal coal edge
 
@@ -238,7 +236,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         thermalcoal_start_node,
         thermalcoal_end_node,
     )
-    thermalcoal_edge.unidirectional = true;
 
     # natural gas edge
 
@@ -268,7 +265,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         natgas_start_node,
         natgas_end_node,
     )
-    natgas_edge.unidirectional = true;
 
     # electricity edge
 
@@ -297,7 +293,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         elec_start_node,
         elec_end_node,
     )
-    elec_edge.unidirectional = true
 
     # CO2 edge
 
@@ -327,9 +322,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         co2_end_node,
     )
     co2_edge.constraints = Vector{AbstractTypeConstraint}()
-    co2_edge.unidirectional = true;
-
-
 
     # crude steel edge
 
@@ -363,7 +355,6 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnace}, data::AbstractDi
         crudesteel_edge_data,
         :constraints,
         [MustRunConstraint(), CapacityConstraint()])
-    crudesteel_edge.unidirectional = true
 
     # stochiometry
 
