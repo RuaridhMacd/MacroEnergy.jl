@@ -116,6 +116,7 @@ const pages = [
         "Macro Objects" => "References/3_macro_objects.md",
         "Writing output data" => "References/4_writing_output.md",
         "Utilities" => "References/5_utilities.md",
+        "Constraint utilities" => "References/ref_constraints.md",
         "Downloading examples" => "References/ref_download_examples.md",
         "Running a Macro Model" => "References/ref_run_case.md",
         # "Asset Library" => "References/2_assets.md", TODO: think if we should include this
