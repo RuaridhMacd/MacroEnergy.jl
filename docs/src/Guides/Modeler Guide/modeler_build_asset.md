@@ -591,44 +591,89 @@ h2_edge = Edge(
 ```
 
 #### 2.3.4 Balance Data
-This step defines the stoichiometric equations for the balance equations of the transformations and defines the efficiency in charge and discharge of the storage units.
+This step defines the relationships enforced by [`BalanceConstraint`](@ref balance_constraint_ref). In new asset code, the recommended interface is to use balance macros rather than manually constructing `balance_data` dictionaries.
+
+!!! tip "Preferred API"
+    Use `@add_balance` for general balances and `@add_stoichiometric_balance` for chemical-style `-->` shorthand.
 
 - **Transformations**
-The stoichiometric equations are defined in the `balance_data` dictionary of the `Transformation` instance.
 
-Here is an example for the `Electrolyzer` asset:
+For the `Electrolyzer`, the main conversion relationship can be written as:
+
 ```julia
-electrolyzer_transform.balance_data = Dict(
-    :energy => Dict(
-        h2_edge.id => 1.0,
-        elec_edge.id => get(transform_data, :efficiency_rate, 1.0),
-    ),
+@add_balance(
+    electrolyzer_transform,
+    :energy,
+    get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge) + flow(h2_edge) == 0.0,
 )
 ```
-and the stoichiometric equation is:
- ```math
-\begin{aligned}
-\phi_{h2} &= \phi_{elec} \cdot \epsilon_{efficiency} \\
-\end{aligned}
-```
-where $\phi_{h2}$ is the flow of hydrogen, $\phi_{elec}$ is the flow of electricity, and $\epsilon_{efficiency}$ is the efficiency rate of the electrolyzer.
 
-!!! warning "Balance Data Keys"
-    You can define as many balance equations as needed. The only requirement is that the keys in the `balance_data` dictionaries (e.g. `:energy`, `:emissions`, etc.) must be unique.
-    See the [src/model/assets folder](https://github.com/macroenergy/MacroEnergy.jl/tree/main/src/model/assets) for more examples of balance data definitions.
+This enforces the same relationship as:
+
+```math
+\phi_{h2} = \phi_{elec} \cdot \epsilon_{efficiency}
+```
+
+where $\phi_{h2}$ is the hydrogen flow, $\phi_{elec}$ is the electricity flow, and $\epsilon_{efficiency}$ is the electrolyzer efficiency.
+
+More general balances are also supported. For example, if an asset requires a lower bound involving both flow and capacity, you can write:
+
+```julia
+@add_balance(
+    electrolyzer_transform,
+    :energy_lb,
+    flow(elec_edge) >=
+    get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge) -
+    get(transform_data, :area_coeff, 1.0) * capacity(h2_edge),
+)
+```
 
 - **Storage units**
-The efficiency in charge and discharge of the storage units are defined in the `balance_data` dictionary of the `Storage` instance.
 
-Example taken from the `Battery` asset:
+Storage balances can also be written explicitly:
+
 ```julia
-battery_storage.balance_data = Dict(
-    :storage => Dict(
-        battery_discharge.id => 1 / discharge_efficiency,
-        battery_charge.id => charge_efficiency,
-    ),
+@add_balance(
+    battery_storage,
+    :storage,
+    (1 / discharge_efficiency) * flow(battery_discharge) +
+    charge_efficiency * flow(battery_charge) == 0.0,
 )
 ```
+
+This is also useful for envelope-style constraints such as:
+
+```julia
+@add_balance(
+    battery_storage,
+    :storage_upper,
+    storage_level(battery_storage) <= capacity(battery_storage),
+)
+```
+
+!!! note "Supported Terms"
+    `@add_balance` can include `flow(...)`, `capacity(...)`, `existing_capacity(...)`, `new_capacity(...)`, `retired_capacity(...)`, and `storage_level(...)`.
+
+!!! note "Coefficient Profiles"
+    Coefficients may be a scalar, a length-1 vector, or a vector with one coefficient per time step of the host vertex.
+
+!!! warning "Balance IDs"
+    You can define as many balances as needed. The only requirement is that the balance IDs (for example `:energy`, `:emissions`, `:storage`) are unique for each vertex.
+
+- **Stoichiometric shorthand**
+
+When the balance is easiest to think of as a recipe or chemical conversion, `@add_stoichiometric_balance` provides a compact shorthand:
+
+```julia
+@add_stoichiometric_balance(
+    electrolyzer_transform,
+    :energy,
+    flow(elec_edge) --> get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge),
+    flow(h2_edge),
+)
+```
+
+This macro expands into one or more ordinary balances and is best reserved for stoichiometric relationships. For most custom asset balances, `@add_balance` is the clearer default.
 
 #### 2.3.5 Asset creation
 This is the final step of the `make` function. It integrates all components to construct and return the final asset. 
@@ -807,13 +852,12 @@ function make(asset_type::Type{MyNewAsset}, data::AbstractDict{Symbol,Any}, syst
         output_end_node,
     )
     
-    # Set up stoichiometric equations
+    # Set up the conversion balance
     efficiency = get(transform_data, :efficiency, 1.0)
-    transform.balance_data = Dict(
-        :energy => Dict(
-            output_edge.id => 1.0,
-            input_edge.id => efficiency,
-        ),
+    @add_balance(
+        transform,
+        :energy,
+        efficiency * flow(input_edge) + flow(output_edge) == 0.0,
     )
     
     return MyNewAsset(id, transform, input_edge, output_edge)
