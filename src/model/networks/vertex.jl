@@ -64,14 +64,14 @@ balance_ids(v::AbstractVertex) = collect(keys(v.balance_data))
 """
     balance_data(v::AbstractVertex, i::Symbol)
 
-Get the input data for a specific balance equation in a vertex.
+Get the normalized balance definition for a specific balance equation in a vertex.
 
 # Arguments
 - `v`: A vertex object that is a subtype of AbstractVertex
 - `i`: Symbol representing the ID of the balance equation
 
 # Returns
-- The input data (usually stoichiometric coefficients) for the specified balance equation
+- A `BalanceData` object for the specified balance equation
 
 # Examples
 ```julia
@@ -471,17 +471,40 @@ end
 """
     @add_balance(component, balance_id, equation)
 
-A macro to add balance equation data to a component in a structured format.
+A macro to add a balance definition to a `Node`, `Transformation`, or `Storage`.
+
+`@add_balance` is the primary balance-definition interface for asset modelers. It
+supports equality and inequality balances, mixed variable types, and scalar or
+time-varying coefficients.
 
 # Arguments
 - `component`: The component object to add balance data to
 - `balance_id`: Symbol key for the balance equation (e.g., `:energy`, `:mass`)
-- `equation`: Balance equation with operators: ==, =, <=, <, >=, >
+- `equation`: Balance equation with operators: `==`, `=`, `<=`, `<`, `>=`, `>`
+
+# Supported terms
+- `flow(edge)`
+- `capacity(edge_or_storage)`
+- `existing_capacity(edge_or_storage)`
+- `new_capacity(edge_or_storage)`
+- `retired_capacity(edge_or_storage)`
+- `storage_level(storage)`
+
+# Coefficients
+Coefficients may be:
+- a scalar number
+- a length-1 vector
+- a vector with one coefficient per time step of the host vertex
 
 # Examples
 ```julia
-@add_balance(node, :energy, flow(:power) == 0.5 * flow(:hydrogen))
-@add_balance(node, :mass, flow(:input) <= 2.0 * flow(:output))
+@add_balance(transform, :energy, flow(elec_edge) == 0.5 * flow(h2_edge))
+@add_balance(storage, :upper, storage_level(storage) <= capacity(storage))
+@add_balance(
+    transform,
+    :energy_lb,
+    flow(elec_edge) >= eff * flow(h2_edge) - area * capacity(h2_edge),
+)
 ```
 """
 macro add_balance(component, balance_id, equation)
@@ -553,7 +576,19 @@ end
 const EXPR_COEFF = Union{Real, Symbol, Expr}
 
 function find_expr_terms(equation::Any, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
-    return []
+    error("Unsupported stoichiometric term $equation in @add_stoichiometric_balance")
+end
+
+function find_expr_terms(equation::Number, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
+    error(
+        "Constants are not supported in @add_stoichiometric_balance. Move all recipe quantities onto explicit terms like coeff * flow(edge).",
+    )
+end
+
+function find_expr_terms(equation::Symbol, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
+    error(
+        "Bare symbols like $equation are not supported in @add_stoichiometric_balance. Attach coefficients to an explicit term like coeff * flow(edge).",
+    )
 end
 
 function find_expr_terms(equation::Expr, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
@@ -567,23 +602,14 @@ function find_expr_terms(equation::Expr, negative_term::Bool=false)::Vector{Tupl
     elseif equation.args[1] == :+
         terms = Tuple{EXPR_COEFF, Expr}[]
         for arg in equation.args[2:end]
-            if isa(arg, Expr)
-                sub_terms = find_expr_terms(arg, negative_term)
-                append!(terms, sub_terms)
-            end
+            sub_terms = find_expr_terms(arg, negative_term)
+            append!(terms, sub_terms)
         end
         return terms
     elseif equation.args[1] == :-
-        terms = Tuple{EXPR_COEFF, Expr}[]
-        if length(equation.args) >= 2 && isa(equation.args[2], Expr)
-            append!(terms, find_expr_terms(equation.args[2], negative_term))
-        end
-        for arg in equation.args[3:end]
-            if isa(arg, Expr)
-                append!(terms, find_expr_terms(arg, !negative_term))
-            end
-        end
-        return terms
+        error(
+            "Negative stoichiometric terms are not supported in @add_stoichiometric_balance. Move subtracted terms to the other side of the --> expression.",
+        )
     else
         return [(1.0, equation)]
     end
@@ -604,6 +630,9 @@ end
 Expand a stoichiometric-style balance written with the `-->` operator into
 multiple pairwise balances anchored on `base_term`.
 
+This macro is a convenience wrapper for recipe-style or chemical-style
+relationships. For general balances, `@add_balance` is the preferred interface.
+
 # Example
 ```julia
 @add_stoichiometric_balance(
@@ -615,6 +644,7 @@ multiple pairwise balances anchored on `base_term`.
 ```
 """
 macro add_stoichiometric_balance(component, balance_id, equation, base_term)
+    balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
 
     # Check that the head of equation is :-->
     if !isa(equation, Expr) || equation.head != :-->
@@ -625,11 +655,6 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     # For now, we'll use the first LHS term, or the first RHS term if no LHS terms
     input_equation = equation.args[1] 
     output_equation = equation.args[2]
-
-    if !isa(input_equation, Expr) && !isa(output_equation, Expr)
-        @warn("Both sides of balance equation for $component-$balance_id are constants. No balance data added.")
-        return esc(quote end)  # Return empty block
-    end
 
     input_terms = find_expr_terms(input_equation)
     output_terms = find_expr_terms(output_equation)
@@ -651,28 +676,34 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_calls = Expr[]
 
     if !isempty(input_terms)
-        sign = found_in_input ? -1 : 1
         for input_term in input_terms
             (term_coeff, term_variable) = input_term
             if term_variable == base_term
                 continue
             end
-            balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-            new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+            if found_in_input
+                balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
+            else
+                balance_equation = :($base_coeff * $base_term + $term_coeff * $term_variable == 0)
+            end
+            new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
             balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end
     end
 
     if !isempty(output_terms)
-        sign = found_in_input ? 1 : -1
         for output_term in output_terms
             (term_coeff, term_variable) = output_term
             if term_variable == base_term
                 continue
             end
-            balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-            new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
+            if found_in_input
+                balance_equation = :($base_coeff * $base_term + $term_coeff * $term_variable == 0)
+            else
+                balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
+            end
+            new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
             balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
         end
