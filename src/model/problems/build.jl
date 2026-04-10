@@ -19,6 +19,17 @@ selected_edges(instance::ProblemInstance) = vcat(
 )
 selected_capacity_components(instance::ProblemInstance) =
     vcat(selected_edges(instance), selected_storages(instance), selected_long_duration_storages(instance))
+all_capacity_components(static_system::StaticSystem) = vcat(
+    static_system.unidirectional_edges,
+    static_system.bidirectional_edges,
+    static_system.unit_commitment_edges,
+    static_system.storages,
+    static_system.long_duration_storages,
+)
+all_capacity_components(system::System) = vcat(
+    edges_with_capacity_variables(get_edges(system)),
+    get_storages(system),
+)
 
 function initialize_local_state!(instance::ProblemInstance)
     empty!(instance.node_state)
@@ -326,6 +337,26 @@ function carry_over_capacities!(
     prev_components = Dict(id(y) => y for y in selected_capacity_components(instance_prev))
 
     for y in selected_capacity_components(instance)
+        y_prev = get(prev_components, id(y), nothing)
+        if isnothing(y_prev)
+            @info("Skipping component $(id(y)) as it was not present in the previous period")
+            validate_existing_capacity(y)
+        else
+            carry_over_capacities!(y, y_prev; perfect_foresight)
+        end
+    end
+
+    return nothing
+end
+
+function carry_over_capacities!(
+    system::System,
+    instance_prev::ProblemInstance;
+    perfect_foresight::Bool=true,
+)
+    prev_components = Dict(id(y) => y for y in selected_capacity_components(instance_prev))
+
+    for y in all_capacity_components(system)
         y_prev = get(prev_components, id(y), nothing)
         if isnothing(y_prev)
             @info("Skipping component $(id(y)) as it was not present in the previous period")

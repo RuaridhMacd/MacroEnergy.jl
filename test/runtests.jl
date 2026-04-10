@@ -33,6 +33,7 @@ with_logger(test_logger) do
 
     Test.@testset verbose = true "Problem Architecture" begin
         include("test_problem_architecture.jl")
+        include("test_stage2_execution_paths.jl")
     end
     
     Test.@testset verbose = true "Myopic Functionality" begin

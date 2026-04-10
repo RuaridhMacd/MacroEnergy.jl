@@ -147,6 +147,20 @@ Notes:
 - `StaticSystem` no longer keeps a back-reference to the source `System`
 - Myopic model construction now reuses the same problem-layer build path as monolithic
 - focused regression checks currently pass for monolithic model generation and a one-period Myopic run
+- small automated regressions now cover multi-period case loading plus monolithic/Myopic builder paths; full example runs remain the best higher-level validation
+
+Stage 2 exit checklist:
+
+- monolithic multi-period solve still works through `solve_case(case, opt)`
+- Myopic multi-period solve still works through `solve_case(case, opt)`
+- monolithic and Myopic model construction do not rely on `System`-specific model-build helpers
+- inter-period carry-over during monolithic and Myopic solve paths is driven by `ProblemInstance`-based helpers
+
+Remaining intentional compatibility shims before Stage 3:
+
+- case loading and preparation still construct legacy `System`s
+- Myopic restart-from-results still writes capacities back into a `System`
+- output writing still reads solved values from the legacy `System` view
 
 ### Stage 3: Create Explicit Planning And Temporal Subproblem Builders
 
