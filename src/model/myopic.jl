@@ -53,15 +53,10 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
             break
         end
 
-        @info(" -- Generating model for period $(period_idx)")
-        if system.settings.EnableJuMPDirectModel
-            model = create_direct_model_with_optimizer(opt)
-        else
-            model = Model()
-            set_optimizer(model, opt)
-        end
+        instance = build_problem_instance(system, nothing; id=Symbol(:myopic_period_, period_idx))
 
-        set_string_names_on_creation(model,system.settings.EnableJuMPStringNames)
+        @info(" -- Generating model for period $(period_idx)")
+        model = create_problem_model(instance, opt)
 
         @variable(model, vREF == 1)
 
@@ -70,27 +65,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         model[:eOMFixedCost] = AffExpr(0.0)
         model[:eVariableCost] = AffExpr(0.0)
 
-        @info(" -- Adding linking variables")
-        add_linking_variables!(system, model) 
-
-        @info(" -- Defining available capacity")
-        define_available_capacity!(system, model)
-
-        @info(" -- Generating planning model")
-        planning_model!(system, model)
-
-        if system.settings.Retrofitting
-            @info(" -- Adding retrofit constraints")
-            add_retrofit_constraints!(system, period_idx, model)
-        end
-
-        @info(" -- Including age-based retirements")
-        for asset in system.assets
-            add_age_based_retirements!(asset, model)
-        end
-
-        @info(" -- Generating operational model")
-        operation_model!(system, model)
+        populate_problem_model!(instance, model; period_idx)
 
         # Express myopic cost in present value from perspective of start of modeling horizon, in consistency with Monolithic version
 
@@ -113,7 +88,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
         @expression(model, eVariableCost, eVariableCostByPeriod[period_idx])
         @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
 
-        scale_constraints!(system, model)
+        scale_constraints!(instance, model)
 
         optimize!(model)
 

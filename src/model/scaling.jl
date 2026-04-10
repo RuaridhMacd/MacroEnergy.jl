@@ -74,11 +74,32 @@ function scale_constraints!(system::System, model::Model)
     return nothing
 end
 
+function scale_constraints!(static_system::StaticSystem, model::Model)
+    if static_system.settings.ConstraintScaling
+        @info "Scaling constraints and RHS"
+        scale_constraints!(model)
+    end
+    return nothing
+end
+
+function scale_constraints!(instance::ProblemInstance, model::Model)
+    scale_constraints!(instance.static_system, model)
+    return nothing
+end
+
 # MacroEnergyScaling.scale_constraints!
 function scale_constraints!(systems::Vector{System}, models::Vector{Model})
     @assert length(systems) == length(models)
     for (system, model) in zip(systems, models)
         scale_constraints!(system, model)
+    end
+    return nothing
+end
+
+function scale_constraints!(instances::Vector{ProblemInstance}, models::Vector{Model})
+    @assert length(instances) == length(models)
+    for (instance, model) in zip(instances, models)
+        scale_constraints!(instance, model)
     end
     return nothing
 end

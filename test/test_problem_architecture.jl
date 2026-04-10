@@ -5,6 +5,7 @@ using JuMP
 using MacroEnergy
 
 import MacroEnergy:
+    build_monolithic_problem_instances,
     Case,
     ProblemInstance,
     StaticSystem,
@@ -60,6 +61,13 @@ function test_problem_architecture()
     @test instance.spec.long_duration_storage_indices == spec.long_duration_storage_indices
     @test instance.spec.time_indices == spec.time_indices
     @test instance.model isa Model
+
+    instances = build_monolithic_problem_instances(case)
+    @test length(instances) == length(case.systems)
+    @test instances[1] isa ProblemInstance
+    @test instances[1].static_system.data_dirpath == case.systems[1].data_dirpath
+    @test instances[1].spec.role == :monolithic
+    @test length(instances[1].node_state) == length(instances[1].spec.node_indices)
 end
 
 @testset "Problem Architecture" begin
