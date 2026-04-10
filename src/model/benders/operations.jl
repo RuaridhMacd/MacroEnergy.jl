@@ -1,29 +1,33 @@
-function generate_operation_subproblem(system::System,case_settings::NamedTuple,include_subproblem_slacks::Bool)
+function generate_operation_subproblem(
+    instance::ProblemInstance,
+    case_settings::NamedTuple,
+    include_subproblem_slacks::Bool,
+)
 
-    model = Model()
+    model = create_named_problem_model(instance)
 
     @variable(model, vREF == 1)
 
     model[:eVariableCost] = AffExpr(0.0)
     
-    add_linking_variables!(system, model)
+    add_linking_variables!(instance, model)
 
     linking_variables = name.(setdiff(all_variables(model), model[:vREF]))
 
-    define_available_capacity!(system, model)
+    define_available_capacity!(instance, model)
 
-    operation_model!(system, model)
+    operation_model!(instance, model)
 
     if include_subproblem_slacks == true
         @info("Adding slack variables to ensure subproblems are always feasible")
         slack_penalty = 2*maximum(coefficient(model[:eVariableCost],v) for v in all_variables(model))
-        eq_cons_to_be_relaxed =  get_all_balance_constraints(system);
-        less_ineq_cons_to_be_relaxed = get_all_policy_constraints(system);
+        eq_cons_to_be_relaxed =  get_all_balance_constraints(instance.static_system);
+        less_ineq_cons_to_be_relaxed = get_all_policy_constraints(instance.static_system);
         greater_ineq_cons_to_be_relaxed = Vector{ConstraintRef}();
         add_slack_variables!(model,slack_penalty,eq_cons_to_be_relaxed,less_ineq_cons_to_be_relaxed,greater_ineq_cons_to_be_relaxed)
     end
     
-    period_index = system.time_data[:Electricity].period_index
+    period_index = get_primary_time_data(instance.static_system).period_index
 
     period_lengths = collect(case_settings.PeriodLengths)
 
@@ -40,15 +44,15 @@ function generate_operation_subproblem(system::System,case_settings::NamedTuple,
 
 end
 
-function initialize_subproblem(system::Any,optimizer::Optimizer,case_settings::NamedTuple,include_subproblem_slacks::Bool)
+function initialize_subproblem(problem_bundle::NamedTuple,optimizer::Optimizer,case_settings::NamedTuple,include_subproblem_slacks::Bool)
     
-    subproblem,linking_variables_sub = generate_operation_subproblem(system,case_settings,include_subproblem_slacks);
+    subproblem,linking_variables_sub = generate_operation_subproblem(problem_bundle.instance,case_settings,include_subproblem_slacks);
 
     set_optimizer(subproblem, optimizer)
 
     set_silent(subproblem)
 
-    if system.settings.ConstraintScaling
+    if problem_bundle.instance.static_system.settings.ConstraintScaling
         @info "Scaling constraints and RHS"
         scale_constraints!(subproblem)
     end
@@ -56,45 +60,46 @@ function initialize_subproblem(system::Any,optimizer::Optimizer,case_settings::N
     return subproblem,linking_variables_sub
 end
 
-function initialize_local_subproblems!(system_local::Vector,subproblems_local::Vector{Dict{Any,Any}},local_indices::UnitRange{Int64},optimizer::Optimizer,case_settings::NamedTuple, include_subproblem_slacks)
+function initialize_local_subproblems!(problem_bundles_local::Vector,subproblems_local::Vector{Dict{Any,Any}},local_indices::UnitRange{Int64},optimizer::Optimizer,case_settings::NamedTuple, include_subproblem_slacks)
 
-    nW = length(system_local)
+    nW = length(problem_bundles_local)
 
     for i=1:nW
-		subproblem,linking_variables_sub = initialize_subproblem(system_local[i],optimizer,case_settings,include_subproblem_slacks::Bool);
+		subproblem,linking_variables_sub = initialize_subproblem(problem_bundles_local[i],optimizer,case_settings,include_subproblem_slacks::Bool);
         subproblems_local[i][:model] = subproblem;
         subproblems_local[i][:linking_variables_sub] = linking_variables_sub;
         subproblems_local[i][:subproblem_index] = local_indices[i];
-        subproblems_local[i][:system_local] = system_local[i]
+        subproblems_local[i][:system_local] = problem_bundles_local[i].system
+        subproblems_local[i][:problem_instance] = problem_bundles_local[i].instance
     end
 end
 
-function initialize_subproblems!(system_decomp::Vector,opt::Dict,case_settings::NamedTuple,distributed_bool::Bool,include_subproblem_slacks::Bool)
+function initialize_subproblems!(problem_bundles::Vector,opt::Dict,case_settings::NamedTuple,distributed_bool::Bool,include_subproblem_slacks::Bool)
     
     if distributed_bool
-        subproblems, linking_variables_sub = initialize_dist_subproblems!(system_decomp,opt,case_settings,include_subproblem_slacks)
+        subproblems, linking_variables_sub = initialize_dist_subproblems!(problem_bundles,opt,case_settings,include_subproblem_slacks)
     else
-        subproblems, linking_variables_sub = initialize_serial_subproblems!(system_decomp,opt,case_settings,include_subproblem_slacks)
+        subproblems, linking_variables_sub = initialize_serial_subproblems!(problem_bundles,opt,case_settings,include_subproblem_slacks)
     end
 
     return subproblems, linking_variables_sub
 end
 
-function initialize_dist_subproblems!(system_decomp::Vector,opt::Dict,case_settings::NamedTuple,include_subproblem_slacks::Bool)
+function initialize_dist_subproblems!(problem_bundles::Vector,opt::Dict,case_settings::NamedTuple,include_subproblem_slacks::Bool)
 
     ##### Initialize a distributed arrays of JuMP models
 	## Start pre-solve timer
      
 	subproblem_generation_time = time()
 
-    subproblems_all = distribute([Dict() for i in 1:length(system_decomp)]);
+    subproblems_all = distribute([Dict() for i in 1:length(problem_bundles)]);
 
     @sync for p in workers()
         @async @spawnat p begin
             W_local = localindices(subproblems_all)[1];
-            system_local = [system_decomp[k] for k in W_local];
+            problem_bundles_local = [problem_bundles[k] for k in W_local];
             optimizer = create_optimizer(opt[:solver], opt_env(opt[:solver]), opt[:attributes])
-            initialize_local_subproblems!(system_local,localpart(subproblems_all),W_local,optimizer,case_settings,include_subproblem_slacks);
+            initialize_local_subproblems!(problem_bundles_local,localpart(subproblems_all),W_local,optimizer,case_settings,include_subproblem_slacks);
         end
     end
 
@@ -117,7 +122,7 @@ function initialize_dist_subproblems!(system_decomp::Vector,opt::Dict,case_setti
 
 end
 
-function initialize_serial_subproblems!(system_decomp::Vector,opt::Dict,case_settings::NamedTuple,include_subproblem_slacks::Bool)
+function initialize_serial_subproblems!(problem_bundles::Vector,opt::Dict,case_settings::NamedTuple,include_subproblem_slacks::Bool)
 
     ##### Initialize a array of JuMP models
 	## Start pre-solve timer
@@ -126,11 +131,11 @@ function initialize_serial_subproblems!(system_decomp::Vector,opt::Dict,case_set
 
 	subproblem_generation_time = time()
 
-    subproblems_all = [Dict() for i in 1:length(system_decomp)];
+    subproblems_all = [Dict() for i in 1:length(problem_bundles)];
 
-    initialize_local_subproblems!(system_decomp,subproblems_all, 1:length(system_decomp),optimizer,case_settings,include_subproblem_slacks);
+    initialize_local_subproblems!(problem_bundles,subproblems_all, 1:length(problem_bundles),optimizer,case_settings,include_subproblem_slacks);
 
-    linking_variables_sub = [get_local_linking_variables([subproblems_all[k]]) for k in 1:length(system_decomp)];
+    linking_variables_sub = [get_local_linking_variables([subproblems_all[k]]) for k in 1:length(problem_bundles)];
     linking_variables_sub = merge(linking_variables_sub...);
 
     ## Record pre-solver time

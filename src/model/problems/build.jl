@@ -113,15 +113,145 @@ function build_monolithic_problem_instances(case::Case)
     ]
 end
 
+function build_planning_problem_instances(case::Case)
+    return [
+        begin
+            static_system = StaticSystem(system)
+            spec = problem_spec(
+                static_system;
+                id=Symbol(:planning_period_, period_idx),
+                role=:planning,
+            )
+            build_problem_instance(static_system, spec; id=Symbol(:planning_period_, period_idx))
+        end for (period_idx, system) in enumerate(case.systems)
+    ]
+end
+
+function get_primary_time_data(system::System)
+    if haskey(system.time_data, :Electricity)
+        return system.time_data[:Electricity]
+    end
+    return first(values(system.time_data))
+end
+
+function get_primary_time_data(static_system::StaticSystem)
+    if haskey(static_system.time_data, :Electricity)
+        return static_system.time_data[:Electricity]
+    end
+    return first(values(static_system.time_data))
+end
+
+function build_temporal_subproblem_system(
+    system::System,
+    subperiod_position::Int,
+)
+    subproblem_system = deepcopy(system)
+    primary_time_data = get_primary_time_data(system)
+    period_index = primary_time_data.period_index
+    subperiod_index = primary_time_data.subperiod_indices[subperiod_position]
+    subperiod_interval = primary_time_data.subperiods[subperiod_position]
+    subperiod_weight = primary_time_data.subperiod_weights[subperiod_index]
+    subperiod_map = primary_time_data.subperiod_map
+    modeled_subperiods_all = collect(keys(subperiod_map))
+    modeled_subperiods = modeled_subperiods_all[
+        findall(subperiod_map[x] == subperiod_index for x in modeled_subperiods_all)
+    ]
+
+    for commodity in keys(subproblem_system.time_data)
+        time_data = subproblem_system.time_data[commodity]
+        time_data.time_interval = subperiod_interval
+        time_data.subperiod_weights = Dict(subperiod_index => subperiod_weight)
+        time_data.subperiods = [subperiod_interval]
+        time_data.subperiod_indices = [subperiod_index]
+        time_data.period_index = period_index
+        time_data.subperiod_map = Dict(n => subperiod_index for n in modeled_subperiods)
+    end
+
+    return (
+        system = subproblem_system,
+        period_index = period_index,
+        subperiod_index = subperiod_index,
+        time_indices = collect(subperiod_interval),
+        modeled_subperiods = modeled_subperiods,
+    )
+end
+
+function build_temporal_subproblem_bundles(case::Case)
+    bundles = NamedTuple[]
+    subproblem_count = 0
+
+    for (period_idx, system) in enumerate(case.systems)
+        primary_time_data = get_primary_time_data(system)
+        for subperiod_position in eachindex(primary_time_data.subperiods)
+            subproblem_count += 1
+            subproblem_data = build_temporal_subproblem_system(system, subperiod_position)
+            static_system = StaticSystem(subproblem_data.system)
+            spec = problem_spec(
+                static_system;
+                id=Symbol(:subproblem_, subproblem_count),
+                role=:temporal_subproblem,
+                time_indices=subproblem_data.time_indices,
+                metadata=Dict{Symbol,Any}(
+                    :period_index => period_idx,
+                    :subproblem_index => subproblem_count,
+                    :subperiod_index => subproblem_data.subperiod_index,
+                    :modeled_subperiods => subproblem_data.modeled_subperiods,
+                ),
+            )
+            instance = build_problem_instance(
+                static_system,
+                spec;
+                id=Symbol(:subproblem_, subproblem_count),
+            )
+            push!(
+                bundles,
+                (
+                    system = subproblem_data.system,
+                    instance = instance,
+                    period_index = period_idx,
+                    subproblem_index = subproblem_count,
+                    subperiod_index = subproblem_data.subperiod_index,
+                ),
+            )
+        end
+    end
+
+    return bundles
+end
+
+function create_problem_model(instance::ProblemInstance)
+    model = Model()
+    set_string_names_on_creation(model, instance.static_system.settings.EnableJuMPStringNames)
+    return model
+end
+
+function create_named_problem_model(instance::ProblemInstance)
+    model = Model()
+    set_string_names_on_creation(model, true)
+    return model
+end
+
 function create_problem_model(instance::ProblemInstance, opt::Optimizer)
     if instance.static_system.settings.EnableJuMPDirectModel
         model = create_direct_model_with_optimizer(opt)
     else
-        model = Model()
+        model = create_problem_model(instance)
         set_optimizer(model, opt)
     end
 
     set_string_names_on_creation(model, instance.static_system.settings.EnableJuMPStringNames)
+    return model
+end
+
+function create_named_problem_model(instance::ProblemInstance, opt::Optimizer)
+    if instance.static_system.settings.EnableJuMPDirectModel
+        model = create_direct_model_with_optimizer(opt)
+    else
+        model = create_named_problem_model(instance)
+        set_optimizer(model, opt)
+    end
+
+    set_string_names_on_creation(model, true)
     return model
 end
 
@@ -288,6 +418,89 @@ function add_age_based_retirements!(instance::ProblemInstance, model::Model)
     return nothing
 end
 
+function add_feasibility_constraints!(instance::ProblemInstance, model::Model)
+    for storage in selected_long_duration_storages(instance)
+        has_storage_max_level_constraint = any(isa.(storage.constraints, MaxStorageLevelConstraint))
+        has_storage_min_level_constraint = any(isa.(storage.constraints, MinStorageLevelConstraint))
+        has_init_storage_max_level_constraint = any(isa.(storage.constraints, MaxInitStorageLevelConstraint))
+        has_init_storage_min_level_constraint = any(isa.(storage.constraints, MinInitStorageLevelConstraint))
+
+        if has_storage_max_level_constraint && !has_init_storage_max_level_constraint
+            @info("Adding max initial storage level constraint to storage $(id(storage)) for feasibility")
+            push!(storage.constraints, MaxInitStorageLevelConstraint())
+            add_model_constraint!(storage.constraints[end], storage, model)
+        end
+
+        if has_storage_min_level_constraint && !has_init_storage_min_level_constraint
+            @info("Adding min initial storage level constraint to storage $(id(storage)) for feasibility")
+            push!(storage.constraints, MinInitStorageLevelConstraint())
+            add_model_constraint!(storage.constraints[end], storage, model)
+        end
+    end
+
+    return nothing
+end
+
+function get_available_capacity(instances::Vector{ProblemInstance})
+    available_capacity = Dict{Tuple{Symbol,Int64},Union{JuMPVariable,AffExpr}}()
+    for instance in instances
+        get_available_capacity!(instance, available_capacity)
+    end
+    return available_capacity
+end
+
+function get_available_capacity!(
+    instance::ProblemInstance,
+    available_capacity::Dict{Tuple{Symbol,Int64},Union{JuMPVariable,AffExpr}},
+)
+    for storage in selected_storages(instance)
+        available_capacity[storage.id, period_index(storage)] = storage.capacity
+    end
+    for storage in selected_long_duration_storages(instance)
+        available_capacity[storage.id, period_index(storage)] = storage.capacity
+    end
+    for edge in selected_edges(instance)
+        available_capacity[edge.id, period_index(edge)] = edge.capacity
+    end
+    return available_capacity
+end
+
+function populate_planning_problem!(
+    instance::ProblemInstance,
+    model::Model;
+    period_idx::Union{Int,Nothing}=nothing,
+)
+    @info(" -- Adding linking variables")
+    add_linking_variables!(instance, model)
+
+    @info(" -- Defining available capacity")
+    define_available_capacity!(instance, model)
+
+    @info(" -- Generating planning model")
+    planning_model!(instance, model)
+
+    if instance.static_system.settings.Retrofitting
+        isnothing(period_idx) &&
+            error("A period index is required to add retrofit constraints for a planning problem.")
+        @info(" -- Adding retrofit constraints")
+        add_retrofit_constraints!(instance, period_idx, model)
+    end
+
+    @info(" -- Including age-based retirements")
+    add_age_based_retirements!(instance, model)
+
+    add_feasibility_constraints!(instance, model)
+
+    return nothing
+end
+
+function populate_operation_problem!(instance::ProblemInstance, model::Model)
+    add_linking_variables!(instance, model)
+    define_available_capacity!(instance, model)
+    operation_model!(instance, model)
+    return nothing
+end
+
 function get_retrofit_edges(instance::ProblemInstance)
     can_retrofit_edges = Dict{Symbol,AbstractEdge}()
     is_retrofit_edges = Dict{Symbol,AbstractEdge}()
@@ -374,25 +587,7 @@ function populate_problem_model!(
     model::Model;
     period_idx::Union{Int,Nothing}=nothing,
 )
-    @info(" -- Adding linking variables")
-    add_linking_variables!(instance, model)
-
-    @info(" -- Defining available capacity")
-    define_available_capacity!(instance, model)
-
-    @info(" -- Generating planning model")
-    planning_model!(instance, model)
-
-    if instance.static_system.settings.Retrofitting
-        isnothing(period_idx) &&
-            error("A period index is required to add retrofit constraints for a problem instance.")
-        @info(" -- Adding retrofit constraints")
-        add_retrofit_constraints!(instance, period_idx, model)
-    end
-
-    @info(" -- Including age-based retirements")
-    add_age_based_retirements!(instance, model)
-
+    populate_planning_problem!(instance, model; period_idx)
     @info(" -- Generating operational model")
     operation_model!(instance, model)
 

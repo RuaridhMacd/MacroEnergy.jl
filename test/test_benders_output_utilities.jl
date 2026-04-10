@@ -11,6 +11,7 @@ import MacroEnergy: populate_slack_vars_from_subproblems!, populate_constraint_d
 import MacroEnergy: merge_distributed_slack_vars_dicts, merge_distributed_balance_duals
 import MacroEnergy: BalanceConstraint
 import MacroEnergy: empty_system
+import MacroEnergy: ProblemInstance, StaticSystem, problem_spec
 import MacroEnergy: Node, Electricity, TimeData, System
 
 function test_benders_output_utilities()
@@ -490,6 +491,49 @@ function test_benders_output_utilities()
             @test isa(result, Dict)
             @test !haskey(result, 1) || isempty(result[1])
         end
+
+        @testset "ProblemInstance Metadata Period Index" begin
+            model = Model(HiGHS.Optimizer)
+            set_silent(model)
+
+            @variable(model, slack[t in [1, 2]] >= 0)
+            @constraint(model, [t in [1, 2]], slack[t] .== 10)
+            @objective(model, Min, sum(slack))
+            optimize!(model)
+
+            timedata = TimeData{Electricity}(;
+                time_interval = 1:2,
+                hours_per_timestep = 1,
+                period_index = 1,
+                subperiods = [1:2],
+                subperiod_indices = [1],
+                subperiod_weights = Dict(1 => 1.0),
+                subperiod_map = Dict(1 => 1),
+            )
+
+            mock_node = Node{Electricity}(
+                id = :meta_node,
+                policy_slack_vars = Dict(:co2_slack => slack),
+                timedata = timedata,
+            )
+
+            mock_system = empty_system("mock_system")
+            mock_system.time_data = Dict(:Electricity => timedata)
+            mock_system.locations = [mock_node]
+
+            static_system = StaticSystem(mock_system)
+            instance = ProblemInstance(
+                static_system,
+                problem_spec(static_system; metadata=Dict{Symbol,Any}(:period_index => 7)),
+            )
+
+            result = collect_local_slack_vars([
+                Dict{Any,Any}(:system_local => mock_system, :problem_instance => instance),
+            ])
+
+            @test haskey(result, 7)
+            @test haskey(result[7], (:meta_node, :co2_slack))
+        end
     end
     
     @testset "Local Constraint Duals Collection" begin
@@ -550,6 +594,51 @@ function test_benders_output_utilities()
             @test length(demand_duals) == 3
             @test all(haskey(demand_duals, t) for t in time_indices)
             @test all(demand_duals[t] == 1.0 for t in time_indices)
+        end
+
+        @testset "ProblemInstance Metadata Period Index" begin
+            model = Model(HiGHS.Optimizer)
+            set_silent(model)
+
+            time_indices = 1:2
+            @variable(model, x[t in time_indices] >= 0)
+            balance_constraint = @constraint(model, balance[t in time_indices], x[t] == 1.0)
+            @objective(model, Min, sum(x))
+            optimize!(model)
+
+            timedata = TimeData{Electricity}(;
+                time_interval = time_indices,
+                hours_per_timestep = 1,
+                period_index = 1,
+                subperiods = [1:2],
+                subperiod_indices = [1],
+                subperiod_weights = Dict(1 => 1.0),
+                subperiod_map = Dict(1 => 1),
+            )
+
+            mock_node = Node{Electricity}(id=:meta_dual_node, timedata=timedata)
+            mock_node.constraints = [BalanceConstraint(
+                constraint_ref = Dict(:demand => balance_constraint),
+                constraint_dual = Dict(:demand => [dual(balance_constraint[t]) for t in time_indices]),
+            )]
+
+            mock_system = empty_system("mock_system")
+            mock_system.time_data = Dict(:Electricity => timedata)
+            mock_system.locations = [mock_node]
+
+            static_system = StaticSystem(mock_system)
+            instance = ProblemInstance(
+                static_system,
+                problem_spec(static_system; metadata=Dict{Symbol,Any}(:period_index => 9)),
+            )
+
+            result = collect_local_constraint_duals(
+                [Dict{Any,Any}(:system_local => mock_system, :problem_instance => instance)],
+                BalanceConstraint,
+            )
+
+            @test haskey(result, 9)
+            @test haskey(result[9], :meta_dual_node)
         end
         
         @testset "Multiple Balance Equations" begin
@@ -832,4 +921,3 @@ end
 
 test_benders_output_utilities()
 end # module TestBendersOutputUtilities
-

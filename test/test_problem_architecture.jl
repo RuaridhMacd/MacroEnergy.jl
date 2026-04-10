@@ -2,20 +2,27 @@ module TestProblemArchitecture
 
 using Test
 using JuMP
+using HiGHS
 using MacroEnergy
 
 import MacroEnergy:
     build_monolithic_problem_instances,
+    build_planning_problem_instances,
+    build_temporal_subproblem_bundles,
     Case,
     ProblemInstance,
     StaticSystem,
     full_problem_spec,
+    generate_planning_problem,
     get_edges,
     get_nodes,
+    get_settings,
     get_storages,
     get_transformations,
+    initialize_subproblems!,
     load_case,
-    normalize_problem_spec
+    normalize_problem_spec,
+    problem_spec
 
 function test_problem_architecture()
     case = load_case(joinpath(@__DIR__, "test_small_case"))
@@ -48,6 +55,18 @@ function test_problem_architecture()
           length(static_system.long_duration_storages)
     @test !isempty(spec.time_indices)
 
+    custom_spec = problem_spec(
+        static_system;
+        id=:custom,
+        role=:temporal_subproblem,
+        time_indices=spec.time_indices[1:1],
+        metadata=Dict{Symbol,Any}(:subproblem_index => 1),
+    )
+    @test custom_spec.id == :custom
+    @test custom_spec.role == :temporal_subproblem
+    @test length(custom_spec.time_indices) == 1
+    @test custom_spec.metadata[:subproblem_index] == 1
+
     instance = ProblemInstance(static_system, nothing; id=:monolithic_problem)
     @test instance.id == :monolithic_problem
     @test instance.static_system === static_system
@@ -68,6 +87,38 @@ function test_problem_architecture()
     @test instances[1].static_system.data_dirpath == case.systems[1].data_dirpath
     @test instances[1].spec.role == :monolithic
     @test length(instances[1].node_state) == length(instances[1].spec.node_indices)
+
+    planning_instances = build_planning_problem_instances(case)
+    @test length(planning_instances) == length(case.systems)
+    @test all(instance -> instance.spec.role == :planning, planning_instances)
+
+    subproblem_bundles = build_temporal_subproblem_bundles(case)
+    expected_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
+    @test length(subproblem_bundles) == expected_subproblems
+    @test subproblem_bundles[1].instance isa ProblemInstance
+    @test subproblem_bundles[1].instance.spec.role == :temporal_subproblem
+    @test subproblem_bundles[1].instance.spec.metadata[:subproblem_index] == 1
+    @test subproblem_bundles[1].system isa typeof(case.systems[1])
+
+    planning_problem = generate_planning_problem(case)
+    missing_planning_names = [
+        name(v) for v in all_variables(planning_problem)
+        if isempty(name(v)) || isnothing(variable_by_name(planning_problem, name(v)))
+    ]
+    @test isempty(missing_planning_names)
+
+    subproblems, _ = initialize_subproblems!(
+        subproblem_bundles,
+        Dict(:solver => HiGHS.Optimizer, :attributes => ()),
+        get_settings(case),
+        false,
+        false,
+    )
+    missing_subproblem_names = [
+        variable_name for variable_name in first(subproblems)[:linking_variables_sub]
+        if isnothing(variable_by_name(first(subproblems)[:model], variable_name))
+    ]
+    @test isempty(missing_subproblem_names)
 end
 
 @testset "Problem Architecture" begin

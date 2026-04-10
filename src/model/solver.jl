@@ -36,13 +36,11 @@ function solve_case(case::Case, opt::Dict{Symbol, Dict{Symbol, Any}}, ::Benders)
     @info("*** Running simulation with Benders decomposition ***")
     bd_setup = get_settings(case).BendersSettings
     periods = get_periods(case);
-
-    # Decomposed system
-    periods_decomp = generate_decomposed_system(periods);
+    subproblem_bundles = build_temporal_subproblem_bundles(case)
 
     planning_problem = initialize_planning_problem!(case,opt[:planning])
 
-    subproblems, linking_variables_sub = initialize_subproblems!(periods_decomp, opt[:subproblems], get_settings(case), bd_setup[:Distributed],bd_setup[:IncludeSubproblemSlacksAutomatically])
+    subproblems, linking_variables_sub = initialize_subproblems!(subproblem_bundles, opt[:subproblems], get_settings(case), bd_setup[:Distributed],bd_setup[:IncludeSubproblemSlacksAutomatically])
 
     results = MacroEnergySolvers.benders(planning_problem, subproblems, linking_variables_sub, Dict(pairs(bd_setup)))
 

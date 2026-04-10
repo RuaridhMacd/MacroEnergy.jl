@@ -81,7 +81,7 @@ function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1
     @sync for i in 1:np_id
         @async result_chunks[i] = @fetchfrom p_id[i] begin
             local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
-            [extract_subproblem_results(sp[:system_local]; scaling=scaling) for sp in local_subproblems]
+            [extract_subproblem_results(get_subproblem_output_system(sp); scaling=scaling) for sp in local_subproblems]
         end
     end
 
@@ -98,7 +98,7 @@ function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
     results = SubproblemsData(n)
 
     for i in eachindex(bd_results.op_subproblem)
-        system = bd_results.op_subproblem[i][:system_local]
+        system = get_subproblem_output_system(bd_results.op_subproblem[i])
         results[i] = extract_subproblem_results(system; scaling)
     end
 
@@ -405,9 +405,10 @@ from DenseAxisArray to dictionary format for distributed collection.
 function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
     slack_vars = Dict{Int64, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}}()
     for i in eachindex(subproblems_local)
-        system = subproblems_local[i][:system_local]
+        subproblem = subproblems_local[i]
+        system = get_subproblem_output_system(subproblem)
         for node in filter(n -> n isa Node, system.locations)
-            period_index = system.time_data[:Electricity].period_index
+            period_index = get_subproblem_period_index(subproblem)
             for slack_vars_key in keys(policy_slack_vars(node))
                 # Create tuple key with (node_id, slack_vars_key) to keep track of the metadata
                 key = (node.id, slack_vars_key)
@@ -572,8 +573,9 @@ function collect_local_constraint_duals(
     constraint_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
     
     for i in eachindex(subproblems_local)
-        system = subproblems_local[i][:system_local]
-        period_index = system.time_data[:Electricity].period_index
+        subproblem = subproblems_local[i]
+        system = get_subproblem_output_system(subproblem)
+        period_index = get_subproblem_period_index(subproblem)
         
         for node in filter(n -> n isa Node, system.locations)
             # Find BalanceConstraint on this node

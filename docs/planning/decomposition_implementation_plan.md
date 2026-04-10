@@ -183,6 +183,18 @@ Planned work:
 - replace `deepcopy(system)` temporal decomposition with spec generation
 - build persistent temporal subproblem `ProblemInstance`s
 
+Status:
+
+- in progress
+
+Notes:
+
+- a general `problem_spec(...)` constructor now drives planning and temporal subproblem specs
+- planning problem construction now uses planning-period `ProblemInstance`s internally
+- temporal Benders subproblems are now built as persistent `ProblemInstance`s wrapped in a legacy adapter dict
+- the legacy adapter still exposes `:model`, `:linking_variables_sub`, `:subproblem_index`, and `:system_local` for solver and output compatibility
+- focused builder checks currently pass for planning problem generation and serial subproblem initialization on `test/test_small_case`
+
 Exit criteria:
 
 - planning problem is represented as a `ProblemInstance`

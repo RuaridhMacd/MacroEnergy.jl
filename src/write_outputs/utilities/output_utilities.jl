@@ -447,12 +447,29 @@ function find_available_filepath(filepath::AbstractString; max_attempts::Int=999
     return find_available_filepath(path, filename; max_attempts=max_attempts)
 end
 
+get_subproblem_problem_instance(subproblem::AbstractDict) = get(subproblem, :problem_instance, nothing)
+
+function get_subproblem_output_system(subproblem::AbstractDict)
+    if haskey(subproblem, :system_local)
+        return subproblem[:system_local]
+    end
+    error("Subproblem does not contain a :system_local output view.")
+end
+
+function get_subproblem_period_index(subproblem::AbstractDict)
+    instance = get_subproblem_problem_instance(subproblem)
+    if !isnothing(instance)
+        return get(instance.spec.metadata, :period_index, get_primary_time_data(instance.static_system).period_index)
+    end
+    return get_primary_time_data(get_subproblem_output_system(subproblem)).period_index
+end
+
 function get_local_expressions(optimal_getter::Function, subproblems_local::Vector{Dict{Any,Any}})
     @assert isdefined(MacroEnergy, Symbol(optimal_getter))
     n_local_subprob = length(subproblems_local)
     expr_df = Vector{DataFrame}(undef, n_local_subprob)
     for s in eachindex(subproblems_local)
-        expr_df[s] = optimal_getter(subproblems_local[s][:system_local])
+        expr_df[s] = optimal_getter(get_subproblem_output_system(subproblems_local[s]))
     end
     return expr_df
 end
