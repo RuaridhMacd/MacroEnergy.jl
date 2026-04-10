@@ -169,6 +169,12 @@ include("model/networks/asset.jl")
 include("model/system.jl")
 include("model/case.jl")
 include("model/networks/macroobject.jl")
+include("model/problems/static_system.jl")
+include("model/problems/problem_spec.jl")
+include("model/problems/local_state.jl")
+include("model/problems/update_map.jl")
+include("model/problems/reassembly_map.jl")
+include("model/problems/problem_instance.jl")
 include("model/optimizer.jl")
 include("model/generate_model.jl")
 include("model/retrofit.jl")
@@ -232,6 +238,7 @@ include_all_in_folder("load_inputs")
 include_all_in_folder("write_outputs/")
 
 export AbstractAsset,
+    AssetView,
     AbstractTypeConstraint,
     AgeBasedRetirementConstraint,
     AggregatedDemandConstraint,
@@ -279,6 +286,7 @@ export AbstractAsset,
     ElectricSteam,
     UpstreamEmissions,
     FuelCell,
+    full_problem_spec,
     DownstreamEmissions,
     ThermalHeating,
     ThermalSteam,
@@ -323,14 +331,19 @@ export AbstractAsset,
     NaturalGas,
     NaturalGasDAC,
     Node,
+    normalize_problem_spec,
     OperationConstraint,
     PlanningConstraint,
     PolicyConstraint,
+    ProblemInstance,
+    ProblemSpec,
     postprocess!,
     RampingLimitConstraint,
+    ReassemblyMap,
     run_case,
     solve_case,
     Steam,
+    StaticSystem,
     SteelScrap,
     Storage,
     StorageCapacityConstraint,
@@ -369,6 +382,7 @@ export AbstractAsset,
     template_location,
     template_asset,
     template_subcommodity,
+    UpdateMap,
     asset_ids,
     asset_ids_from_dir,
     list_examples,

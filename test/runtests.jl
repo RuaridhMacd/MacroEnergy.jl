@@ -30,6 +30,10 @@ with_logger(test_logger) do
     Test.@testset verbose = true "Benders Output Utilities" begin
         include("test_benders_output_utilities.jl")
     end
+
+    Test.@testset verbose = true "Problem Architecture" begin
+        include("test_problem_architecture.jl")
+    end
     
     Test.@testset verbose = true "Myopic Functionality" begin
         include("test_myopic.jl")
