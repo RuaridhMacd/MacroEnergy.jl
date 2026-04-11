@@ -113,21 +113,11 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         # Scaling factor to account for discounting duals in multi-period models
         var_cost_discount = compute_variable_cost_discount_scaling(period_idx, settings)
         if period.settings.DualExportsEnabled
-            # Move slack variables from subproblems to planning problem
-            if haskey(slack_vars, period_idx)
-                populate_slack_vars_from_subproblems!(period, slack_vars[period_idx])
-            else
-                @debug "No slack variables found for period $period_idx"
-            end
-            
-            # Calculate and store constraint duals from subproblems to planning problem
-            if haskey(balance_duals, period_idx)
-                populate_constraint_duals_from_subproblems!(period, balance_duals[period_idx], BalanceConstraint)
-            else
-                @debug "No balance constraint duals found for period $period_idx"
-            end
-            
-            write_duals(results_dir, period, var_cost_discount)
+            period_slack_vars = get(slack_vars, period_idx, Dict())
+            period_balance_duals = get(balance_duals, period_idx, Dict())
+
+            write_balance_duals(results_dir, period, period_balance_duals, var_cost_discount)
+            write_co2_cap_duals(results_dir, period, period_slack_vars, var_cost_discount)
         end
 
         # Full time series reconstruction (if enabled and TDR is used)
@@ -137,7 +127,8 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
                 nsd_df[subop_indices_period],
                 storage_level_df[subop_indices_period], 
                 curtailment_df[subop_indices_period];
-                var_cost_discount)
+                var_cost_discount,
+                balance_duals=get(balance_duals, period_idx, Dict()))
         end
     end
     	

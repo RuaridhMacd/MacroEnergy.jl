@@ -19,6 +19,7 @@ function generate_operation_subproblem(
     define_available_capacity!(instance, model)
 
     operation_model!(instance, model)
+    sync_problem_local_state!(instance)
 
     if include_subproblem_slacks == true
         @info("Adding slack variables to ensure subproblems are always feasible")
@@ -213,7 +214,6 @@ function initialize_local_subproblems!(problem_bundles_local::Vector,subproblems
         subproblems_local[i][:model] = subproblem;
         subproblems_local[i][:linking_variables_sub] = linking_variables_sub;
         subproblems_local[i][:subproblem_index] = local_indices[i];
-        subproblems_local[i][:system_local] = problem_bundles_local[i].system
         subproblems_local[i][:problem_instance] = problem_bundles_local[i].instance
     end
 end
@@ -455,6 +455,7 @@ function update_subproblem_solution!(subproblem::Dict{Any,Any}, planning_sol::Na
             compute_conflict!(subproblem[:model])
             error("Final subproblem resolve failed after applying in-place updates.")
         end
+        capture_problem_solution_values!(instance)
     else
         MacroEnergySolvers.solve_subproblem(
             subproblem[:model],
@@ -462,6 +463,9 @@ function update_subproblem_solution!(subproblem::Dict{Any,Any}, planning_sol::Na
             subproblem[:linking_variables_sub],
             true,
         )
+        if !isnothing(instance) && has_values(subproblem[:model])
+            capture_problem_solution_values!(instance)
+        end
     end
     return nothing
 end

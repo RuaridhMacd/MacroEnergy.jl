@@ -88,6 +88,104 @@ function initialize_local_state!(instance::ProblemInstance)
     return instance
 end
 
+function reset_local_state_payloads!(instance::ProblemInstance)
+    for state_dict in (
+        instance.node_state,
+        instance.unidirectional_edge_state,
+        instance.bidirectional_edge_state,
+        instance.unit_commitment_edge_state,
+        instance.transformation_state,
+        instance.storage_state,
+        instance.long_duration_storage_state,
+    )
+        for state in values(state_dict)
+            empty!(state.variables)
+            empty!(state.constraints)
+            empty!(state.expressions)
+            empty!(state.values)
+        end
+    end
+    return instance
+end
+
+function sync_problem_local_state!(instance::ProblemInstance)
+    reset_local_state_payloads!(instance)
+
+    for (idx, node) in zip(instance.spec.node_indices, selected_nodes(instance))
+        sync_node_local_state!(instance.node_state[idx], node)
+    end
+    for (idx, edge) in zip(instance.spec.unidirectional_edge_indices, selected_unidirectional_edges(instance))
+        sync_edge_local_state!(instance.unidirectional_edge_state[idx], edge)
+    end
+    for (idx, edge) in zip(instance.spec.bidirectional_edge_indices, selected_bidirectional_edges(instance))
+        sync_edge_local_state!(instance.bidirectional_edge_state[idx], edge)
+    end
+    for (idx, edge) in zip(instance.spec.unit_commitment_edge_indices, selected_unit_commitment_edges(instance))
+        sync_edge_local_state!(instance.unit_commitment_edge_state[idx], edge)
+    end
+    for (idx, transformation) in zip(instance.spec.transformation_indices, selected_transformations(instance))
+        sync_transformation_local_state!(instance.transformation_state[idx], transformation)
+    end
+    for (idx, storage) in zip(instance.spec.storage_indices, selected_storages(instance))
+        sync_storage_local_state!(instance.storage_state[idx], storage)
+    end
+    for (idx, storage) in zip(instance.spec.long_duration_storage_indices, selected_long_duration_storages(instance))
+        sync_storage_local_state!(instance.long_duration_storage_state[idx], storage)
+    end
+
+    return instance
+end
+
+function sync_node_local_state!(state::NodeLocalState, node::Node)
+    state.variables[:non_served_demand] = non_served_demand(node)
+    state.variables[:policy_budgeting_vars] = copy(policy_budgeting_vars(node))
+    state.variables[:policy_slack_vars] = copy(policy_slack_vars(node))
+    state.variables[:supply_flow] = supply_flow(node)
+    balance_constraint = get_constraint_by_type(node, BalanceConstraint)
+    if !isnothing(balance_constraint)
+        state.constraints[:balance_constraint] = balance_constraint
+    end
+    state.constraints[:policy_budgeting_constraints] = copy(policy_budgeting_constraints(node))
+    state.expressions[:operation_expr] = copy(node.operation_expr)
+    return state
+end
+
+function sync_edge_local_state!(state::EdgeLocalState, edge::AbstractEdge)
+    state.variables[:capacity] = capacity(edge)
+    state.variables[:new_capacity] = new_capacity(edge)
+    state.variables[:retired_capacity] = retired_capacity(edge)
+    state.variables[:retrofitted_capacity] = retrofitted_capacity(edge)
+    state.variables[:flow] = flow(edge)
+
+    if edge isa EdgeWithUC
+        state.variables[:ucommit] = ucommit(edge)
+        state.variables[:ustart] = ustart(edge)
+        state.variables[:ushut] = ushut(edge)
+    end
+
+    return state
+end
+
+function sync_transformation_local_state!(state::TransformationLocalState, transformation::Transformation)
+    state.expressions[:operation_expr] = copy(transformation.operation_expr)
+    return state
+end
+
+function sync_storage_local_state!(state::StorageLocalState, storage::AbstractStorage)
+    state.variables[:capacity] = capacity(storage)
+    state.variables[:new_capacity] = new_capacity(storage)
+    state.variables[:retired_capacity] = retired_capacity(storage)
+    state.variables[:storage_level] = storage_level(storage)
+    state.expressions[:operation_expr] = copy(storage.operation_expr)
+
+    if storage isa LongDurationStorage
+        state.variables[:storage_initial] = storage_initial(storage)
+        state.variables[:storage_change] = storage_change(storage)
+    end
+
+    return state
+end
+
 function initialize_reassembly_map!(instance::ProblemInstance)
     instance.reassembly_map = ReassemblyMap()
 
@@ -252,7 +350,7 @@ function build_temporal_subproblem_system(
     end
 
     return (
-        system = subproblem_system,
+        static_system = StaticSystem(subproblem_system),
         period_index = period_index,
         subperiod_index = subperiod_index,
         time_indices = collect(subperiod_interval),
@@ -269,9 +367,8 @@ function build_temporal_subproblem_bundles(case::Case)
         for subperiod_position in eachindex(primary_time_data.subperiods)
             subproblem_count += 1
             subproblem_data = build_temporal_subproblem_system(system, subperiod_position)
-            static_system = StaticSystem(subproblem_data.system)
             spec = problem_spec(
-                static_system;
+                subproblem_data.static_system;
                 id=Symbol(:subproblem_, subproblem_count),
                 role=:temporal_subproblem,
                 time_indices=subproblem_data.time_indices,
@@ -283,14 +380,13 @@ function build_temporal_subproblem_bundles(case::Case)
                 ),
             )
             instance = build_problem_instance(
-                static_system,
+                subproblem_data.static_system,
                 spec;
                 id=Symbol(:subproblem_, subproblem_count),
             )
             push!(
                 bundles,
                 (
-                    system = subproblem_data.system,
                     instance = instance,
                     period_index = period_idx,
                     subproblem_index = subproblem_count,
@@ -575,6 +671,8 @@ function populate_planning_problem!(
 
     add_feasibility_constraints!(instance, model)
 
+    sync_problem_local_state!(instance)
+
     return nothing
 end
 
@@ -582,6 +680,7 @@ function populate_operation_problem!(instance::ProblemInstance, model::Model)
     add_linking_variables!(instance, model)
     define_available_capacity!(instance, model)
     operation_model!(instance, model)
+    sync_problem_local_state!(instance)
     return nothing
 end
 
@@ -674,6 +773,7 @@ function populate_problem_model!(
     populate_planning_problem!(instance, model; period_idx)
     @info(" -- Generating operational model")
     operation_model!(instance, model)
+    sync_problem_local_state!(instance)
 
     return nothing
 end

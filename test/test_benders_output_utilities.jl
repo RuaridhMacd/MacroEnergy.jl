@@ -3,17 +3,22 @@ module TestBendersOutputUtilities
 using Test
 using JuMP
 using HiGHS
+using CSV
+using DataFrames
 using MacroEnergy
 
 import MacroEnergy: densearray_to_dict, dict_to_densearray
 import MacroEnergy: collect_local_slack_vars, collect_local_constraint_duals
+import MacroEnergy: extract_subproblem_results
 import MacroEnergy: populate_slack_vars_from_subproblems!, populate_constraint_duals_from_subproblems!
 import MacroEnergy: merge_distributed_slack_vars_dicts, merge_distributed_balance_duals
-import MacroEnergy: BalanceConstraint
+import MacroEnergy: AssetView, Battery, VRE, UnidirectionalEdge, Storage
+import MacroEnergy: BalanceConstraint, CO2CapConstraint
 import MacroEnergy: build_problem_instance
 import MacroEnergy: empty_system
 import MacroEnergy: ProblemInstance, StaticSystem, get_first_reassembly_slice, problem_spec
 import MacroEnergy: Node, Electricity, TimeData, System
+import MacroEnergy: write_balance_duals, write_co2_cap_duals
 
 function test_benders_output_utilities()
 
@@ -251,6 +256,86 @@ function test_benders_output_utilities()
             @test haskey(merged, 1)
             @test merged[1][:node1][:demand][1] == -10.0
         end
+    end
+
+    @testset "Subproblem Results Reassembly" begin
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+
+        timedata = TimeData{Electricity}(;
+            time_interval = 1:2,
+            hours_per_timestep = 1,
+            period_index = 1,
+            subperiods = [1:2],
+            subperiod_indices = [1],
+            subperiod_weights = Dict(1 => 1.0),
+            subperiod_map = Dict(1 => 1),
+        )
+
+        start_node = Node{Electricity}(id=:start_node, timedata=timedata)
+        end_node = Node{Electricity}(id=:end_node, timedata=timedata)
+
+        @variable(model, flow_var[t in 1:2] >= 0)
+        @variable(model, cap_var >= 0)
+        @variable(model, storage_level_var[t in 1:2] >= 0)
+        @constraint(model, [t in 1:2], flow_var[t] == [1.0, 2.0][t])
+        @constraint(model, cap_var == 5.0)
+        @constraint(model, [t in 1:2], storage_level_var[t] == [3.0, 4.0][t])
+        @objective(model, Min, cap_var + sum(flow_var) + sum(storage_level_var))
+        optimize!(model)
+
+        edge = UnidirectionalEdge{Electricity}(
+            id = :vre_edge,
+            timedata = timedata,
+            start_vertex = start_node,
+            end_vertex = end_node,
+            flow = flow_var,
+            capacity = cap_var,
+            availability = [0.5, 0.75],
+        )
+        storage = Storage{Electricity}(
+            id = :battery_storage,
+            timedata = timedata,
+            storage_level = storage_level_var,
+        )
+
+        static_system = StaticSystem(
+            settings = (OutputLayout = "long",),
+            time_data = Dict(:Electricity => timedata),
+            nodes = [start_node, end_node],
+            unidirectional_edges = [edge],
+            storages = [storage],
+            assets = [
+                AssetView(id = :vre_asset, asset_type = VRE, unidirectional_edge_indices = [1]),
+                AssetView(id = :battery_asset, asset_type = Battery, storage_indices = [1]),
+            ],
+        )
+
+        instance = build_problem_instance(
+            static_system,
+            problem_spec(
+                static_system;
+                id = :reassembly_test,
+                time_indices = [10, 20],
+            ),
+        )
+
+        results = extract_subproblem_results(instance)
+
+        @test sort(unique(results.flows.time)) == [10, 20]
+        @test sort(unique(results.storage_levels.time)) == [10, 20]
+        @test sort(unique(results.curtailment.time)) == [10, 20]
+
+        flow_by_time = Dict(row.time => row.value for row in eachrow(results.flows))
+        storage_by_time = Dict(row.time => row.value for row in eachrow(results.storage_levels))
+        curtailment_by_time = Dict(row.time => row.value for row in eachrow(results.curtailment))
+
+        @test flow_by_time[10] == 1.0
+        @test flow_by_time[20] == 2.0
+        @test storage_by_time[10] == 3.0
+        @test storage_by_time[20] == 4.0
+        @test curtailment_by_time[10] ≈ 1.5
+        @test curtailment_by_time[20] ≈ 1.75
     end
     
     @testset "Local Slack Variables Collection" begin
@@ -871,6 +956,69 @@ function test_benders_output_utilities()
             
             # Should throw error because node does not exist in the system
             @test_throws ErrorException populate_slack_vars_from_subproblems!(planning_system, slack_vars_dict)
+        end
+    end
+
+    @testset "Direct Dual Writers" begin
+
+        @testset "Write Benders Dual Outputs Without System Mutation" begin
+            model = Model(HiGHS.Optimizer)
+            set_silent(model)
+
+            @variable(model, x[t in 1:2] >= 0)
+            @constraint(model, balance[t in 1:2], x[t] == 1.0)
+            @variable(model, co2_slack[w in 1:2] >= 0)
+            @constraint(model, co2_budget, sum(co2_slack[w] for w in 1:2) <= 5.0)
+            @objective(model, Min, sum(x) + sum(co2_slack))
+            optimize!(model)
+
+            timedata = TimeData{Electricity}(;
+                time_interval = 1:2,
+                hours_per_timestep = 1,
+                period_index = 1,
+                subperiods = [1:1, 2:2],
+                subperiod_indices = [1, 2],
+                subperiod_weights = Dict(1 => 2.0, 2 => 3.0),
+                subperiod_map = Dict(1 => 1, 2 => 2),
+            )
+
+            node = Node{Electricity}(
+                id = :direct_dual_node,
+                timedata = timedata,
+                price_unmet_policy = Dict{DataType,Float64}(CO2CapConstraint => 100.0),
+                policy_budgeting_constraints = Dict{DataType,Any}(CO2CapConstraint => co2_budget),
+            )
+            node.constraints = [BalanceConstraint(
+                constraint_ref = Dict(:demand => balance),
+                constraint_dual = missing,
+            )]
+
+            system = empty_system("direct_dual_system")
+            system.time_data = Dict(:Electricity => timedata)
+            system.locations = [node]
+
+            collected_balance_duals = Dict(
+                :direct_dual_node => Dict(:demand => Dict(1 => dual(balance[1]), 2 => dual(balance[2]))),
+            )
+            collected_slack_vars = Dict(
+                (:direct_dual_node, Symbol(string(CO2CapConstraint) * "_Slack")) =>
+                    Dict(1 => value(co2_slack[1]), 2 => value(co2_slack[2])),
+            )
+
+            outdir = mktempdir()
+            write_balance_duals(outdir, system, collected_balance_duals, 1.0)
+            write_co2_cap_duals(outdir, system, collected_slack_vars, 1.0)
+
+            balance_df = CSV.read(joinpath(outdir, "balance_duals.csv"), DataFrame)
+            co2_df = CSV.read(joinpath(outdir, "co2_cap_duals.csv"), DataFrame)
+
+            @test names(balance_df) == ["direct_dual_node"]
+            @test balance_df[1, 1] == dual(balance[1]) / 2.0
+            @test balance_df[2, 1] == dual(balance[2]) / 3.0
+
+            @test co2_df.Node == ["direct_dual_node"]
+            @test co2_df.CO2_Shadow_Price[1] == -dual(co2_budget)
+            @test co2_df.CO2_Slack[1] == 0.0
         end
     end
     

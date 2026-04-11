@@ -11,6 +11,7 @@ import MacroEnergy:
     build_planning_problem_instances,
     build_temporal_subproblem_bundles,
     Case,
+    create_named_problem_model,
     ProblemInstance,
     StaticSystem,
     full_problem_spec,
@@ -24,7 +25,9 @@ import MacroEnergy:
     initialize_subproblems!,
     load_case,
     normalize_problem_spec,
+    populate_planning_problem!,
     problem_spec
+import MacroEnergy: update_subproblem_solution!
 
 function test_problem_architecture()
     case = load_case(joinpath(@__DIR__, "test_small_case"))
@@ -100,7 +103,7 @@ function test_problem_architecture()
     @test subproblem_bundles[1].instance isa ProblemInstance
     @test subproblem_bundles[1].instance.spec.role == :temporal_subproblem
     @test subproblem_bundles[1].instance.spec.metadata[:subproblem_index] == 1
-    @test subproblem_bundles[1].system isa typeof(case.systems[1])
+    @test !haskey(subproblem_bundles[1], :system)
 
     planning_problem = generate_planning_problem(case)
     missing_planning_names = [
@@ -123,6 +126,7 @@ function test_problem_architecture()
     @test isempty(missing_subproblem_names)
 
     first_subproblem = first(subproblems)
+    @test !haskey(first_subproblem, :system_local)
     first_instance = first_subproblem[:problem_instance]
     initial_fix_updates = fix_update_instructions(first_instance.update_map)
     @test length(initial_fix_updates) == length(first_subproblem[:linking_variables_sub])
@@ -138,6 +142,40 @@ function test_problem_architecture()
     apply_planning_solution!(first_instance, planning_values_2)
     @test objectid(first_subproblem[:model]) == initial_model_id
     @test all(fix_value(instruction.ref) == 1.0 for instruction in initial_fix_updates)
+
+    update_subproblem_solution!(first_subproblem, (values=planning_values_2,))
+    @test any(haskey(state.values, :flow) for state in values(first_instance.unidirectional_edge_state)) ||
+          any(haskey(state.values, :flow) for state in values(first_instance.bidirectional_edge_state)) ||
+          any(haskey(state.values, :flow) for state in values(first_instance.unit_commitment_edge_state))
+    @test any(haskey(state.values, :balance_dual) for state in values(first_instance.node_state))
+
+    planning_model = generate_planning_problem(case)
+    @test planning_model isa Model
+    populated_planning_instance = build_planning_problem_instances(case)[1]
+    populated_planning_model = create_named_problem_model(populated_planning_instance)
+    @variable(populated_planning_model, vREF == 1)
+    populated_planning_model[:eFixedCost] = AffExpr(0.0)
+    populated_planning_model[:eInvestmentFixedCost] = AffExpr(0.0)
+    populated_planning_model[:eOMFixedCost] = AffExpr(0.0)
+    populate_planning_problem!(populated_planning_instance, populated_planning_model; period_idx=1)
+    @test any(
+        state -> haskey(state.variables, :capacity) || haskey(state.variables, :new_capacity),
+        values(populated_planning_instance.unidirectional_edge_state),
+    ) ||
+    any(
+        state -> haskey(state.variables, :capacity) || haskey(state.variables, :new_capacity),
+        values(populated_planning_instance.storage_state),
+    ) ||
+    any(
+        state -> haskey(state.variables, :capacity) || haskey(state.variables, :new_capacity),
+        values(populated_planning_instance.long_duration_storage_state),
+    )
+
+    @test any(haskey(state.variables, :flow) for state in values(first_instance.unidirectional_edge_state)) ||
+          any(haskey(state.variables, :flow) for state in values(first_instance.bidirectional_edge_state)) ||
+          any(haskey(state.variables, :flow) for state in values(first_instance.unit_commitment_edge_state))
+    @test any(haskey(state.expressions, :operation_expr) for state in values(first_instance.node_state))
+    @test any(haskey(state.constraints, :balance_constraint) for state in values(first_instance.node_state))
 end
 
 @testset "Problem Architecture" begin

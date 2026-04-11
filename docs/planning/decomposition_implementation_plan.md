@@ -287,6 +287,9 @@ Notes:
 - slack-variable and balance-dual collection no longer require `:system_local` if `:problem_instance` is present
 - `ProblemInstance` build now populates `ReassemblyMap` slices for selected components
 - node-level slack and balance-dual collection now uses `ReassemblyMap` to remap local time indices back to global time indices
+- operational subproblem result extraction for flows, storage levels, non-served demand, and curtailment now uses `ProblemInstance` plus `ReassemblyMap`
+- active initialized Benders subproblem dicts no longer carry `:system_local`; the legacy field remains supported only as a fallback for older tests and compatibility helpers
+- temporal subproblem bundles no longer carry the copied subproblem `System` wrapper; the active path keeps only `ProblemInstance` plus metadata
 - full global result reconstruction still needs explicit `ReassemblyMap` usage before this stage can be considered complete
 
 ### Stage 6: Reduce Reliance On Shared Component-Owned Solve State
@@ -309,6 +312,10 @@ Planned work:
 - keep static component objects shared across problems
 - retain compatibility shims where needed during transition
 
+Status:
+
+- in progress
+
 Exit criteria:
 
 - shared static objects no longer need to own one live JuMP state
@@ -317,6 +324,14 @@ Exit criteria:
 Risks:
 
 - this is the most invasive stage and should only happen after monolithic and temporal Benders are stable on the new architecture
+
+Notes:
+
+- `ProblemInstance` population now synchronizes currently-built JuMP refs and expressions into local state dictionaries
+- temporal subproblem generation now performs that local-state sync after operation model construction
+- the next target is to consume that local state from internal result-reconstruction paths instead of reading exclusively from legacy component fields
+- persistent subproblem re-solves now capture solved numeric outputs back into `ProblemInstance` local-state value stores
+- Benders-side operational extraction and local slack/dual collection now prefer those cached local-state values when present
 
 ## Compatibility Strategy
 

@@ -458,7 +458,7 @@ function get_subproblem_output_system(subproblem::AbstractDict)
     if haskey(subproblem, :system_local)
         return subproblem[:system_local]
     end
-    error("Subproblem does not contain a :system_local output view.")
+    error("Subproblem does not contain a legacy :system_local output view.")
 end
 
 function get_subproblem_output_nodes(subproblem::AbstractDict)

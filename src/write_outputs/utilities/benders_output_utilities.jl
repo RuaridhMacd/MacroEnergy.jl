@@ -81,7 +81,7 @@ function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1
     @sync for i in 1:np_id
         @async result_chunks[i] = @fetchfrom p_id[i] begin
             local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
-            [extract_subproblem_results(get_subproblem_output_source(sp); scaling=scaling) for sp in local_subproblems]
+            [extract_subproblem_results(sp; scaling=scaling) for sp in local_subproblems]
         end
     end
 
@@ -98,8 +98,7 @@ function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
     results = SubproblemsData(n)
 
     for i in eachindex(bd_results.op_subproblem)
-        output_source = get_subproblem_output_source(bd_results.op_subproblem[i])
-        results[i] = extract_subproblem_results(output_source; scaling)
+        results[i] = extract_subproblem_results(bd_results.op_subproblem[i]; scaling)
     end
 
     return results
@@ -287,6 +286,251 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
     )
 end
 
+function extract_subproblem_results(subproblem::AbstractDict; scaling::Float64=1.0)
+    instance = get_subproblem_problem_instance(subproblem)
+    if !isnothing(instance)
+        return extract_subproblem_results(instance; scaling)
+    end
+    return extract_subproblem_results(get_subproblem_output_source(subproblem); scaling)
+end
+
+function extract_subproblem_results(instance::ProblemInstance; scaling::Float64=1.0)
+    static_system = instance.static_system
+    edges, edge_asset_map = get_edges(static_system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(static_system, return_ids_map=true)
+    nodes_with_costs = filter(get_nodes(static_system)) do n
+        !isempty(non_served_demand(n)) ||
+        !isempty(supply_segments(n)) ||
+        !isempty(policy_slack_vars(n))
+    end
+
+    flow_dfs = DataFrame[]
+    cost_rows = NamedTuple{(:zone, :type, :category, :value),Tuple{String,String,Symbol,Float64}}[]
+    attributed_fuel_cost_by_node = Dict{Symbol,Float64}()
+
+    for e in edges
+        edge_state = maybe_get_local_state(instance, e)
+        flow_payload = get_local_state_payload(edge_state, :flow, flow(e))
+        zone = get_zone_name(e)
+        asset_type = haskey(edge_asset_map, id(e)) ? get_type(edge_asset_map[id(e)]) : get_type(e)
+
+        push!(
+            flow_dfs,
+            extract_reassembled_flow(
+                e,
+                flow_payload,
+                get_problem_instance_component_reassembly_slice(instance, e),
+                scaling,
+                edge_asset_map,
+            ),
+        )
+
+        vom_cost = compute_variable_om_cost(e, edge_state)
+        fuel_cost = compute_fuel_cost(e, edge_state)
+        startup_cost_val = compute_startup_cost(e, edge_state)
+
+        if fuel_cost > 0 && isa(start_vertex(e), Node)
+            source_node = start_vertex(e)
+            attributed_fuel_cost_by_node[id(source_node)] = get(attributed_fuel_cost_by_node, id(source_node), 0.0) + fuel_cost
+        end
+
+        vom_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:VariableOM, value=vom_cost * scaling^2))
+        fuel_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Fuel, value=fuel_cost * scaling^2))
+        startup_cost_val > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Startup, value=startup_cost_val * scaling^2))
+    end
+
+    flows_df = isempty(flow_dfs) ? DataFrame() : reduce(vcat, flow_dfs)
+    storage_level_dfs = [
+        extract_reassembled_storage_level(
+            storage,
+            begin
+                storage_state = maybe_get_local_state(instance, storage)
+                get_local_state_payload(storage_state, :storage_level, storage_level(storage))
+            end,
+            get_problem_instance_component_reassembly_slice(instance, storage),
+            scaling,
+            storage_asset_map,
+        ) for storage in storages
+    ]
+    storage_levels_df = isempty(storage_level_dfs) ? DataFrame() : reduce(vcat, filter(!isempty, storage_level_dfs); init=DataFrame())
+
+    nsd_dfs = DataFrame[]
+    for node in nodes_with_costs
+        node_state = maybe_get_local_state(instance, node)
+        nsd_payload = get_local_state_payload(node_state, :non_served_demand, non_served_demand(node))
+        zone = get_zone_name(node)
+        node_type = get_type(node)
+
+        push!(
+            nsd_dfs,
+            extract_reassembled_non_served_demand(
+                node,
+                nsd_payload,
+                get_problem_instance_component_reassembly_slice(instance, node),
+                scaling,
+            ),
+        )
+
+        nsd_cost = isnothing(node_state) ? compute_nsd_cost(node) : compute_nsd_cost(node, node_state)
+        nsd_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:NonServedDemand, value=nsd_cost * scaling^2))
+
+        supply_cost = isnothing(node_state) ?
+            compute_residual_supply_cost(node, get(attributed_fuel_cost_by_node, id(node), 0.0)) :
+            compute_residual_supply_cost(node, node_state, get(attributed_fuel_cost_by_node, id(node), 0.0))
+        supply_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:Supply, value=supply_cost * scaling^2))
+
+        slack_cost = isnothing(node_state) ? compute_slack_cost(node) : compute_slack_cost(node, node_state)
+        slack_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:UnmetPolicyPenalty, value=slack_cost * scaling^2))
+    end
+    nsd_df = isempty(nsd_dfs) ? DataFrame() : reduce(vcat, filter(!isempty, nsd_dfs); init=DataFrame())
+
+    operational_costs_df = isempty(cost_rows) ?
+                           DataFrame(zone=String[], type=String[], category=Symbol[], value=Float64[]) :
+                           DataFrame(cost_rows)
+
+    curtailment_dfs = [
+        extract_reassembled_curtailment(
+            edge,
+            begin
+                edge_state = maybe_get_local_state(instance, edge)
+                get_local_state_payload(edge_state, :capacity, capacity(edge))
+            end,
+            begin
+                edge_state = maybe_get_local_state(instance, edge)
+                get_local_state_payload(edge_state, :flow, flow(edge))
+            end,
+            get_problem_instance_component_reassembly_slice(instance, edge),
+            scaling,
+            edge_asset_map,
+        ) for edge in edges
+        if haskey(edge_asset_map, id(edge)) && edge_asset_map[id(edge)].asset_type == VRE
+    ]
+    curtailment_df = isempty(curtailment_dfs) ? DataFrame() : reduce(vcat, filter(!isempty, curtailment_dfs); init=DataFrame())
+
+    return (
+        flows=flows_df,
+        storage_levels=storage_levels_df,
+        nsd=nsd_df,
+        curtailment=curtailment_df,
+        operational_costs=operational_costs_df
+    )
+end
+
+function get_local_state_payload(state::Union{Nothing,AbstractLocalState}, key::Symbol, fallback)
+    isnothing(state) && return fallback
+    if haskey(state.values, key)
+        return state.values[key]
+    end
+    return get(state.variables, key, fallback)
+end
+
+payload_scalar_value(payload) = payload isa Number ? Float64(payload) : Float64(value(payload))
+payload_entry_value(payload, indices...) =
+    begin
+        entry = payload[indices...]
+        entry isa Number ? Float64(entry) : Float64(value(entry))
+    end
+
+function compute_variable_om_cost(edge::AbstractEdge, state::EdgeLocalState)::Float64
+    flow_payload = get_local_state_payload(state, :flow, nothing)
+    isnothing(flow_payload) && return compute_variable_om_cost(edge)
+    variable_om_cost(edge) <= 0 && return 0.0
+
+    vom_cost = 0.0
+    for t in time_interval(edge)
+        w = current_subperiod(edge, t)
+        vom_cost += subperiod_weight(edge, w) * variable_om_cost(edge) * payload_entry_value(flow_payload, t)
+    end
+    return vom_cost
+end
+
+function compute_fuel_cost(edge::AbstractEdge, state::EdgeLocalState)::Float64
+    flow_payload = get_local_state_payload(state, :flow, nothing)
+    isnothing(flow_payload) && return compute_fuel_cost(edge)
+    !isa(start_vertex(edge), Node) && return 0.0
+    source_node = start_vertex(edge)
+    isempty(supply_segments(source_node)) && return 0.0
+    isempty(price(source_node)) && return 0.0
+
+    fuel_cost = 0.0
+    for t in time_interval(edge)
+        w = current_subperiod(edge, t)
+        fuel_cost += subperiod_weight(edge, w) * price(source_node, t) * payload_entry_value(flow_payload, t)
+    end
+    return fuel_cost
+end
+
+function compute_startup_cost(edge::EdgeWithUC, state::EdgeLocalState)::Float64
+    ustart_payload = get_local_state_payload(state, :ustart, nothing)
+    isnothing(ustart_payload) && return compute_startup_cost(edge)
+    startup_cost(edge) <= 0 && return 0.0
+
+    startup_cost_val = 0.0
+    for t in time_interval(edge)
+        w = current_subperiod(edge, t)
+        startup_cost_val += subperiod_weight(edge, w) * startup_cost(edge) * capacity_size(edge) * payload_entry_value(ustart_payload, t)
+    end
+    return startup_cost_val
+end
+compute_startup_cost(edge::AbstractEdge, state::EdgeLocalState)::Float64 = compute_startup_cost(edge)
+
+function compute_nsd_cost(node::Node, state::NodeLocalState)::Float64
+    nsd_payload = get_local_state_payload(state, :non_served_demand, nothing)
+    (isnothing(nsd_payload) || isempty(nsd_payload)) && return compute_nsd_cost(node)
+
+    nsd_cost = 0.0
+    for t in time_interval(node)
+        w = current_subperiod(node, t)
+        for s in segments_non_served_demand(node)
+            nsd_cost += subperiod_weight(node, w) * price_non_served_demand(node, s) * payload_entry_value(nsd_payload, s, t)
+        end
+    end
+    return nsd_cost
+end
+
+function compute_supply_cost(node::Node, state::NodeLocalState)::Float64
+    supply_flow_payload = get_local_state_payload(state, :supply_flow, nothing)
+    (isnothing(supply_flow_payload) || isempty(supply_flow_payload)) && return compute_supply_cost(node)
+    isempty(supply_segments(node)) && return 0.0
+
+    supply_cost = 0.0
+    for t in time_interval(node)
+        w = current_subperiod(node, t)
+        for s in supply_segments(node)
+            supply_cost += subperiod_weight(node, w) * price_supply(node, s, t) * payload_entry_value(supply_flow_payload, s, t)
+        end
+    end
+    return supply_cost
+end
+
+function compute_residual_supply_cost(
+    node::Node,
+    state::NodeLocalState,
+    attributed_fuel_cost::Float64=0.0,
+)::Float64
+    total_supply_cost = compute_supply_cost(node, state)
+    residual_supply_cost = total_supply_cost - attributed_fuel_cost
+    tolerance = 1e-6 * max(abs(total_supply_cost), abs(attributed_fuel_cost), 1.0)
+    return abs(residual_supply_cost) <= tolerance ? 0.0 : residual_supply_cost
+end
+
+function compute_slack_cost(node::Node, state::NodeLocalState)::Float64
+    slack_vars_dict = get(state.values, :policy_slack_vars, get(state.variables, :policy_slack_vars, nothing))
+    isnothing(slack_vars_dict) && return compute_slack_cost(node)
+
+    slack_cost = 0.0
+    for (ct_type, penalty_price) in price_unmet_policy(node)
+        slack_var_key = Symbol(string(ct_type) * "_Slack")
+        if haskey(slack_vars_dict, slack_var_key)
+            slack_vars = slack_vars_dict[slack_var_key]
+            for w in subperiod_indices(node)
+                slack_cost += subperiod_weight(node, w) * penalty_price * payload_entry_value(slack_vars, w)
+            end
+        end
+    end
+    return slack_cost
+end
+
 function extract_subproblem_results(static_system::StaticSystem; scaling::Float64=1.0)
     edges, edge_asset_map = get_edges(static_system, return_ids_map=true)
     storages, storage_asset_map = get_storages(static_system, return_ids_map=true)
@@ -353,6 +597,122 @@ function extract_subproblem_results(static_system::StaticSystem; scaling::Float6
         nsd=nsd_df,
         curtailment=curtailment_df,
         operational_costs=operational_costs_df
+    )
+end
+
+function extract_reassembled_flow(
+    edge::AbstractEdge,
+    flow_payload,
+    slice::Union{Nothing,ReassemblySlice},
+    scaling::Float64,
+    edge_asset_map::AbstractDict,
+)
+    output_time_indices, local_time_indices = get_reassembled_time_axes(slice, edge)
+    flow_sign = get_flow_sign(edge)
+    resource_id = haskey(edge_asset_map, id(edge)) ? get_resource_id(edge, edge_asset_map) : get_component_id(edge)
+    resource_type = haskey(edge_asset_map, id(edge)) ? get_type(edge_asset_map[id(edge)]) : get_type(edge)
+
+    return DataFrame(
+        case_name = fill(missing, length(output_time_indices)),
+        commodity = fill(get_commodity_name(edge), length(output_time_indices)),
+        node_in = fill(get_node_in(edge), length(output_time_indices)),
+        node_out = fill(get_node_out(edge), length(output_time_indices)),
+        resource_id = fill(resource_id, length(output_time_indices)),
+        component_id = fill(get_component_id(edge), length(output_time_indices)),
+        resource_type = fill(resource_type, length(output_time_indices)),
+        component_type = fill(get_type(edge), length(output_time_indices)),
+        variable = :flow,
+        year = fill(missing, length(output_time_indices)),
+        time = output_time_indices,
+        value = [payload_entry_value(flow_payload, t) * scaling * flow_sign for t in local_time_indices],
+    )
+end
+
+function extract_reassembled_storage_level(
+    storage::AbstractStorage,
+    storage_level_payload,
+    slice::Union{Nothing,ReassemblySlice},
+    scaling::Float64,
+    storage_asset_map::AbstractDict,
+)
+    output_time_indices, local_time_indices = get_reassembled_time_axes(slice, storage)
+    resource_id = haskey(storage_asset_map, id(storage)) ? get_resource_id(storage, storage_asset_map) : id(storage)
+    resource_type = haskey(storage_asset_map, id(storage)) ? get_type(storage_asset_map[id(storage)]) : get_type(storage)
+
+    return DataFrame(
+        case_name = fill(missing, length(output_time_indices)),
+        commodity = fill(get_commodity_name(storage), length(output_time_indices)),
+        zone = fill(get_zone_name(storage), length(output_time_indices)),
+        resource_id = fill(resource_id, length(output_time_indices)),
+        component_id = fill(id(storage), length(output_time_indices)),
+        resource_type = fill(resource_type, length(output_time_indices)),
+        component_type = fill(get_type(storage), length(output_time_indices)),
+        variable = fill(:storage_level, length(output_time_indices)),
+        year = fill(missing, length(output_time_indices)),
+        time = output_time_indices,
+        value = Float64[payload_entry_value(storage_level_payload, t) * scaling for t in local_time_indices],
+    )
+end
+
+function extract_reassembled_non_served_demand(
+    node::Node,
+    nsd_payload,
+    slice::Union{Nothing,ReassemblySlice},
+    scaling::Float64,
+)
+    (isnothing(nsd_payload) || isempty(nsd_payload)) && return DataFrame()
+
+    output_time_indices, local_time_indices = get_reassembled_time_axes(slice, node)
+    num_segments = length(segments_non_served_demand(node))
+    total_rows = num_segments * length(output_time_indices)
+
+    return DataFrame(
+        case_name = fill(missing, total_rows),
+        commodity = fill(get_commodity_name(node), total_rows),
+        zone = fill(get_zone_name(node), total_rows),
+        component_id = fill(id(node), total_rows),
+        component_type = fill(get_type(node), total_rows),
+        variable = fill(:non_served_demand, total_rows),
+        year = fill(missing, total_rows),
+        segment = Int[s for s in 1:num_segments for _ in output_time_indices],
+        time = Int[t for _ in 1:num_segments for t in output_time_indices],
+        value = Float64[
+            payload_entry_value(nsd_payload, s, t_local) * scaling
+            for s in 1:num_segments for t_local in local_time_indices
+        ],
+    )
+end
+
+function extract_reassembled_curtailment(
+    edge::AbstractEdge,
+    capacity_payload,
+    flow_payload,
+    slice::Union{Nothing,ReassemblySlice},
+    scaling::Float64,
+    edge_asset_map::AbstractDict,
+)
+    output_time_indices, local_time_indices = get_reassembled_time_axes(slice, edge)
+    cap_val = payload_scalar_value(capacity_payload)
+    curtailment_values = Float64[
+        max(0.0, cap_val * availability(edge, t) - payload_entry_value(flow_payload, t)) * scaling
+        for t in local_time_indices
+    ]
+
+    resource_id = haskey(edge_asset_map, id(edge)) ? get_resource_id(edge, edge_asset_map) : get_component_id(edge)
+    resource_type = haskey(edge_asset_map, id(edge)) ? get_type(edge_asset_map[id(edge)]) : get_type(edge)
+
+    return DataFrame(
+        case_name = fill(missing, length(output_time_indices)),
+        commodity = fill(get_commodity_name(edge), length(output_time_indices)),
+        zone = fill(get_zone_name(edge), length(output_time_indices)),
+        resource_id = fill(resource_id, length(output_time_indices)),
+        component_id = fill(get_component_id(edge), length(output_time_indices)),
+        resource_type = fill(resource_type, length(output_time_indices)),
+        component_type = fill(get_type(edge), length(output_time_indices)),
+        variable = fill(:curtailment, length(output_time_indices)),
+        year = fill(missing, length(output_time_indices)),
+        time = output_time_indices,
+        value = curtailment_values,
     )
 end
 
@@ -476,13 +836,19 @@ function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
     for i in eachindex(subproblems_local)
         subproblem = subproblems_local[i]
         period_index = get_subproblem_period_index(subproblem)
+        instance = get_subproblem_problem_instance(subproblem)
         for node in get_subproblem_output_nodes(subproblem)
-            for slack_vars_key in keys(policy_slack_vars(node))
+            node_state = isnothing(instance) ? nothing : maybe_get_local_state(instance, node)
+            node_slack_vars = isnothing(node_state) ?
+                policy_slack_vars(node) :
+                get(node_state.values, :policy_slack_vars, get(node_state.variables, :policy_slack_vars, policy_slack_vars(node)))
+
+            for slack_vars_key in keys(node_slack_vars)
                 # Create tuple key with (node_id, slack_vars_key) to keep track of the metadata
                 key = (node.id, slack_vars_key)
                 
                 # Convert DenseAxisArray to Dict before assigning to the period_dict
-                slack_array = policy_slack_vars(node)[slack_vars_key]
+                slack_array = node_slack_vars[slack_vars_key]
                 axis_dict = densearray_to_dict(slack_array)
                 
                 # Ensure period_index dict exists
@@ -643,20 +1009,29 @@ function collect_local_constraint_duals(
     for i in eachindex(subproblems_local)
         subproblem = subproblems_local[i]
         period_index = get_subproblem_period_index(subproblem)
+        instance = get_subproblem_problem_instance(subproblem)
         
         for node in get_subproblem_output_nodes(subproblem)
             # Find BalanceConstraint on this node
-            constraint = get_constraint_by_type(node, BalanceConstraint)
+            node_state = isnothing(instance) ? nothing : maybe_get_local_state(instance, node)
+            cached_duals = isnothing(node_state) ? nothing : get(node_state.values, :balance_dual, nothing)
+            constraint = isnothing(node_state) ?
+                get_constraint_by_type(node, BalanceConstraint) :
+                get(
+                    node_state.constraints,
+                    :balance_constraint,
+                    get_constraint_by_type(node, BalanceConstraint),
+                )
             isnothing(constraint) && continue
             ismissing(constraint.constraint_ref) && continue
             
             # Extract dual values if not already extracted
-            if ismissing(constraint_dual(constraint))
+            if isnothing(cached_duals) && ismissing(constraint_dual(constraint))
                 set_constraint_dual!(constraint, node)
             end
             
             # Get the dictionary of dual values for all balance equations
-            duals_dict = constraint_dual(constraint)
+            duals_dict = isnothing(cached_duals) ? constraint_dual(constraint) : cached_duals
             ismissing(duals_dict) && continue
             
             # Ensure period and node dicts exist

@@ -356,7 +356,8 @@ function write_full_timeseries(
     results_dir::AbstractString, system::System,
     flow_dfs::Vector{DataFrame}, nsd_dfs::Vector{DataFrame},
     storage_dfs::Vector{DataFrame}, curtailment_dfs::Vector{DataFrame};
-    var_cost_discount::Float64=1.0
+    var_cost_discount::Float64=1.0,
+    balance_duals::AbstractDict=Dict()
 )
     if !has_tdr(system)
         @warn "Skipping full time series reconstruction: no period map detected."
@@ -373,7 +374,16 @@ function write_full_timeseries(
 
     # Balance duals (only when dual exports are enabled)
     if system.settings.DualExportsEnabled
-        write_balance_duals_full_timeseries(joinpath(fullts_dir, "balance_duals.csv"), system, var_cost_discount)
+        if isempty(balance_duals)
+            write_balance_duals_full_timeseries(joinpath(fullts_dir, "balance_duals.csv"), system, var_cost_discount)
+        else
+            write_balance_duals_full_timeseries(
+                joinpath(fullts_dir, "balance_duals.csv"),
+                system,
+                balance_duals,
+                var_cost_discount,
+            )
+        end
     end
 
     return nothing
@@ -563,6 +573,33 @@ function write_balance_duals_full_timeseries(
 
     full_duals = [reconstruct_timeseries(d, td) for (d, td) in zip(duals, timedata_vec)]
     
+    df = DataFrame(full_duals, node_ids, copycols=false)
+    write_dataframe(file_path, df)
+    return nothing
+end
+
+function write_balance_duals_full_timeseries(
+    file_path::AbstractString,
+    system::System,
+    collected_balance_duals::AbstractDict,
+    scaling::Float64,
+)
+    if !has_tdr(system)
+        return nothing
+    end
+
+    @info "Writing full time series balance duals to $file_path"
+
+    duals, node_ids, timedata_vec = _extract_balance_duals(
+        system,
+        collected_balance_duals,
+        scaling;
+        with_timedata=true,
+    )
+    isempty(duals) && return nothing
+
+    full_duals = [reconstruct_timeseries(d, td) for (d, td) in zip(duals, timedata_vec)]
+
     df = DataFrame(full_duals, node_ids, copycols=false)
     write_dataframe(file_path, df)
     return nothing

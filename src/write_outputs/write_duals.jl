@@ -92,6 +92,26 @@ function write_balance_duals(
     return nothing
 end
 
+function write_balance_duals(
+    results_dir::AbstractString,
+    system::System,
+    collected_balance_duals::AbstractDict,
+    scaling::Float64,
+)
+    @info "Writing balance constraint dual values to $results_dir"
+
+    filename = "balance_duals.csv"
+    file_path = joinpath(results_dir, filename)
+
+    balance_duals, node_ids, _ = _extract_balance_duals(system, collected_balance_duals, scaling)
+    isempty(balance_duals) && return nothing
+
+    df = DataFrame(balance_duals, node_ids, copycols=false)
+    write_dataframe(file_path, df)
+
+    return nothing
+end
+
 
 """
     _extract_balance_duals(system::System, scaling::Float64=1.0; with_timedata::Bool=false)
@@ -135,6 +155,36 @@ function _extract_balance_duals(system::System, scaling::Float64=1.0; with_timed
 
         # Rescale dual values by subperiod weights
         push!(balance_duals, duals_dict[:demand] ./ (weights .* scaling))
+        with_timedata && push!(timedata_vec, node.timedata)
+    end
+
+    return balance_duals, node_ids, timedata_vec
+end
+
+function _extract_balance_duals(
+    system::System,
+    collected_balance_duals::AbstractDict,
+    scaling::Float64=1.0;
+    with_timedata::Bool=false,
+)
+    balance_duals = Vector{Vector{Float64}}()
+    node_ids = Vector{Symbol}()
+    timedata_vec = with_timedata ? Vector{TimeData}() : nothing
+
+    for node in filter(n -> n isa Node, system.locations)
+        haskey(collected_balance_duals, id(node)) || continue
+        balance_dict = collected_balance_duals[id(node)]
+        haskey(balance_dict, :demand) || continue
+
+        demand_duals = balance_dict[:demand]
+        time_axis = collect(time_interval(node))
+        all(haskey(demand_duals, t) for t in time_axis) || continue
+
+        weights = Float64[subperiod_weight(node, current_subperiod(node, t)) for t in time_axis]
+        dual_values = Float64[demand_duals[t] for t in time_axis]
+
+        push!(node_ids, id(node))
+        push!(balance_duals, dual_values ./ (weights .* scaling))
         with_timedata && push!(timedata_vec, node.timedata)
     end
 
@@ -232,6 +282,57 @@ function write_co2_cap_duals(
     write_dataframe(file_path, df)
     @debug "Wrote $(nrow(df)) CO2 cap constraint dual values to: $file_path"
 
+    return nothing
+end
+
+function write_co2_cap_duals(
+    results_dir::AbstractString,
+    system::System,
+    collected_slack_vars::AbstractDict,
+    scaling::Float64,
+)
+    @info "Writing CO2 cap constraint dual values to $results_dir"
+
+    filename = "co2_cap_duals.csv"
+    file_path = joinpath(results_dir, filename)
+
+    ct_type = CO2CapConstraint
+
+    node_ids = Vector{Symbol}()
+    co2_shadow_prices = Vector{Float64}()
+    co2_slack_vars = Vector{Union{Float64, Missing}}()
+
+    for node in filter(n -> n isa Node, system.locations)
+        !haskey(policy_budgeting_constraints(node), ct_type) && continue
+
+        constraint = policy_budgeting_constraints(node, ct_type)
+        push!(node_ids, id(node))
+        push!(co2_shadow_prices, -dual(constraint) / scaling)
+
+        if haskey(price_unmet_policy(node), ct_type)
+            slack_var_key = Symbol(string(ct_type) * "_Slack")
+            slack_dict = get(collected_slack_vars, (id(node), slack_var_key), nothing)
+            if isnothing(slack_dict)
+                push!(co2_slack_vars, missing)
+            else
+                co2_slack_sum = sum(subperiod_indices(node)) do w
+                    subperiod_weight(node, w) * get(slack_dict, w, 0.0)
+                end
+                push!(co2_slack_vars, co2_slack_sum)
+            end
+        else
+            push!(co2_slack_vars, missing)
+        end
+    end
+
+    isempty(co2_shadow_prices) && return nothing
+
+    df = DataFrame(Node = node_ids, CO2_Shadow_Price = co2_shadow_prices)
+    if !isempty(co2_slack_vars)
+        df[!, :CO2_Slack] = co2_slack_vars
+    end
+
+    write_dataframe(file_path, df)
     return nothing
 end
 
