@@ -10,8 +10,9 @@ import MacroEnergy: collect_local_slack_vars, collect_local_constraint_duals
 import MacroEnergy: populate_slack_vars_from_subproblems!, populate_constraint_duals_from_subproblems!
 import MacroEnergy: merge_distributed_slack_vars_dicts, merge_distributed_balance_duals
 import MacroEnergy: BalanceConstraint
+import MacroEnergy: build_problem_instance
 import MacroEnergy: empty_system
-import MacroEnergy: ProblemInstance, StaticSystem, problem_spec
+import MacroEnergy: ProblemInstance, StaticSystem, get_first_reassembly_slice, problem_spec
 import MacroEnergy: Node, Electricity, TimeData, System
 
 function test_benders_output_utilities()
@@ -528,12 +529,13 @@ function test_benders_output_utilities()
             )
 
             result = collect_local_slack_vars([
-                Dict{Any,Any}(:system_local => mock_system, :problem_instance => instance),
+                Dict{Any,Any}(:problem_instance => instance),
             ])
 
             @test haskey(result, 7)
             @test haskey(result[7], (:meta_node, :co2_slack))
         end
+
     end
     
     @testset "Local Constraint Duals Collection" begin
@@ -633,12 +635,69 @@ function test_benders_output_utilities()
             )
 
             result = collect_local_constraint_duals(
-                [Dict{Any,Any}(:system_local => mock_system, :problem_instance => instance)],
+                [Dict{Any,Any}(:problem_instance => instance)],
                 BalanceConstraint,
             )
 
             @test haskey(result, 9)
             @test haskey(result[9], :meta_dual_node)
+        end
+
+        @testset "ProblemInstance Reassembly Time Mapping" begin
+            model = Model(HiGHS.Optimizer)
+            set_silent(model)
+
+            time_indices = 1:2
+            @variable(model, x[t in time_indices] >= 0)
+            balance_constraint = @constraint(model, balance[t in time_indices], x[t] == [1.0, 2.0][t])
+            @objective(model, Min, sum(x))
+            optimize!(model)
+
+            timedata = TimeData{Electricity}(;
+                time_interval = time_indices,
+                hours_per_timestep = 1,
+                period_index = 1,
+                subperiods = [1:2],
+                subperiod_indices = [1],
+                subperiod_weights = Dict(1 => 1.0),
+                subperiod_map = Dict(1 => 1),
+            )
+
+            mock_node = Node{Electricity}(id=:mapped_dual_node, timedata=timedata)
+            mock_node.constraints = [BalanceConstraint(
+                constraint_ref = Dict(:demand => balance_constraint),
+                constraint_dual = Dict(:demand => [dual(balance_constraint[t]) for t in time_indices]),
+            )]
+
+            mock_system = empty_system("mock_system")
+            mock_system.time_data = Dict(:Electricity => timedata)
+            mock_system.locations = [mock_node]
+
+            static_system = StaticSystem(mock_system)
+            instance = build_problem_instance(
+                static_system,
+                problem_spec(
+                    static_system;
+                    metadata = Dict{Symbol,Any}(:period_index => 12),
+                    time_indices = [10, 20],
+                ),
+            )
+
+            slice = get_first_reassembly_slice(instance.reassembly_map, :nodes, 1)
+            @test !isnothing(slice)
+            @test slice.global_time_indices == [10, 20]
+            @test slice.local_time_indices == [1, 2]
+
+            result = collect_local_constraint_duals(
+                [Dict{Any,Any}(:problem_instance => instance)],
+                BalanceConstraint,
+            )
+
+            @test haskey(result, 12)
+            @test haskey(result[12], :mapped_dual_node)
+            @test haskey(result[12][:mapped_dual_node], :demand)
+            @test haskey(result[12][:mapped_dual_node][:demand], 10)
+            @test haskey(result[12][:mapped_dual_node][:demand], 20)
         end
         
         @testset "Multiple Balance Equations" begin

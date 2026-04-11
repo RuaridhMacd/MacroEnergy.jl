@@ -183,7 +183,7 @@ filter_edges_by_commodity!(edges, [:Electricity, :NaturalGas], edge_asset_map)
 function filter_edges_by_commodity!(
     edges::Vector{AbstractEdge},
     commodity::Union{Symbol,Vector{Symbol}},
-    edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    edge_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     @debug "Filtering edges by commodity $commodity"
 
@@ -236,7 +236,7 @@ filter_edges_by_asset_type!(edges, "Battery", edge_asset_map)
 function filter_edges_by_asset_type!(
     edges::Vector{AbstractEdge},
     asset_type::Union{Symbol,String,Vector{Symbol},Vector{String}},
-    edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}
+    edge_asset_map::AbstractDict
 )
     @debug "Filtering edges by asset type $asset_type"
 
@@ -449,11 +449,111 @@ end
 
 get_subproblem_problem_instance(subproblem::AbstractDict) = get(subproblem, :problem_instance, nothing)
 
+function get_subproblem_output_static_system(subproblem::AbstractDict)
+    instance = get_subproblem_problem_instance(subproblem)
+    return isnothing(instance) ? nothing : instance.static_system
+end
+
 function get_subproblem_output_system(subproblem::AbstractDict)
     if haskey(subproblem, :system_local)
         return subproblem[:system_local]
     end
     error("Subproblem does not contain a :system_local output view.")
+end
+
+function get_subproblem_output_nodes(subproblem::AbstractDict)
+    static_system = get_subproblem_output_static_system(subproblem)
+    if !isnothing(static_system)
+        return get_nodes(static_system)
+    end
+    return filter(n -> n isa Node, get_subproblem_output_system(subproblem).locations)
+end
+
+function get_subproblem_node_reassembly_slice(subproblem::AbstractDict, node::Node)
+    instance = get_subproblem_problem_instance(subproblem)
+    if isnothing(instance)
+        return nothing
+    end
+
+    node_index = findfirst(candidate -> id(candidate) == id(node), get_nodes(instance.static_system))
+    isnothing(node_index) && return nothing
+
+    return get_first_reassembly_slice(instance.reassembly_map, :nodes, node_index)
+end
+
+function get_problem_instance_component_reassembly_slice(instance::ProblemInstance, component)
+    component_id = id(component)
+
+    if component isa Node
+        component_index = findfirst(candidate -> id(candidate) == component_id, get_nodes(instance.static_system))
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :nodes, component_index)
+    elseif component isa UnidirectionalEdge
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.unidirectional_edges)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :unidirectional_edges, component_index)
+    elseif component isa BidirectionalEdge
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.bidirectional_edges)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :bidirectional_edges, component_index)
+    elseif component isa EdgeWithUC
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.unit_commitment_edges)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :unit_commitment_edges, component_index)
+    elseif component isa Storage
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.storages)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :storages, component_index)
+    elseif component isa LongDurationStorage
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.long_duration_storages)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :long_duration_storages, component_index)
+    elseif component isa Transformation
+        component_index = findfirst(candidate -> id(candidate) == component_id, instance.static_system.transformations)
+        isnothing(component_index) && return nothing
+        return get_first_reassembly_slice(instance.reassembly_map, :transformations, component_index)
+    end
+
+    return nothing
+end
+
+function get_subproblem_component_reassembly_slice(subproblem::AbstractDict, component)
+    instance = get_subproblem_problem_instance(subproblem)
+    return isnothing(instance) ? nothing : get_problem_instance_component_reassembly_slice(instance, component)
+end
+
+function get_reassembled_time_axes(slice::Union{Nothing,ReassemblySlice}, component)
+    if isnothing(slice)
+        local_time_indices = collect(time_interval(component))
+        return local_time_indices, local_time_indices
+    end
+    return slice.global_time_indices, slice.local_time_indices
+end
+
+function reassemble_time_dict(
+    local_time_dict::AbstractDict,
+    slice::ReassemblySlice,
+)
+    reassembled = Dict{Int,Float64}()
+    for (global_time_index, local_time_index) in zip(slice.global_time_indices, slice.local_time_indices)
+        if haskey(local_time_dict, local_time_index)
+            reassembled[global_time_index] = local_time_dict[local_time_index]
+        end
+    end
+    return reassembled
+end
+
+function get_node_output_time_indices(subproblem::AbstractDict, node::Node)
+    slice = get_subproblem_node_reassembly_slice(subproblem, node)
+    if isnothing(slice)
+        return collect(time_interval(node))
+    end
+    return slice.global_time_indices
+end
+
+function get_subproblem_output_source(subproblem::AbstractDict)
+    static_system = get_subproblem_output_static_system(subproblem)
+    return isnothing(static_system) ? get_subproblem_output_system(subproblem) : static_system
 end
 
 function get_subproblem_period_index(subproblem::AbstractDict)
@@ -469,7 +569,7 @@ function get_local_expressions(optimal_getter::Function, subproblems_local::Vect
     n_local_subprob = length(subproblems_local)
     expr_df = Vector{DataFrame}(undef, n_local_subprob)
     for s in eachindex(subproblems_local)
-        expr_df[s] = optimal_getter(get_subproblem_output_system(subproblems_local[s]))
+        expr_df[s] = optimal_getter(get_subproblem_output_source(subproblems_local[s]))
     end
     return expr_df
 end

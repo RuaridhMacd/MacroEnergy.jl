@@ -22,3 +22,12 @@ function ProblemInstance(static_system::StaticSystem, spec_input::Union{Nothing,
         spec = spec,
     )
 end
+
+function apply_planning_solution!(
+    instance::ProblemInstance,
+    planning_variable_values::AbstractDict;
+    kind::Union{Nothing,Symbol}=:fix,
+)
+    apply_updates!(instance.update_map, planning_variable_values; kind)
+    return nothing
+end

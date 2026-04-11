@@ -193,7 +193,10 @@ Notes:
 - planning problem construction now uses planning-period `ProblemInstance`s internally
 - temporal Benders subproblems are now built as persistent `ProblemInstance`s wrapped in a legacy adapter dict
 - the legacy adapter still exposes `:model`, `:linking_variables_sub`, `:subproblem_index`, and `:system_local` for solver and output compatibility
-- focused builder checks currently pass for planning problem generation and serial subproblem initialization on `test/test_small_case`
+- temporal subproblem instances now populate a first real `UpdateMap` of direct linking-variable fix updates
+- the final subproblem resolve path now applies planning solutions through `ProblemInstance.update_map` and re-solves the same persistent models in place
+- Benders output utilities can now read directly from `ProblemInstance.static_system` for subproblem extraction, slack collection, and balance-dual collection
+- focused builder checks currently pass for planning problem generation, serial subproblem initialization, and repeated in-place fix updates on `test/test_small_case`
 
 Exit criteria:
 
@@ -226,6 +229,10 @@ Planned work:
 - apply updates in place before each subproblem solve
 - avoid any structural rebuild across Benders iterations
 
+Status:
+
+- in progress
+
 Exit criteria:
 
 - subproblem models are built once
@@ -236,6 +243,12 @@ Risks:
 
 - current external solver package is variable-name based
 - updates may need to bridge between local typed metadata and current name-based interfaces at first
+
+Notes:
+
+- `UpdateMap` currently covers linking-variable fix updates only
+- main Benders iterations still rely on the legacy `MacroEnergySolvers` string-name update path
+- this is intentional temporary compatibility; the explicit in-place update path now exists on the `MacroEnergy.jl` side and is already used for the final subproblem resolve
 
 ### Stage 5: Move Result Reconstruction To ReassemblyMap
 
@@ -255,6 +268,10 @@ Planned work:
 - stop relying on `:system_local` deep-copied systems for result extraction
 - use `ReassemblyMap` plus local state to assemble outputs
 
+Status:
+
+- in progress
+
 Exit criteria:
 
 - Benders output utilities can read from `ProblemInstance`s
@@ -263,6 +280,14 @@ Exit criteria:
 Risks:
 
 - current write/output utilities assume canonical component objects carry solved JuMP refs or values
+
+Notes:
+
+- Benders output utilities now prefer `ProblemInstance.static_system` when available
+- slack-variable and balance-dual collection no longer require `:system_local` if `:problem_instance` is present
+- `ProblemInstance` build now populates `ReassemblyMap` slices for selected components
+- node-level slack and balance-dual collection now uses `ReassemblyMap` to remap local time indices back to global time indices
+- full global result reconstruction still needs explicit `ReassemblyMap` usage before this stage can be considered complete
 
 ### Stage 6: Reduce Reliance On Shared Component-Owned Solve State
 

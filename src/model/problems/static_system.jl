@@ -1,5 +1,6 @@
 Base.@kwdef struct AssetView
     id::AssetId
+    asset_type::Any = nothing
     node_indices::Vector{Int} = Int[]
     unidirectional_edge_indices::Vector{Int} = Int[]
     bidirectional_edge_indices::Vector{Int} = Int[]
@@ -141,6 +142,7 @@ function build_asset_view(
 
     return AssetView(
         id = id(asset),
+        asset_type = typeof(asset),
         node_indices = [node_index[id(node)] for node in asset_nodes if haskey(node_index, id(node))],
         unidirectional_edge_indices = [
             unidirectional_edge_index[id(edge)] for edge in asset_unidirectional_edges
@@ -186,4 +188,92 @@ function build_location_views(system::System, node_index::Dict{Symbol,Int})
         end
     end
     return location_views
+end
+
+get_asset_views(static_system::StaticSystem) = static_system.assets
+get_locations(static_system::StaticSystem) = static_system.locations
+get_nodes(static_system::StaticSystem) = static_system.nodes
+get_transformations(static_system::StaticSystem; return_ids_map::Bool=false) =
+    return_ids_map ? get_transformations_with_map(static_system) : static_system.transformations
+
+function get_edges(static_system::StaticSystem; return_ids_map::Bool=false)
+    edges = AbstractEdge[
+        static_system.unidirectional_edges...,
+        static_system.bidirectional_edges...,
+        static_system.unit_commitment_edges...,
+    ]
+    return return_ids_map ? (edges, get_edge_asset_map(static_system)) : edges
+end
+
+function get_storages(static_system::StaticSystem; return_ids_map::Bool=false)
+    storages = AbstractStorage[
+        static_system.storages...,
+        static_system.long_duration_storages...,
+    ]
+    return return_ids_map ? (storages, get_storage_asset_map(static_system)) : storages
+end
+
+function get_edge_asset_map(static_system::StaticSystem)
+    edge_asset_map = Dict{Symbol,AssetView}()
+    for asset in static_system.assets
+        for idx in asset.unidirectional_edge_indices
+            edge_asset_map[id(static_system.unidirectional_edges[idx])] = asset
+        end
+        for idx in asset.bidirectional_edge_indices
+            edge_asset_map[id(static_system.bidirectional_edges[idx])] = asset
+        end
+        for idx in asset.unit_commitment_edge_indices
+            edge_asset_map[id(static_system.unit_commitment_edges[idx])] = asset
+        end
+    end
+    return edge_asset_map
+end
+
+function get_storage_asset_map(static_system::StaticSystem)
+    storage_asset_map = Dict{Symbol,AssetView}()
+    for asset in static_system.assets
+        for idx in asset.storage_indices
+            storage_asset_map[id(static_system.storages[idx])] = asset
+        end
+        for idx in asset.long_duration_storage_indices
+            storage_asset_map[id(static_system.long_duration_storages[idx])] = asset
+        end
+    end
+    return storage_asset_map
+end
+
+function get_transformation_asset_map(static_system::StaticSystem)
+    transformation_asset_map = Dict{Symbol,AssetView}()
+    for asset in static_system.assets
+        for idx in asset.transformation_indices
+            transformation_asset_map[id(static_system.transformations[idx])] = asset
+        end
+    end
+    return transformation_asset_map
+end
+
+function get_transformations_with_map(static_system::StaticSystem)
+    return static_system.transformations, get_transformation_asset_map(static_system)
+end
+
+function get_assets_sametype(static_system::StaticSystem, asset_type::T) where {T<:Type{<:AbstractAsset}}
+    return filter(asset -> asset.asset_type == asset_type, static_system.assets)
+end
+
+function edges_with_capacity_variables(static_system::StaticSystem; return_ids_map::Bool=false)
+    if return_ids_map
+        edges, edge_asset_map = get_edges(static_system, return_ids_map=true)
+        edges_with_capacity = edges_with_capacity_variables(edges)
+        edges_with_capacity_asset_map = filter(edge -> edge[1] in id.(edges_with_capacity), edge_asset_map)
+        return edges_with_capacity, edges_with_capacity_asset_map
+    end
+    return edges_with_capacity_variables(get_edges(static_system))
+end
+
+function storages_with_capacity_variables(static_system::StaticSystem; return_ids_map::Bool=false)
+    if return_ids_map
+        storages, storage_asset_map = get_storages(static_system, return_ids_map=true)
+        return storages, storage_asset_map
+    end
+    return storages_with_capacity_variables(get_storages(static_system))
 end

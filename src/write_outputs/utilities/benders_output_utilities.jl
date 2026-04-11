@@ -81,7 +81,7 @@ function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1
     @sync for i in 1:np_id
         @async result_chunks[i] = @fetchfrom p_id[i] begin
             local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
-            [extract_subproblem_results(get_subproblem_output_system(sp); scaling=scaling) for sp in local_subproblems]
+            [extract_subproblem_results(get_subproblem_output_source(sp); scaling=scaling) for sp in local_subproblems]
         end
     end
 
@@ -98,8 +98,8 @@ function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
     results = SubproblemsData(n)
 
     for i in eachindex(bd_results.op_subproblem)
-        system = get_subproblem_output_system(bd_results.op_subproblem[i])
-        results[i] = extract_subproblem_results(system; scaling)
+        output_source = get_subproblem_output_source(bd_results.op_subproblem[i])
+        results[i] = extract_subproblem_results(output_source; scaling)
     end
 
     return results
@@ -287,6 +287,75 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
     )
 end
 
+function extract_subproblem_results(static_system::StaticSystem; scaling::Float64=1.0)
+    edges, edge_asset_map = get_edges(static_system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(static_system, return_ids_map=true)
+    nodes_with_costs = filter(get_nodes(static_system)) do n
+        !isempty(non_served_demand(n)) ||
+        !isempty(supply_segments(n)) ||
+        !isempty(policy_slack_vars(n))
+    end
+
+    flow_dfs = DataFrame[]
+    cost_rows = NamedTuple{(:zone, :type, :category, :value),Tuple{String,String,Symbol,Float64}}[]
+    attributed_fuel_cost_by_node = Dict{Symbol,Float64}()
+
+    for e in edges
+        zone = get_zone_name(e)
+        asset_type = get_type(edge_asset_map[id(e)])
+
+        push!(flow_dfs, get_optimal_flow(e, scaling, edge_asset_map))
+
+        vom_cost = compute_variable_om_cost(e)
+        fuel_cost = compute_fuel_cost(e)
+        startup_cost_val = compute_startup_cost(e)
+
+        if fuel_cost > 0 && isa(start_vertex(e), Node)
+            source_node = start_vertex(e)
+            attributed_fuel_cost_by_node[id(source_node)] = get(attributed_fuel_cost_by_node, id(source_node), 0.0) + fuel_cost
+        end
+
+        vom_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:VariableOM, value=vom_cost * scaling^2))
+        fuel_cost > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Fuel, value=fuel_cost * scaling^2))
+        startup_cost_val > 0 && push!(cost_rows, (zone=zone, type=asset_type, category=:Startup, value=startup_cost_val * scaling^2))
+    end
+
+    flows_df = isempty(flow_dfs) ? DataFrame() : reduce(vcat, flow_dfs)
+    storage_levels_df = get_optimal_storage_level(storages, scaling, storage_asset_map)
+
+    nsd_dfs = DataFrame[]
+    for node in nodes_with_costs
+        zone = get_zone_name(node)
+        node_type = get_type(node)
+
+        push!(nsd_dfs, get_optimal_non_served_demand(node, scaling))
+
+        nsd_cost = compute_nsd_cost(node)
+        nsd_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:NonServedDemand, value=nsd_cost * scaling^2))
+
+        supply_cost = compute_residual_supply_cost(node, get(attributed_fuel_cost_by_node, id(node), 0.0))
+        supply_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:Supply, value=supply_cost * scaling^2))
+
+        slack_cost = compute_slack_cost(node)
+        slack_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:UnmetPolicyPenalty, value=slack_cost * scaling^2))
+    end
+    nsd_df = isempty(nsd_dfs) ? DataFrame() : reduce(vcat, nsd_dfs)
+
+    operational_costs_df = isempty(cost_rows) ?
+                           DataFrame(zone=String[], type=String[], category=Symbol[], value=Float64[]) :
+                           DataFrame(cost_rows)
+
+    curtailment_df = get_optimal_curtailment(static_system; scaling)
+
+    return (
+        flows=flows_df,
+        storage_levels=storage_levels_df,
+        nsd=nsd_df,
+        curtailment=curtailment_df,
+        operational_costs=operational_costs_df
+    )
+end
+
 """
 Convert DenseAxisArray to Dict, preserving axis information.
 """
@@ -406,9 +475,8 @@ function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
     slack_vars = Dict{Int64, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}}()
     for i in eachindex(subproblems_local)
         subproblem = subproblems_local[i]
-        system = get_subproblem_output_system(subproblem)
-        for node in filter(n -> n isa Node, system.locations)
-            period_index = get_subproblem_period_index(subproblem)
+        period_index = get_subproblem_period_index(subproblem)
+        for node in get_subproblem_output_nodes(subproblem)
             for slack_vars_key in keys(policy_slack_vars(node))
                 # Create tuple key with (node_id, slack_vars_key) to keep track of the metadata
                 key = (node.id, slack_vars_key)
@@ -574,10 +642,9 @@ function collect_local_constraint_duals(
     
     for i in eachindex(subproblems_local)
         subproblem = subproblems_local[i]
-        system = get_subproblem_output_system(subproblem)
         period_index = get_subproblem_period_index(subproblem)
         
-        for node in filter(n -> n isa Node, system.locations)
+        for node in get_subproblem_output_nodes(subproblem)
             # Find BalanceConstraint on this node
             constraint = get_constraint_by_type(node, BalanceConstraint)
             isnothing(constraint) && continue
@@ -603,7 +670,7 @@ function collect_local_constraint_duals(
             # For each balance equation, store duals as time_idx => value
             for (balance_id, dual_values) in duals_dict
                 # Convert vector to dict mapping time indices to values
-                time_indices = collect(time_interval(node))
+                time_indices = get_node_output_time_indices(subproblem, node)
                 dual_dict = Dict(time_indices[i] => dual_values[i] for i in eachindex(time_indices))
                 
                 # Merge time dictionaries (different subproblems have different time indices)

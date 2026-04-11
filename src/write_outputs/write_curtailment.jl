@@ -154,10 +154,26 @@ function get_optimal_curtailment(system::System; scaling::Float64=1.0)::DataFram
     curtailment_df[!, (!isa).(eachcol(curtailment_df), Vector{Missing})]
 end
 
+function get_optimal_curtailment(system::StaticSystem; scaling::Float64=1.0)::DataFrame
+    @debug " -- Getting optimal curtailment values for the static system"
+
+    edges, edge_asset_map = edges_with_capacity_variables(system, return_ids_map=true)
+    filter!(pair -> pair[2].asset_type == VRE, edge_asset_map)
+    filter!(edge -> id(edge) in keys(edge_asset_map), edges)
+
+    if isempty(edges)
+        @debug "No VRE edges found in the static system to get curtailment values"
+        return DataFrame()
+    end
+
+    curtailment_df = get_optimal_curtailment(edges, scaling, edge_asset_map)
+    curtailment_df[!, (!isa).(eachcol(curtailment_df), Vector{Missing})]
+end
+
 function get_optimal_curtailment(
     objs::Vector{<:AbstractEdge},
     scaling::Float64=1.0,
-    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     reduce(vcat, [get_optimal_curtailment(o, scaling, obj_asset_map) for o in objs])
 end
@@ -165,7 +181,7 @@ end
 function get_optimal_curtailment(
     obj::AbstractEdge,
     scaling::Float64=1.0,
-    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     time_axis = time_interval(obj)
     cap_val = Float64(value(capacity(obj)))

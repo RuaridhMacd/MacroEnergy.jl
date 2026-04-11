@@ -6,6 +6,7 @@ using HiGHS
 using MacroEnergy
 
 import MacroEnergy:
+    apply_planning_solution!,
     build_monolithic_problem_instances,
     build_planning_problem_instances,
     build_temporal_subproblem_bundles,
@@ -19,6 +20,7 @@ import MacroEnergy:
     get_settings,
     get_storages,
     get_transformations,
+    fix_update_instructions,
     initialize_subproblems!,
     load_case,
     normalize_problem_spec,
@@ -119,6 +121,23 @@ function test_problem_architecture()
         if isnothing(variable_by_name(first(subproblems)[:model], variable_name))
     ]
     @test isempty(missing_subproblem_names)
+
+    first_subproblem = first(subproblems)
+    first_instance = first_subproblem[:problem_instance]
+    initial_fix_updates = fix_update_instructions(first_instance.update_map)
+    @test length(initial_fix_updates) == length(first_subproblem[:linking_variables_sub])
+
+    initial_model_id = objectid(first_subproblem[:model])
+    planning_values_1 = Dict(variable_name => 0.0 for variable_name in first_subproblem[:linking_variables_sub])
+    apply_planning_solution!(first_instance, planning_values_1)
+    @test objectid(first_subproblem[:model]) == initial_model_id
+    @test all(is_fixed(instruction.ref) for instruction in initial_fix_updates)
+    @test all(fix_value(instruction.ref) == 0.0 for instruction in initial_fix_updates)
+
+    planning_values_2 = Dict(variable_name => 1.0 for variable_name in first_subproblem[:linking_variables_sub])
+    apply_planning_solution!(first_instance, planning_values_2)
+    @test objectid(first_subproblem[:model]) == initial_model_id
+    @test all(fix_value(instruction.ref) == 1.0 for instruction in initial_fix_updates)
 end
 
 @testset "Problem Architecture" begin

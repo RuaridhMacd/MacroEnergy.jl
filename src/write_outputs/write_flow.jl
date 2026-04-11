@@ -151,6 +151,35 @@ get_optimal_flow(system, commodity="Electricity", asset_type="ThermalPower*") # 
 ```
 """
 function get_optimal_flow(
+    system::StaticSystem;
+    scaling::Float64=1.0,
+    commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    asset_type::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing
+)
+    @debug " -- Getting optimal flow values for the static system"
+    edges, edge_asset_map = get_edges(system, return_ids_map=true)
+
+    if !isnothing(commodity)
+        (commodity, missed_commodites) = search_commodities(commodity, string.(collect(Set(MacroEnergy.commodity_type.(edges)))))
+        if !isempty(missed_commodites)
+            @warn "Commodities not found: $(missed_commodites) when printing flow results"
+        end
+        filter_edges_by_commodity!(edges, commodity, edge_asset_map)
+    end
+    if !isnothing(asset_type)
+        (asset_type, missed_asset_type) = search_assets(asset_type, string.(unique(get_type(asset) for asset in values(edge_asset_map))))
+        if !isempty(missed_asset_type)
+            @warn "Asset type(s) not found: $(missed_asset_type) when printing flow results"
+        end
+        @debug("Writing flow results for asset type $asset_type")
+        filter_edges_by_asset_type!(edges, asset_type, edge_asset_map)
+    end
+    isempty(edges) && return DataFrame()
+    eflow = get_optimal_flow(edges, scaling, edge_asset_map)
+    eflow[!, (!isa).(eachcol(eflow), Vector{Missing})]
+end
+
+function get_optimal_flow(
     system::System; 
     scaling::Float64=1.0, 
     commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
@@ -215,7 +244,7 @@ end
 function get_optimal_flow(
     objs::Vector{<:AbstractEdge},
     scaling::Float64=1.0,
-    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     reduce(vcat, [get_optimal_flow(o, scaling, obj_asset_map) for o in objs])
 end
@@ -223,7 +252,7 @@ end
 function get_optimal_flow(
     obj::AbstractEdge,
     scaling::Float64=1.0,
-    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     time_axis = time_interval(obj)
     # Apply sign based on edge direction (negative for Node → Transformation/Storage)

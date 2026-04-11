@@ -88,6 +88,89 @@ function initialize_local_state!(instance::ProblemInstance)
     return instance
 end
 
+function initialize_reassembly_map!(instance::ProblemInstance)
+    instance.reassembly_map = ReassemblyMap()
+
+    add_reassembly_slices!(
+        instance,
+        :nodes,
+        :node,
+        instance.spec.node_indices,
+        selected_nodes(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :unidirectional_edges,
+        :unidirectional_edge,
+        instance.spec.unidirectional_edge_indices,
+        selected_unidirectional_edges(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :bidirectional_edges,
+        :bidirectional_edge,
+        instance.spec.bidirectional_edge_indices,
+        selected_bidirectional_edges(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :unit_commitment_edges,
+        :unit_commitment_edge,
+        instance.spec.unit_commitment_edge_indices,
+        selected_unit_commitment_edges(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :transformations,
+        :transformation,
+        instance.spec.transformation_indices,
+        selected_transformations(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :storages,
+        :storage,
+        instance.spec.storage_indices,
+        selected_storages(instance),
+    )
+    add_reassembly_slices!(
+        instance,
+        :long_duration_storages,
+        :long_duration_storage,
+        instance.spec.long_duration_storage_indices,
+        selected_long_duration_storages(instance),
+    )
+
+    return instance
+end
+
+function add_reassembly_slices!(
+    instance::ProblemInstance,
+    component_group::Symbol,
+    local_component_type::Symbol,
+    component_indices::Vector{Int},
+    components,
+)
+    global_time_indices = copy(instance.spec.time_indices)
+
+    for (local_component_index, (global_component_index, component)) in enumerate(zip(component_indices, components))
+        add_reassembly_slice!(
+            instance.reassembly_map,
+            component_group,
+            global_component_index,
+            ReassemblySlice(
+                problem_id = instance.id,
+                local_component_type = local_component_type,
+                local_component_index = local_component_index,
+                global_time_indices = global_time_indices,
+                local_time_indices = collect(time_interval(component)),
+            ),
+        )
+    end
+
+    return instance
+end
+
 function build_problem_instance(
     static_system::StaticSystem,
     spec_input::Union{Nothing,ProblemSpec};
@@ -95,6 +178,7 @@ function build_problem_instance(
 )
     instance = ProblemInstance(static_system, spec_input; id)
     initialize_local_state!(instance)
+    initialize_reassembly_map!(instance)
     return instance
 end
 

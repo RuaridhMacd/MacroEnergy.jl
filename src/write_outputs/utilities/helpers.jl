@@ -48,9 +48,12 @@ get_flow_sign(t1::Transformation, t2::Transformation) = 1.0
 get_flow_sign(e::AbstractEdge) = get_flow_sign(e.start_vertex, e.end_vertex)
 
 # The resource id is the id of the asset that the object belongs to
-function get_resource_id(obj::T, asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}) where {T<:Union{AbstractEdge,AbstractStorage}}
+function get_resource_id(obj::T, asset_map::AbstractDict) where {T<:Union{AbstractEdge,AbstractStorage}}
     asset = asset_map[id(obj)]
-    asset[].id
+    if asset isa Base.RefValue
+        return asset[].id
+    end
+    return asset.id
 end
 get_resource_id(obj::Node) = id(obj)
 
@@ -58,10 +61,9 @@ get_resource_id(obj::Node) = id(obj)
 get_component_id(obj::T) where {T<:Union{AbstractEdge,Node,AbstractStorage}} = Symbol("$(id(obj))")
 
 # Get the type of an asset
-function get_type(asset::Base.RefValue{<:AbstractAsset})
-    asset = asset[]
-    type_name = string(typesymbol(typeof(asset)))
-    param_names = string.(typesymbol.(typeof(asset).parameters))
+function format_asset_type(asset_type)
+    type_name = string(typesymbol(asset_type))
+    param_names = string.(typesymbol.(asset_type.parameters))
     # If the asset has commodities that are parametric, return the type name with the commodities
     if !isempty(param_names)
         return "$type_name{$(join(param_names, ","))}"
@@ -69,6 +71,11 @@ function get_type(asset::Base.RefValue{<:AbstractAsset})
         return type_name
     end   
 end
+
+get_type(asset::Base.RefValue{<:AbstractAsset}) = format_asset_type(typeof(asset[]))
+get_type(asset::AbstractAsset) = format_asset_type(typeof(asset))
+get_type(asset::AssetView) = format_asset_type(asset.asset_type)
+
 # Get the type of a MacroObject
 get_type(obj::T) where {T<:Union{AbstractEdge,Node,AbstractStorage}} = string(typeof(obj))
 

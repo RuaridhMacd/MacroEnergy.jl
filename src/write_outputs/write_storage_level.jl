@@ -140,6 +140,45 @@ get_optimal_storage_level(system, asset_type="Battery")
 ```
 """
 function get_optimal_storage_level(
+    system::StaticSystem;
+    scaling::Float64=1.0,
+    commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    asset_type::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing
+)
+    @debug " -- Getting optimal storage level values for the static system"
+
+    storages, storage_asset_map = get_storages(system, return_ids_map=true)
+
+    isempty(storages) && return DataFrame()
+
+    if !isnothing(commodity)
+        available_commodities = string.(collect(Set(typesymbol(commodity_type(s)) for s in storages)))
+        (matched_commodity, missed_commodites) = search_commodities(commodity, available_commodities)
+        if !isempty(missed_commodites)
+            @warn "Commodities not found: $(missed_commodites) when printing storage level results"
+        end
+        filter!(s -> typesymbol(commodity_type(s)) in matched_commodity, storages)
+        storage_ids = Set(id.(storages))
+        filter!(pair -> pair[1] in storage_ids, storage_asset_map)
+    end
+
+    if !isnothing(asset_type)
+        available_types = unique(get_type(asset) for asset in values(storage_asset_map))
+        (matched_asset_type, missed_asset_types) = search_assets(asset_type, available_types)
+        if !isempty(missed_asset_types)
+            @warn "Asset type(s) not found: $(missed_asset_types) when printing storage level results"
+        end
+        filter!(pair -> get_type(pair[2]) in matched_asset_type, storage_asset_map)
+        filter!(s -> id(s) in keys(storage_asset_map), storages)
+    end
+
+    isempty(storages) && return DataFrame()
+
+    storage_levels = get_optimal_storage_level(storages, scaling, storage_asset_map)
+    storage_levels[!, (!isa).(eachcol(storage_levels), Vector{Missing})]
+end
+
+function get_optimal_storage_level(
     system::System; 
     scaling::Float64=1.0,
     commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
@@ -237,7 +276,7 @@ Get the optimal storage level values for a list of storage units.
 function get_optimal_storage_level(
     storages::Vector{<:AbstractStorage}, 
     scaling::Float64=1.0,
-    storage_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    storage_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     if isempty(storages)
         return DataFrame()
@@ -265,7 +304,7 @@ Get the optimal storage level values for a single storage unit.
 function get_optimal_storage_level(
     storage::AbstractStorage, 
     scaling::Float64=1.0,
-    storage_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    storage_asset_map::AbstractDict=Dict{Symbol,Any}()
 )
     time_axis = time_interval(storage)
     total_rows = length(time_axis)

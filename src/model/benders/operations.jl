@@ -12,7 +12,9 @@ function generate_operation_subproblem(
     
     add_linking_variables!(instance, model)
 
-    linking_variables = name.(setdiff(all_variables(model), model[:vREF]))
+    linking_variable_refs = setdiff(all_variables(model), model[:vREF])
+    register_linking_variable_updates!(instance, linking_variable_refs)
+    linking_variables = name.(linking_variable_refs)
 
     define_available_capacity!(instance, model)
 
@@ -42,6 +44,148 @@ function generate_operation_subproblem(
     return model, linking_variables
 
 
+end
+
+function register_linking_variable_updates!(instance::ProblemInstance, linking_variable_refs)
+    clear_updates!(instance.update_map; kind=:fix)
+    seen_keys = Set{String}()
+
+    for (component_type, component_indices, components) in (
+        (:node, instance.spec.node_indices, selected_nodes(instance)),
+        (:transformation, instance.spec.transformation_indices, selected_transformations(instance)),
+        (:storage, instance.spec.storage_indices, selected_storages(instance)),
+        (
+            :long_duration_storage,
+            instance.spec.long_duration_storage_indices,
+            selected_long_duration_storages(instance),
+        ),
+        (
+            :unidirectional_edge,
+            instance.spec.unidirectional_edge_indices,
+            selected_unidirectional_edges(instance),
+        ),
+        (
+            :bidirectional_edge,
+            instance.spec.bidirectional_edge_indices,
+            selected_bidirectional_edges(instance),
+        ),
+        (
+            :unit_commitment_edge,
+            instance.spec.unit_commitment_edge_indices,
+            selected_unit_commitment_edges(instance),
+        ),
+    )
+        for (local_idx, component) in enumerate(components)
+            register_component_linking_updates!(
+                instance.update_map,
+                component_type,
+                component_indices[local_idx],
+                component,
+                linking_variable_refs;
+                seen_keys,
+            )
+        end
+    end
+
+    return instance.update_map
+end
+
+function register_component_linking_updates!(
+    update_map::UpdateMap,
+    component_type::Symbol,
+    component_index::Int,
+    component,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    for field in Base.fieldnames(typeof(component))
+        register_field_linking_updates!(
+            update_map,
+            UpdateTarget(
+                component_type = component_type,
+                component_index = component_index,
+                field = field,
+            ),
+            getfield(component, field),
+            linking_variable_refs;
+            seen_keys,
+        )
+    end
+
+    return update_map
+end
+
+function register_field_linking_updates!(
+    update_map::UpdateMap,
+    target::UpdateTarget,
+    value::VariableRef,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    if value in linking_variable_refs
+        source_key = name(value)
+        if !isempty(source_key) && !(source_key in seen_keys)
+            push!(seen_keys, source_key)
+            register_fix_update!(
+                update_map;
+                component_type = target.component_type,
+                component_index = target.component_index,
+                field = target.field,
+                ref = value,
+                source_key = source_key,
+            )
+        end
+    end
+    return update_map
+end
+
+function register_field_linking_updates!(
+    update_map::UpdateMap,
+    target::UpdateTarget,
+    value::AbstractArray,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    for item in value
+        register_field_linking_updates!(update_map, target, item, linking_variable_refs; seen_keys)
+    end
+    return update_map
+end
+
+function register_field_linking_updates!(
+    update_map::UpdateMap,
+    target::UpdateTarget,
+    value::JuMP.Containers.DenseAxisArray,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    for item in value
+        register_field_linking_updates!(update_map, target, item, linking_variable_refs; seen_keys)
+    end
+    return update_map
+end
+
+function register_field_linking_updates!(
+    update_map::UpdateMap,
+    target::UpdateTarget,
+    value::AbstractDict,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    for item in values(value)
+        register_field_linking_updates!(update_map, target, item, linking_variable_refs; seen_keys)
+    end
+    return update_map
+end
+
+function register_field_linking_updates!(
+    update_map::UpdateMap,
+    target::UpdateTarget,
+    value,
+    linking_variable_refs;
+    seen_keys::Set{String}=Set{String}(),
+)
+    return update_map
 end
 
 function initialize_subproblem(problem_bundle::NamedTuple,optimizer::Optimizer,case_settings::NamedTuple,include_subproblem_slacks::Bool)
@@ -280,11 +424,44 @@ function get_all_policy_constraints(system::System)
 end
 
 function update_with_subproblem_solutions!(subproblems::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray}, results::NamedTuple)
-
-    subop_sol = MacroEnergySolvers.solve_subproblems(subproblems, results.planning_sol, true)
-
-    results = (; results..., subop_sol = subop_sol)
-
+    if isa(subproblems, DistributedArrays.DArray)
+        @sync for p in workers()
+            @async @spawnat p begin
+                update_local_subproblem_solutions!(localpart(subproblems), results.planning_sol)
+            end
+        end
+    else
+        update_local_subproblem_solutions!(subproblems, results.planning_sol)
+    end
     return nothing
-    
+end
+
+function update_local_subproblem_solutions!(
+    subproblems_local::Vector{Dict{Any,Any}},
+    planning_sol::NamedTuple,
+)
+    for subproblem in subproblems_local
+        update_subproblem_solution!(subproblem, planning_sol)
+    end
+    return nothing
+end
+
+function update_subproblem_solution!(subproblem::Dict{Any,Any}, planning_sol::NamedTuple)
+    instance = get(subproblem, :problem_instance, nothing)
+    if !isnothing(instance) && !isempty(fix_update_instructions(instance.update_map))
+        apply_planning_solution!(instance, planning_sol.values)
+        optimize!(subproblem[:model])
+        if !has_values(subproblem[:model])
+            compute_conflict!(subproblem[:model])
+            error("Final subproblem resolve failed after applying in-place updates.")
+        end
+    else
+        MacroEnergySolvers.solve_subproblem(
+            subproblem[:model],
+            planning_sol,
+            subproblem[:linking_variables_sub],
+            true,
+        )
+    end
+    return nothing
 end
