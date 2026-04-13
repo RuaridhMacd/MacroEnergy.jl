@@ -82,11 +82,18 @@ abstract type PlanningConstraint <: AbstractTypeConstraint end
 abstract type AbstractSolutionAlgorithm end
 struct Benders <: AbstractSolutionAlgorithm end
 struct Monolithic <: AbstractSolutionAlgorithm end
-struct Myopic <: AbstractSolutionAlgorithm end
 solution_algorithm(::AbstractSolutionAlgorithm) = Monolithic() # default to monolithic
 solution_algorithm(::Benders) = Benders()
 solution_algorithm(::Monolithic) = Monolithic()
-solution_algorithm(::Myopic) = Myopic()
+
+## Expansion modes
+
+abstract type AbstractExpansionHorizon end
+struct PerfectForesight <: AbstractExpansionHorizon end
+struct Myopic <: AbstractExpansionHorizon end
+expansion_horizon(::AbstractExpansionHorizon) = PerfectForesight() # default to perfect foresight
+expansion_horizon(::PerfectForesight) = PerfectForesight()
+expansion_horizon(::Myopic) = Myopic()
 
 # global constants
 const ME_DEPOT_PATH = joinpath(homedir(), ".macroenergy")
