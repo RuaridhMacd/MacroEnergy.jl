@@ -332,10 +332,11 @@ function discount_fixed_costs!(y::Union{AbstractEdge,AbstractStorage},settings::
     # Number of years of payments that are remaining
     model_years_remaining = years_remaining(period_idx, period_lengths)
 
-    # Myopic only considers costs within modeled period. Costs that are consequently omitted will be added after the model run when reporting results
-    if isa(solution_algorithm(settings[:SolutionAlgorithm]), Myopic)
+    # Myopic expansion only considers costs within the modeled period.
+    # Costs that are consequently omitted will be added after the model run when reporting results.
+    if isa(settings[:ExpansionHorizon], Myopic)
         payment_years_remaining = min(capital_recovery_period(y), period_length);
-    elseif isa(solution_algorithm(settings[:SolutionAlgorithm]), Monolithic) || isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders)
+    elseif isa(settings[:ExpansionHorizon], PerfectForesight)
         payment_years_remaining = min(capital_recovery_period(y), model_years_remaining);
     else
         # Placeholder for other future cases like rolling horizon

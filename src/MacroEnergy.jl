@@ -86,7 +86,7 @@ solution_algorithm(::AbstractSolutionAlgorithm) = Monolithic() # default to mono
 solution_algorithm(::Benders) = Benders()
 solution_algorithm(::Monolithic) = Monolithic()
 
-## Expansion modes
+## Expansion horizons
 
 abstract type AbstractExpansionHorizon end
 struct PerfectForesight <: AbstractExpansionHorizon end

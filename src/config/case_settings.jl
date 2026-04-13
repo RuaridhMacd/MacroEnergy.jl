@@ -6,8 +6,9 @@ function default_case_settings()
     return Dict(
         :PeriodLengths => [1],
         :DiscountRate => 0.,
+        :WriteFullTimeseries => false,
         :SolutionAlgorithm => "Monolithic",
-        :WriteFullTimeseries => false
+        :ExpansionHorizon => "PerfectForesight"
     )
 end
 
@@ -131,8 +132,9 @@ function configure_case(case_settings::AbstractDict{Symbol,Any})
     settings = merge(settings, case_settings)
     set_period_lengths!(settings)
     set_solution_algorithm!(settings)
+    set_expansion_horizon!(settings)
     isa(settings[:SolutionAlgorithm], Benders) && configure_benders!(settings)
-    isa(settings[:SolutionAlgorithm], Myopic) && configure_myopic!(settings)
+    isa(settings[:ExpansionHorizon], Myopic) && configure_myopic!(settings)
     validate_case_settings(settings)
     return namedtuple(settings)
 end
@@ -140,8 +142,9 @@ end
 function validate_case_settings(case_settings::AbstractDict{Symbol,Any})
     @assert all(case_settings[:PeriodLengths].>0)
     @assert case_settings[:DiscountRate] >= 0
-    @assert isa(case_settings[:SolutionAlgorithm], AbstractSolutionAlgorithm)
     @assert isa(case_settings[:WriteFullTimeseries], Bool)
+    @assert isa(case_settings[:SolutionAlgorithm], AbstractSolutionAlgorithm)
+    @assert isa(case_settings[:ExpansionHorizon], AbstractExpansionHorizon)
 end
 
 function set_period_lengths!(case_settings::AbstractDict{Symbol,Any})
@@ -157,12 +160,32 @@ function set_solution_algorithm!(case_settings::AbstractDict{Symbol,Any})
     elseif case_settings[:SolutionAlgorithm] == "Benders"
         case_settings[:SolutionAlgorithm] = Benders()
     elseif case_settings[:SolutionAlgorithm] == "Myopic"
-        case_settings[:SolutionAlgorithm] = Myopic()
+        @warn("""
+        Setting SolutionAlgorithm to \"Myopic\" is deprecated.
+        Use ExpansionHorizon: "Myopic" combined with SolutionAlgorithm: "Monolithic" instead.
+        Translating automatically: SolutionAlgorithm => Monolithic, ExpansionHorizon => Myopic.
+        """)
+        case_settings[:SolutionAlgorithm] = Monolithic()
+        case_settings[:ExpansionHorizon] = "Myopic"
     else
         @warn("No solution algorithm specified, defaulting to Monolithic")
         case_settings[:SolutionAlgorithm] = Monolithic()
     end
     @info(" -- Solution algorithm set to $(case_settings[:SolutionAlgorithm])")
+    return nothing
+end
+
+function set_expansion_horizon!(case_settings::AbstractDict{Symbol,Any})
+    @info(" -- Setting expansion mode")
+    if case_settings[:ExpansionHorizon] == "PerfectForesight"
+        case_settings[:ExpansionHorizon] = PerfectForesight()
+    elseif case_settings[:ExpansionHorizon] == "Myopic"
+        case_settings[:ExpansionHorizon] = Myopic()
+    else
+        @warn("Unknown expansion mode '$(case_settings[:ExpansionHorizon])', defaulting to PerfectForesight")
+        case_settings[:ExpansionHorizon] = PerfectForesight()
+    end
+    @info(" -- Expansion mode set to $(case_settings[:ExpansionHorizon])")
     return nothing
 end
 
