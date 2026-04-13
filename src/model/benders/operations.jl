@@ -11,6 +11,7 @@ function generate_operation_subproblem(
     model[:eVariableCost] = AffExpr(0.0)
     
     add_linking_variables!(instance, model)
+    sync_problem_local_state!(instance)
 
     linking_variable_refs = setdiff(all_variables(model), model[:vREF])
     register_linking_variable_updates!(instance, linking_variable_refs)
@@ -24,8 +25,8 @@ function generate_operation_subproblem(
     if include_subproblem_slacks == true
         @info("Adding slack variables to ensure subproblems are always feasible")
         slack_penalty = 2*maximum(coefficient(model[:eVariableCost],v) for v in all_variables(model))
-        eq_cons_to_be_relaxed =  get_all_balance_constraints(instance.static_system);
-        less_ineq_cons_to_be_relaxed = get_all_policy_constraints(instance.static_system);
+        eq_cons_to_be_relaxed =  get_all_balance_constraints(instance);
+        less_ineq_cons_to_be_relaxed = get_all_policy_constraints(instance);
         greater_ineq_cons_to_be_relaxed = Vector{ConstraintRef}();
         add_slack_variables!(model,slack_penalty,eq_cons_to_be_relaxed,less_ineq_cons_to_be_relaxed,greater_ineq_cons_to_be_relaxed)
     end
@@ -51,37 +52,20 @@ function register_linking_variable_updates!(instance::ProblemInstance, linking_v
     clear_updates!(instance.update_map; kind=:fix)
     seen_keys = Set{String}()
 
-    for (component_type, component_indices, components) in (
-        (:node, instance.spec.node_indices, selected_nodes(instance)),
-        (:transformation, instance.spec.transformation_indices, selected_transformations(instance)),
-        (:storage, instance.spec.storage_indices, selected_storages(instance)),
-        (
-            :long_duration_storage,
-            instance.spec.long_duration_storage_indices,
-            selected_long_duration_storages(instance),
-        ),
-        (
-            :unidirectional_edge,
-            instance.spec.unidirectional_edge_indices,
-            selected_unidirectional_edges(instance),
-        ),
-        (
-            :bidirectional_edge,
-            instance.spec.bidirectional_edge_indices,
-            selected_bidirectional_edges(instance),
-        ),
-        (
-            :unit_commitment_edge,
-            instance.spec.unit_commitment_edge_indices,
-            selected_unit_commitment_edges(instance),
-        ),
+    for (component_type, state_dict) in (
+        (:node, instance.node_state),
+        (:transformation, instance.transformation_state),
+        (:storage, instance.storage_state),
+        (:long_duration_storage, instance.long_duration_storage_state),
+        (:unidirectional_edge, instance.unidirectional_edge_state),
+        (:bidirectional_edge, instance.bidirectional_edge_state),
+        (:unit_commitment_edge, instance.unit_commitment_edge_state),
     )
-        for (local_idx, component) in enumerate(components)
-            register_component_linking_updates!(
+        for state in values(state_dict)
+            register_local_state_linking_updates!(
                 instance.update_map,
                 component_type,
-                component_indices[local_idx],
-                component,
+                state,
                 linking_variable_refs;
                 seen_keys,
             )
@@ -91,23 +75,22 @@ function register_linking_variable_updates!(instance::ProblemInstance, linking_v
     return instance.update_map
 end
 
-function register_component_linking_updates!(
+function register_local_state_linking_updates!(
     update_map::UpdateMap,
     component_type::Symbol,
-    component_index::Int,
-    component,
+    state::AbstractLocalState,
     linking_variable_refs;
     seen_keys::Set{String}=Set{String}(),
 )
-    for field in Base.fieldnames(typeof(component))
+    for (field, payload) in pairs(state.variables)
         register_field_linking_updates!(
             update_map,
             UpdateTarget(
                 component_type = component_type,
-                component_index = component_index,
+                component_index = state.global_index,
                 field = field,
             ),
-            getfield(component, field),
+            payload,
             linking_variable_refs;
             seen_keys,
         )
@@ -406,6 +389,44 @@ function get_all_balance_constraints(system::System)
     return balance_constraints
 end
 
+function get_all_balance_constraints(instance::ProblemInstance)
+    balance_constraints = JuMPConstraint[]
+
+    for (idx, node) in zip(instance.spec.node_indices, selected_nodes(instance))
+        state = instance.node_state[idx]
+        !haskey(state.constraints, :balance_constraint) && continue
+        constraint = state.constraints[:balance_constraint]
+        for balance_id in keys(node.balance_data)
+            for t in state.local_time_indices
+                push!(balance_constraints, constraint.constraint_ref[balance_id][t])
+            end
+        end
+    end
+
+    for (idx, storage) in zip(instance.spec.long_duration_storage_indices, selected_long_duration_storages(instance))
+        state = instance.long_duration_storage_state[idx]
+
+        if haskey(state.constraints, :balance_constraint)
+            constraint = state.constraints[:balance_constraint]
+            starts = [first(sp) for sp in subperiods(storage)]
+            for balance_id in keys(storage.balance_data)
+                for t in starts
+                    push!(balance_constraints, constraint.constraint_ref[balance_id][t])
+                end
+            end
+        end
+
+        if haskey(state.constraints, :long_duration_storage_change_constraint)
+            constraint = state.constraints[:long_duration_storage_change_constraint]
+            for w in subperiod_indices(storage)
+                push!(balance_constraints, constraint.constraint_ref[w])
+            end
+        end
+    end
+
+    return balance_constraints
+end
+
 
 function get_all_policy_constraints(system::System)
     policy_constraints = Vector{JuMPConstraint}();
@@ -420,6 +441,22 @@ function get_all_policy_constraints(system::System)
             end
         end
     end 
+    return policy_constraints
+end
+
+function get_all_policy_constraints(instance::ProblemInstance)
+    policy_constraints = JuMPConstraint[]
+
+    for (idx, node) in zip(instance.spec.node_indices, selected_nodes(instance))
+        isempty(node.price_unmet_policy) || continue
+        state = instance.node_state[idx]
+        for constraint in get(state.constraints, :policy_constraints, PolicyConstraint[])
+            for w in subperiod_indices(node)
+                push!(policy_constraints, constraint.constraint_ref[w])
+            end
+        end
+    end
+
     return policy_constraints
 end
 

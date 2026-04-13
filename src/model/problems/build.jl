@@ -146,6 +146,8 @@ function sync_node_local_state!(state::NodeLocalState, node::Node)
         state.constraints[:balance_constraint] = balance_constraint
     end
     state.constraints[:policy_budgeting_constraints] = copy(policy_budgeting_constraints(node))
+    state.constraints[:policy_constraints] =
+        [constraint for constraint in all_constraints(node) if constraint isa PolicyConstraint]
     state.expressions[:operation_expr] = copy(node.operation_expr)
     return state
 end
@@ -176,11 +178,20 @@ function sync_storage_local_state!(state::StorageLocalState, storage::AbstractSt
     state.variables[:new_capacity] = new_capacity(storage)
     state.variables[:retired_capacity] = retired_capacity(storage)
     state.variables[:storage_level] = storage_level(storage)
+    balance_constraint = get_constraint_by_type(storage, BalanceConstraint)
+    if !isnothing(balance_constraint)
+        state.constraints[:balance_constraint] = balance_constraint
+    end
     state.expressions[:operation_expr] = copy(storage.operation_expr)
 
     if storage isa LongDurationStorage
         state.variables[:storage_initial] = storage_initial(storage)
         state.variables[:storage_change] = storage_change(storage)
+        storage_change_constraint =
+            get_constraint_by_type(storage, LongDurationStorageChangeConstraint)
+        if !isnothing(storage_change_constraint)
+            state.constraints[:long_duration_storage_change_constraint] = storage_change_constraint
+        end
     end
 
     return state

@@ -29,6 +29,8 @@ import MacroEnergy:
     get_detailed_costs_benders,
     get_fixed_costs_benders,
     get_existing_capacity,
+    get_all_balance_constraints,
+    get_all_policy_constraints,
     get_optimal_capacity,
     initialize_subproblems!,
     load_case,
@@ -141,6 +143,27 @@ function test_problem_architecture()
     first_instance = first_subproblem[:problem_instance]
     initial_fix_updates = fix_update_instructions(first_instance.update_map)
     @test length(initial_fix_updates) == length(first_subproblem[:linking_variables_sub])
+    @test all(
+        instruction -> begin
+            state_dict = if instruction.target.component_type == :node
+                first_instance.node_state
+            elseif instruction.target.component_type == :transformation
+                first_instance.transformation_state
+            elseif instruction.target.component_type == :storage
+                first_instance.storage_state
+            elseif instruction.target.component_type == :long_duration_storage
+                first_instance.long_duration_storage_state
+            elseif instruction.target.component_type == :unidirectional_edge
+                first_instance.unidirectional_edge_state
+            elseif instruction.target.component_type == :bidirectional_edge
+                first_instance.bidirectional_edge_state
+            else
+                first_instance.unit_commitment_edge_state
+            end
+            haskey(state_dict[instruction.target.component_index].variables, instruction.target.field)
+        end,
+        initial_fix_updates,
+    )
 
     initial_model_id = objectid(first_subproblem[:model])
     planning_values_1 = Dict(variable_name => 0.0 for variable_name in first_subproblem[:linking_variables_sub])
@@ -159,6 +182,8 @@ function test_problem_architecture()
           any(haskey(state.values, :flow) for state in values(first_instance.bidirectional_edge_state)) ||
           any(haskey(state.values, :flow) for state in values(first_instance.unit_commitment_edge_state))
     @test any(haskey(state.values, :balance_dual) for state in values(first_instance.node_state))
+    @test !isempty(get_all_balance_constraints(first_instance))
+    @test get_all_policy_constraints(first_instance) isa Vector
 
     planning_model = generate_planning_problem(case)
     @test planning_model isa Model
