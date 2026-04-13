@@ -327,8 +327,15 @@ function build_temporal_subproblem_system(
     system::System,
     subperiod_position::Int,
 )
-    subproblem_system = deepcopy(system)
-    primary_time_data = get_primary_time_data(system)
+    return build_temporal_subproblem_system(StaticSystem(system), subperiod_position)
+end
+
+function build_temporal_subproblem_system(
+    static_system::StaticSystem,
+    subperiod_position::Int,
+)
+    subproblem_static_system = deepcopy(static_system)
+    primary_time_data = get_primary_time_data(static_system)
     period_index = primary_time_data.period_index
     subperiod_index = primary_time_data.subperiod_indices[subperiod_position]
     subperiod_interval = primary_time_data.subperiods[subperiod_position]
@@ -339,8 +346,8 @@ function build_temporal_subproblem_system(
         findall(subperiod_map[x] == subperiod_index for x in modeled_subperiods_all)
     ]
 
-    for commodity in keys(subproblem_system.time_data)
-        time_data = subproblem_system.time_data[commodity]
+    for commodity in keys(subproblem_static_system.time_data)
+        time_data = subproblem_static_system.time_data[commodity]
         time_data.time_interval = subperiod_interval
         time_data.subperiod_weights = Dict(subperiod_index => subperiod_weight)
         time_data.subperiods = [subperiod_interval]
@@ -350,7 +357,7 @@ function build_temporal_subproblem_system(
     end
 
     return (
-        static_system = StaticSystem(subproblem_system),
+        static_system = subproblem_static_system,
         period_index = period_index,
         subperiod_index = subperiod_index,
         time_indices = collect(subperiod_interval),
@@ -363,10 +370,11 @@ function build_temporal_subproblem_bundles(case::Case)
     subproblem_count = 0
 
     for (period_idx, system) in enumerate(case.systems)
-        primary_time_data = get_primary_time_data(system)
+        period_static_system = StaticSystem(system)
+        primary_time_data = get_primary_time_data(period_static_system)
         for subperiod_position in eachindex(primary_time_data.subperiods)
             subproblem_count += 1
-            subproblem_data = build_temporal_subproblem_system(system, subperiod_position)
+            subproblem_data = build_temporal_subproblem_system(period_static_system, subperiod_position)
             spec = problem_spec(
                 subproblem_data.static_system;
                 id=Symbol(:subproblem_, subproblem_count),

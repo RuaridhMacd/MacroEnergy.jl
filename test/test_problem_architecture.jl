@@ -26,7 +26,9 @@ import MacroEnergy:
     get_storages,
     get_transformations,
     fix_update_instructions,
+    get_detailed_costs_benders,
     get_fixed_costs_benders,
+    get_existing_capacity,
     get_optimal_capacity,
     initialize_subproblems!,
     load_case,
@@ -110,6 +112,9 @@ function test_problem_architecture()
     @test subproblem_bundles[1].instance.spec.role == :temporal_subproblem
     @test subproblem_bundles[1].instance.spec.metadata[:subproblem_index] == 1
     @test !haskey(subproblem_bundles[1], :system)
+    first_subproblem_time_data = MacroEnergy.get_primary_time_data(subproblem_bundles[1].instance.static_system)
+    @test length(first_subproblem_time_data.subperiods) == 1
+    @test length(first_subproblem_time_data.subperiod_indices) == 1
 
     planning_problem = generate_planning_problem(case)
     missing_planning_names = [
@@ -186,9 +191,22 @@ function test_problem_architecture()
     @test !isempty(planning_capacity_df)
     @test all(value -> value isa Float64, planning_capacity_df.value)
 
+    planning_existing_capacity_df = get_existing_capacity(first_planning_instance)
+    @test planning_existing_capacity_df isa DataFrame
+    @test !isempty(planning_existing_capacity_df)
+    @test all(value -> value isa Float64, planning_existing_capacity_df.value)
+
     planning_fixed_costs = get_fixed_costs_benders(first_planning_instance, get_settings(case))
     @test planning_fixed_costs.discounted isa DataFrame
     @test planning_fixed_costs.undiscounted isa DataFrame
+
+    planning_detailed_costs = get_detailed_costs_benders(
+        first_planning_instance,
+        DataFrame(zone=String[], type=String[], category=Symbol[], value=Float64[]),
+        get_settings(case),
+    )
+    @test planning_detailed_costs.discounted isa DataFrame
+    @test planning_detailed_costs.undiscounted isa DataFrame
 
     materialize_planning_solution!(planning_bundle.planning_instances)
 

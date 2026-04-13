@@ -790,7 +790,11 @@ function get_detailed_costs_benders(
     fixed_costs = get_fixed_costs_benders(system, settings; scaling)
 
     # Apply discounting to operational costs if needed
-    period_index = system.time_data[:Electricity].period_index
+    period_index = if system isa ProblemInstance
+        system.static_system.time_data[:Electricity].period_index
+    else
+        system.time_data[:Electricity].period_index
+    end
     discount_rate = settings.DiscountRate
     period_lengths = settings.PeriodLengths
     period_length = period_lengths[period_index]

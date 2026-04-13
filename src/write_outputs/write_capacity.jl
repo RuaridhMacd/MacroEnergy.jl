@@ -462,7 +462,8 @@ function get_problem_instance_capacity_field_value(
 )
     field_symbol = Symbol(field)
     if field_symbol == :existing_capacity
-        return existing_capacity(obj)
+        payload = existing_capacity(obj)
+        return payload isa Number ? payload : value(payload)
     end
 
     state = maybe_get_local_state(instance, obj)
