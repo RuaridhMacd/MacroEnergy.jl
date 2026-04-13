@@ -123,6 +123,13 @@ function has_tdr(system::System)
     end
 end
 
+function has_tdr(static_system::StaticSystem)
+    isempty(static_system.time_data) && return false
+    return any(values(static_system.time_data)) do time_data
+        any(k != v for (k, v) in time_data.subperiod_map)
+    end
+end
+
 # ---------------------------------------------------------------------------
 # Flow
 # ---------------------------------------------------------------------------
@@ -353,7 +360,7 @@ When `DualExportsEnabled` is set in the system settings, balance constraint dual
 also written, scaled by `var_cost_discount`.
 """
 function write_full_timeseries(
-    results_dir::AbstractString, system::System,
+    results_dir::AbstractString, system::Union{System,StaticSystem},
     flow_dfs::Vector{DataFrame}, nsd_dfs::Vector{DataFrame},
     storage_dfs::Vector{DataFrame}, curtailment_dfs::Vector{DataFrame};
     var_cost_discount::Float64=1.0,
@@ -446,7 +453,7 @@ end
 # Benders: Flow
 # ---------------------------------------------------------------------------
 
-function write_flow_full_timeseries(file_path::AbstractString, system::System, flow_dfs::Vector{DataFrame})
+function write_flow_full_timeseries(file_path::AbstractString, system::Union{System,StaticSystem}, flow_dfs::Vector{DataFrame})
     @info "Writing full time series flow results to $file_path"
 
     edges = get_edges(system)
@@ -471,7 +478,7 @@ end
 # Benders: Non-served demand
 # ---------------------------------------------------------------------------
 
-function write_non_served_demand_full_timeseries(file_path::AbstractString, system::System, nsd_dfs::Vector{DataFrame})
+function write_non_served_demand_full_timeseries(file_path::AbstractString, system::Union{System,StaticSystem}, nsd_dfs::Vector{DataFrame})
     @info "Writing full time series non-served demand results to $file_path"
 
     nodes = get_nodes(system)
@@ -497,7 +504,7 @@ end
 # Benders: Storage level
 # ---------------------------------------------------------------------------
 
-function write_storage_level_full_timeseries(file_path::AbstractString, system::System, storage_dfs::Vector{DataFrame})
+function write_storage_level_full_timeseries(file_path::AbstractString, system::Union{System,StaticSystem}, storage_dfs::Vector{DataFrame})
     @info "Writing full time series storage level results to $file_path"
 
     storages = get_storages(system)
@@ -522,7 +529,7 @@ end
 # Benders: Curtailment
 # ---------------------------------------------------------------------------
 
-function write_curtailment_full_timeseries(file_path::AbstractString, system::System, curtailment_dfs::Vector{DataFrame})
+function write_curtailment_full_timeseries(file_path::AbstractString, system::Union{System,StaticSystem}, curtailment_dfs::Vector{DataFrame})
     @info "Writing full time series curtailment results to $file_path"
 
     edges = get_edges(system)
@@ -580,7 +587,7 @@ end
 
 function write_balance_duals_full_timeseries(
     file_path::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     collected_balance_duals::AbstractDict,
     scaling::Float64,
 )

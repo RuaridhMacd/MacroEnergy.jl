@@ -80,7 +80,7 @@ end
 # Function to write flow results from multiple dataframes
 # This function is used when the results are distributed across multiple processes
 function write_flows(file_path::AbstractString, 
-    system::System, 
+    system::Union{System,StaticSystem}, 
     flow_dfs::Vector{DataFrame}
 )
     @info("Writing flow results to $file_path")
@@ -89,6 +89,22 @@ function write_flows(file_path::AbstractString,
     flow_results = reduce(vcat, flow_dfs)
     
     # Reshape if wide layout requested
+    layout = get_output_layout(system, :Flow)
+    if layout == "wide"
+        flow_results = reshape_wide(flow_results, :time, :component_id, :value)
+    end
+    write_dataframe(file_path, flow_results)
+end
+
+function write_flows(
+    file_path::AbstractString,
+    system::StaticSystem,
+    flow_dfs::Vector{DataFrame},
+)
+    @info("Writing flow results to $file_path")
+
+    flow_results = reduce(vcat, flow_dfs)
+
     layout = get_output_layout(system, :Flow)
     if layout == "wide"
         flow_results = reshape_wide(flow_results, :time, :component_id, :value)

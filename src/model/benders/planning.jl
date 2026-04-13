@@ -1,7 +1,7 @@
 
 function initialize_planning_problem!(case::Case,opt::Dict)
-    
-    planning_problem = generate_planning_problem(case);
+    planning_bundle = build_planning_problem(case)
+    planning_problem = planning_bundle.model
 
     optimizer = create_optimizer(opt[:solver], opt_env(opt[:solver]), opt[:attributes])
 
@@ -14,14 +14,14 @@ function initialize_planning_problem!(case::Case,opt::Dict)
         scale_constraints!(planning_problem)
     end
 
-    return planning_problem
+    return (
+        model = planning_problem,
+        instances = planning_bundle.planning_instances,
+    )
 
 end
 
-function generate_planning_problem(case::Case)
-
-    @info("Generating planning problem")
-
+function build_planning_problem(case::Case)
     planning_instances = build_planning_problem_instances(case)
     settings = case.settings
 
@@ -86,8 +86,30 @@ function generate_planning_problem(case::Case)
 
     @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")
 
-    return model
+    return (
+        model = model,
+        planning_instances = planning_instances,
+    )
+end
 
+function generate_planning_problem(case::Case)
+
+    @info("Generating planning problem")
+
+    return build_planning_problem(case).model
+
+end
+
+function capture_planning_solution!(planning_instances, planning_variable_values::AbstractDict)
+    for instance in planning_instances
+        capture_problem_solution_values!(instance, planning_variable_values)
+    end
+    return planning_instances
+end
+
+function materialize_planning_solution!(planning_instances)
+    materialize_problem_solutions!(planning_instances)
+    return planning_instances
 end
 
 function update_with_planning_solution!(case::Case, planning_variable_values::Dict)

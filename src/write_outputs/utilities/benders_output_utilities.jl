@@ -7,7 +7,7 @@ function write_benders_convergence(case_path::AbstractString, bd_results::Bender
     CSV.write(joinpath(case_path, "benders_convergence.csv"), dfConv)
 end
 
-function prepare_costs_benders(system::System, 
+function prepare_costs_benders(system::Union{System,StaticSystem,ProblemInstance}, 
     bd_results::BendersResults, 
     subop_indices::Vector{Int64}, 
     settings::NamedTuple
@@ -19,9 +19,8 @@ function prepare_costs_benders(system::System,
     create_discounted_cost_expressions!(planning_problem, system, settings)
     compute_undiscounted_costs!(planning_problem, system, settings)
 
-    # Evaluate the fixed cost expressions in the planning problem. Note that this expression has been re-built
-    # in compute_undiscounted_costs! to utilize undiscounted costs and the Benders planning solutions that are 
-    # stored in system. So, no need to re-evaluate the expression on planning_variable_values.
+    # Evaluate the fixed cost expressions directly on the solved planning model after rebuilding the
+    # period-level cost expressions for the requested output system.
     fixed_cost = value(planning_problem[:eFixedCost])
     # Evaluate the discounted fixed cost expression on the Benders planning solutions
     discounted_fixed_cost = value(x -> planning_variable_values[name(x)], planning_problem[:eDiscountedFixedCost])
@@ -37,7 +36,7 @@ function prepare_costs_benders(system::System,
     )
 end
 
-function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, system::System, settings::NamedTuple)
+function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, system::Union{System,StaticSystem}, settings::NamedTuple)
 
     period_lengths = collect(settings.PeriodLengths)
     discount_rate = settings.DiscountRate
@@ -52,6 +51,9 @@ function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{I
 
     return variable_cost, discounted_variable_cost
 end
+
+compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, instance::ProblemInstance, settings::NamedTuple) =
+    compute_benders_variable_costs(subop_sol, subop_indices, instance.static_system, settings)
     
 """
     collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
@@ -77,11 +79,12 @@ function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1
     p_id = workers()
     np_id = length(p_id)
     result_chunks = Vector{Vector{NamedTuple}}(undef, np_id)
+    op_subproblem = bd_results.op_subproblem
 
     @sync for i in 1:np_id
-        @async result_chunks[i] = @fetchfrom p_id[i] begin
-            local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
-            [extract_subproblem_results(sp; scaling=scaling) for sp in local_subproblems]
+        @async result_chunks[i] = remotecall_fetch(p_id[i], op_subproblem, scaling) do remote_subproblems, remote_scaling
+            local_subproblems = DistributedArrays.localpart(remote_subproblems)
+            [extract_subproblem_results(sp; scaling=remote_scaling) for sp in local_subproblems]
         end
     end
 
@@ -808,8 +811,11 @@ function collect_distributed_policy_slack_vars(bd_results::BendersResults)
     p_id = workers()
     np_id = length(p_id)
     slack_vars = Vector{Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict{Int64, Float64}}}}(undef, np_id)
+    op_subproblem = bd_results.op_subproblem
     @sync for i in 1:np_id
-        @async slack_vars[i] = @fetchfrom p_id[i] collect_local_slack_vars(DistributedArrays.localpart(bd_results.op_subproblem))
+        @async slack_vars[i] = remotecall_fetch(p_id[i], op_subproblem) do remote_subproblems
+            collect_local_slack_vars(DistributedArrays.localpart(remote_subproblems))
+        end
     end
     
     # Merge dictionaries by period_index
@@ -973,11 +979,14 @@ function collect_distributed_constraint_duals(bd_results::BendersResults, ::Type
     p_id = workers()
     np_id = length(p_id)
     constraint_duals = Vector{Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}}(undef, np_id)
+    op_subproblem = bd_results.op_subproblem
     @sync for i in 1:np_id
-        @async constraint_duals[i] = @fetchfrom p_id[i] collect_local_constraint_duals(
-            DistributedArrays.localpart(bd_results.op_subproblem),
-            BalanceConstraint
-        )
+        @async constraint_duals[i] = remotecall_fetch(p_id[i], op_subproblem) do remote_subproblems
+            collect_local_constraint_duals(
+                DistributedArrays.localpart(remote_subproblems),
+                BalanceConstraint,
+            )
+        end
     end
     
     # Merge dictionaries

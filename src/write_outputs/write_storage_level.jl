@@ -80,7 +80,7 @@ end
 # This function is used when the results are distributed across multiple processes (Benders)
 function write_storage_level(
     file_path::AbstractString, 
-    system::System, 
+    system::Union{System,StaticSystem}, 
     storage_level_dfs::Vector{DataFrame}
 )
     @info "Writing storage level results to $file_path"
@@ -100,6 +100,30 @@ function write_storage_level(
         storage_level_results = reshape_wide(storage_level_results, :time, :component_id, :value)
     end
     
+    write_dataframe(file_path, storage_level_results)
+    return nothing
+end
+
+function write_storage_level(
+    file_path::AbstractString,
+    system::StaticSystem,
+    storage_level_dfs::Vector{DataFrame},
+)
+    @info "Writing storage level results to $file_path"
+
+    non_empty_dfs = filter(!isempty, storage_level_dfs)
+    if isempty(non_empty_dfs)
+        @debug "No storage level results found (no storages have storage level variables)"
+        return nothing
+    end
+
+    storage_level_results = reduce(vcat, non_empty_dfs)
+
+    layout = get_output_layout(system, :StorageLevel)
+    if layout == "wide"
+        storage_level_results = reshape_wide(storage_level_results, :time, :component_id, :value)
+    end
+
     write_dataframe(file_path, storage_level_results)
     return nothing
 end

@@ -18,7 +18,7 @@ import MacroEnergy: build_problem_instance
 import MacroEnergy: empty_system
 import MacroEnergy: ProblemInstance, StaticSystem, get_first_reassembly_slice, problem_spec
 import MacroEnergy: Node, Electricity, TimeData, System
-import MacroEnergy: write_balance_duals, write_co2_cap_duals
+import MacroEnergy: write_balance_duals, write_co2_cap_duals, write_time_weights, write_full_timeseries
 
 function test_benders_output_utilities()
 
@@ -1008,9 +1008,15 @@ function test_benders_output_utilities()
             outdir = mktempdir()
             write_balance_duals(outdir, system, collected_balance_duals, 1.0)
             write_co2_cap_duals(outdir, system, collected_slack_vars, 1.0)
+            static_system = StaticSystem(system)
+            write_balance_duals(outdir, static_system, collected_balance_duals, 1.0)
+            write_co2_cap_duals(outdir, static_system, collected_slack_vars, 1.0)
+            write_time_weights(joinpath(outdir, "time_weights.csv"), static_system)
+            @test isnothing(write_full_timeseries(outdir, static_system, DataFrame[], DataFrame[], DataFrame[], DataFrame[]))
 
             balance_df = CSV.read(joinpath(outdir, "balance_duals.csv"), DataFrame)
             co2_df = CSV.read(joinpath(outdir, "co2_cap_duals.csv"), DataFrame)
+            time_weights_df = CSV.read(joinpath(outdir, "time_weights.csv"), DataFrame)
 
             @test names(balance_df) == ["direct_dual_node"]
             @test balance_df[1, 1] == dual(balance[1]) / 2.0
@@ -1018,6 +1024,9 @@ function test_benders_output_utilities()
 
             @test co2_df.Node == ["direct_dual_node"]
             @test co2_df.CO2_Shadow_Price[1] == -dual(co2_budget)
+            @test time_weights_df.time == [1, 2]
+            @test time_weights_df.subperiod_index == [1, 2]
+            @test time_weights_df.weight == [2.0, 3.0]
             @test co2_df.CO2_Slack[1] == 0.0
         end
     end

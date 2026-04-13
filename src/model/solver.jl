@@ -38,19 +38,21 @@ function solve_case(case::Case, opt::Dict{Symbol, Dict{Symbol, Any}}, ::Benders)
     periods = get_periods(case);
     subproblem_bundles = build_temporal_subproblem_bundles(case)
 
-    planning_problem = initialize_planning_problem!(case,opt[:planning])
+    planning_bundle = initialize_planning_problem!(case,opt[:planning])
+    planning_problem = planning_bundle.model
+    planning_instances = planning_bundle.instances
 
     subproblems, linking_variables_sub = initialize_subproblems!(subproblem_bundles, opt[:subproblems], get_settings(case), bd_setup[:Distributed],bd_setup[:IncludeSubproblemSlacksAutomatically])
 
     results = MacroEnergySolvers.benders(planning_problem, subproblems, linking_variables_sub, Dict(pairs(bd_setup)))
 
-    update_with_planning_solution!(case, results.planning_sol.values)
+    capture_planning_solution!(planning_instances, results.planning_sol.values)
 
     @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
 
     update_with_subproblem_solutions!(subproblems, results)
 
-    return (case, BendersResults(results, subproblems))
+    return (case, BendersResults(results, subproblems; planning_instances))
 end
 
 """

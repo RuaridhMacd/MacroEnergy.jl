@@ -75,3 +75,32 @@ function write_time_weights(file_path::AbstractString, system::System)
     write_dataframe(file_path, df)
     return nothing
 end
+
+function write_time_weights(file_path::AbstractString, static_system::StaticSystem)
+    @info "Writing time weights to $file_path"
+
+    td = static_system.time_data[first(keys(static_system.time_data))]
+    times = collect(td.time_interval)
+
+    subperiod_index_col = Int[]
+    weight_col = Float64[]
+    for t in times
+        k = findfirst(t .∈ td.subperiods)
+        rep_period = td.subperiod_indices[k]
+        push!(subperiod_index_col, rep_period)
+        push!(weight_col, td.subperiod_weights[td.subperiod_map[rep_period]])
+    end
+
+    df = DataFrame(
+        time            = times,
+        subperiod_index = subperiod_index_col,
+        weight          = weight_col,
+    )
+
+    write_dataframe(file_path, df)
+    return nothing
+end
+
+function write_time_weights(file_path::AbstractString, instance::ProblemInstance)
+    return write_time_weights(file_path, instance.static_system)
+end

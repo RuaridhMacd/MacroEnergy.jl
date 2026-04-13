@@ -9,12 +9,14 @@ struct BendersResults
     cpu_time::Vector{Float64}
     planning_sol_hist::Matrix{Float64}
     op_subproblem::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray}
+    planning_instances::Vector{ProblemInstance}
 end
 
 # Define constructor
 # BendersResults(nt::NamedTuple) = convert(BendersResults, nt)
 BendersResults(nt::NamedTuple, 
-    op_subproblem::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray}
+    op_subproblem::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray};
+    planning_instances::Vector{ProblemInstance}=ProblemInstance[],
 ) = BendersResults(nt.planning_problem, 
     nt.planning_sol, 
     nt.subop_sol,
@@ -24,5 +26,6 @@ BendersResults(nt::NamedTuple,
     nt.termination_status,
     nt.cpu_time, 
     nt.planning_sol_hist,
-    op_subproblem
+    op_subproblem,
+    planning_instances,
 )

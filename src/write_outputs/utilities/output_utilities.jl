@@ -130,8 +130,8 @@ get_output_layout(system, :Flow)  # Returns "long"
 get_output_layout(system, :Other) # Returns "long" with warning
 ```
 """
-function get_output_layout(system::System, variable::Union{Nothing,Symbol}=nothing)::String
-    output_layout = system.settings.OutputLayout
+function get_output_layout(settings::NamedTuple, variable::Union{Nothing,Symbol}=nothing)::String
+    output_layout = settings.OutputLayout
 
     # String layouts supported are "wide" and "long"
     if isa(output_layout, String)
@@ -158,6 +158,15 @@ function get_output_layout(system::System, variable::Union{Nothing,Symbol}=nothi
     @warn "OutputLayout type $(typeof(output_layout)) not supported. Using 'long' as default."
     return "long"
 end
+
+get_output_layout(system::System, variable::Union{Nothing,Symbol}=nothing)::String =
+    get_output_layout(system.settings, variable)
+
+get_output_layout(static_system::StaticSystem, variable::Union{Nothing,Symbol}=nothing)::String =
+    get_output_layout(static_system.settings, variable)
+
+get_output_layout(instance::ProblemInstance, variable::Union{Nothing,Symbol}=nothing)::String =
+    get_output_layout(instance.static_system.settings, variable)
 
 """
     filter_edges_by_commodity!(edges::Vector{AbstractEdge}, commodity::Union{Symbol,Vector{Symbol}}, edge_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}())

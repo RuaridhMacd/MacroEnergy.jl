@@ -32,7 +32,7 @@ write_duals("results/", system)
 """
 function write_duals(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     scaling::Float64=1.0
 )
     @info "Writing constraint dual values to $results_dir"
@@ -75,7 +75,7 @@ write_balance_duals("results/", system)
 """
 function write_balance_duals(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     scaling::Float64=1.0
 )
     @info "Writing balance constraint dual values to $results_dir"
@@ -94,7 +94,7 @@ end
 
 function write_balance_duals(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     collected_balance_duals::AbstractDict,
     scaling::Float64,
 )
@@ -123,12 +123,12 @@ is the rescaled dual vector for the corresponding node.
 When `with_timedata` is `true`, `timedata_vec` contains the `TimeData` for each node
 (for time-series reconstruction); otherwise it is `nothing`.
 """
-function _extract_balance_duals(system::System, scaling::Float64=1.0; with_timedata::Bool=false)
+function _extract_balance_duals(system::Union{System,StaticSystem}, scaling::Float64=1.0; with_timedata::Bool=false)
     balance_duals = Vector{Vector{Float64}}()
     node_ids = Vector{Symbol}()
     timedata_vec = with_timedata ? Vector{TimeData}() : nothing
 
-    for node in filter(n -> n isa Node, system.locations)
+    for node in get_nodes(system)
         constraint = get_constraint_by_type(node, BalanceConstraint)
         isnothing(constraint) && continue
         # Skip if constraint has no reference or dual values
@@ -162,7 +162,7 @@ function _extract_balance_duals(system::System, scaling::Float64=1.0; with_timed
 end
 
 function _extract_balance_duals(
-    system::System,
+    system::Union{System,StaticSystem},
     collected_balance_duals::AbstractDict,
     scaling::Float64=1.0;
     with_timedata::Bool=false,
@@ -171,7 +171,7 @@ function _extract_balance_duals(
     node_ids = Vector{Symbol}()
     timedata_vec = with_timedata ? Vector{TimeData}() : nothing
 
-    for node in filter(n -> n isa Node, system.locations)
+    for node in get_nodes(system)
         haskey(collected_balance_duals, id(node)) || continue
         balance_dict = collected_balance_duals[id(node)]
         haskey(balance_dict, :demand) || continue
@@ -218,7 +218,7 @@ write_co2_cap_duals("results/", system)
 """
 function write_co2_cap_duals(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     scaling::Float64=1.0
 )
     @info "Writing CO2 cap constraint dual values to $results_dir"
@@ -233,7 +233,7 @@ function write_co2_cap_duals(
     co2_shadow_prices = Vector{Float64}()
     co2_slack_vars = Vector{Union{Float64, Missing}}()
 
-    for node in filter(n -> n isa Node, system.locations)
+    for node in get_nodes(system)
         # Skip nodes without CO2 cap policy budget constraint
         !haskey(policy_budgeting_constraints(node), ct_type) && continue
         
@@ -287,7 +287,7 @@ end
 
 function write_co2_cap_duals(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     collected_slack_vars::AbstractDict,
     scaling::Float64,
 )
@@ -302,7 +302,7 @@ function write_co2_cap_duals(
     co2_shadow_prices = Vector{Float64}()
     co2_slack_vars = Vector{Union{Float64, Missing}}()
 
-    for node in filter(n -> n isa Node, system.locations)
+    for node in get_nodes(system)
         !haskey(policy_budgeting_constraints(node), ct_type) && continue
 
         constraint = policy_budgeting_constraints(node, ct_type)

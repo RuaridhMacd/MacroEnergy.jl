@@ -77,52 +77,67 @@ function write_outputs(case_path::AbstractString, case::Case, bd_results::Bender
         ## Create results directory to store the results
         results_dir = mkpath_for_period(case_path, num_periods, period_idx)
 
+        planning_output_instance = if length(bd_results.planning_instances) >= period_idx
+            bd_results.planning_instances[period_idx]
+        else
+            nothing
+        end
+        planning_output_system = isnothing(planning_output_instance) ? period : planning_output_instance.static_system
+
         # subproblem indices for the current period
         subop_indices_period = period_to_subproblem_map[period_idx]
 
-        # Note: period has been updated with the capacity values in planning_solution at the end of function solve_case
-        # Capacity results
-        write_capacity(joinpath(results_dir, "capacity.csv"), period)
+        # Capacity and planning-metadata outputs prefer the planning-period ProblemInstance when available.
+        if isnothing(planning_output_instance)
+            write_capacity(joinpath(results_dir, "capacity.csv"), planning_output_system)
+        else
+            write_capacity(joinpath(results_dir, "capacity.csv"), planning_output_instance)
+        end
 
         # Flow results
-        write_flows(joinpath(results_dir, "flows.csv"), period, flow_df[subop_indices_period])
+        write_flows(joinpath(results_dir, "flows.csv"), planning_output_system, flow_df[subop_indices_period])
 
         # Non-served demand results
-        write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), period, nsd_df[subop_indices_period])
+        write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), planning_output_system, nsd_df[subop_indices_period])
 
         # Storage level results
-        write_storage_level(joinpath(results_dir, "storage_level.csv"), period, storage_level_df[subop_indices_period])
+        write_storage_level(joinpath(results_dir, "storage_level.csv"), planning_output_system, storage_level_df[subop_indices_period])
         
         # Curtailment results
-        write_curtailment(joinpath(results_dir, "curtailment.csv"), period, curtailment_df[subop_indices_period])
+        write_curtailment(joinpath(results_dir, "curtailment.csv"), planning_output_system, curtailment_df[subop_indices_period])
 
         # Sub-period weights (for downstream revenue and weighted-sum calculations)
-        write_time_weights(joinpath(results_dir, "time_weights.csv"), period)
+        if isnothing(planning_output_instance)
+            write_time_weights(joinpath(results_dir, "time_weights.csv"), planning_output_system)
+        else
+            write_time_weights(joinpath(results_dir, "time_weights.csv"), planning_output_instance)
+        end
 
         # Cost results (system level)
-        costs = prepare_costs_benders(period, bd_results, subop_indices_period, settings)
+        cost_output_problem = isnothing(planning_output_instance) ? planning_output_system : planning_output_instance
+        costs = prepare_costs_benders(cost_output_problem, bd_results, subop_indices_period, settings)
 
-        write_costs(joinpath(results_dir, "costs.csv"), period, costs)
+        write_costs(joinpath(results_dir, "costs.csv"), cost_output_problem, costs)
         
-        write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), period, costs)
+        write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), cost_output_problem, costs)
         
         # Detailed cost breakdown (assets and zones level)
-        write_detailed_costs_benders(results_dir, period, costs, operational_costs_df[subop_indices_period], settings)
+        write_detailed_costs_benders(results_dir, cost_output_problem, costs, operational_costs_df[subop_indices_period], settings)
 
         # Write dual values (if enabled)
         # Scaling factor to account for discounting duals in multi-period models
         var_cost_discount = compute_variable_cost_discount_scaling(period_idx, settings)
-        if period.settings.DualExportsEnabled
+        if planning_output_system.settings.DualExportsEnabled
             period_slack_vars = get(slack_vars, period_idx, Dict())
             period_balance_duals = get(balance_duals, period_idx, Dict())
 
-            write_balance_duals(results_dir, period, period_balance_duals, var_cost_discount)
-            write_co2_cap_duals(results_dir, period, period_slack_vars, var_cost_discount)
+            write_balance_duals(results_dir, planning_output_system, period_balance_duals, var_cost_discount)
+            write_co2_cap_duals(results_dir, planning_output_system, period_slack_vars, var_cost_discount)
         end
 
         # Full time series reconstruction (if enabled and TDR is used)
         if settings.WriteFullTimeseries
-            write_full_timeseries(results_dir, period,
+            write_full_timeseries(results_dir, planning_output_system,
                 flow_df[subop_indices_period], 
                 nsd_df[subop_indices_period],
                 storage_level_df[subop_indices_period], 

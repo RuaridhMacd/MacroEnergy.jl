@@ -3,15 +3,19 @@ module TestProblemArchitecture
 using Test
 using JuMP
 using HiGHS
+using DataFrames
 using MacroEnergy
 
 import MacroEnergy:
     apply_planning_solution!,
     build_monolithic_problem_instances,
+    build_planning_problem,
     build_planning_problem_instances,
     build_temporal_subproblem_bundles,
     Case,
+    capture_planning_solution!,
     create_named_problem_model,
+    materialize_planning_solution!,
     ProblemInstance,
     StaticSystem,
     full_problem_spec,
@@ -22,6 +26,8 @@ import MacroEnergy:
     get_storages,
     get_transformations,
     fix_update_instructions,
+    get_fixed_costs_benders,
+    get_optimal_capacity,
     initialize_subproblems!,
     load_case,
     normalize_problem_spec,
@@ -151,7 +157,65 @@ function test_problem_architecture()
 
     planning_model = generate_planning_problem(case)
     @test planning_model isa Model
-    populated_planning_instance = build_planning_problem_instances(case)[1]
+    planning_bundle = build_planning_problem(case)
+    planning_values = Dict(
+        name(variable) => 0.0 for variable in all_variables(planning_bundle.model)
+        if !isempty(name(variable))
+    )
+    capture_planning_solution!(planning_bundle.planning_instances, planning_values)
+
+    first_planning_instance = planning_bundle.planning_instances[1]
+    @test any(
+        state -> get(state.values, :capacity, nothing) isa Number ||
+                 get(state.values, :new_capacity, nothing) isa Number,
+        values(first_planning_instance.unidirectional_edge_state),
+    ) ||
+    any(
+        state -> get(state.values, :capacity, nothing) isa Number ||
+                 get(state.values, :new_capacity, nothing) isa Number,
+        values(first_planning_instance.storage_state),
+    ) ||
+    any(
+        state -> get(state.values, :capacity, nothing) isa Number ||
+                 get(state.values, :new_capacity, nothing) isa Number,
+        values(first_planning_instance.long_duration_storage_state),
+    )
+
+    planning_capacity_df = get_optimal_capacity(first_planning_instance)
+    @test planning_capacity_df isa DataFrame
+    @test !isempty(planning_capacity_df)
+    @test all(value -> value isa Float64, planning_capacity_df.value)
+
+    planning_fixed_costs = get_fixed_costs_benders(first_planning_instance, get_settings(case))
+    @test planning_fixed_costs.discounted isa DataFrame
+    @test planning_fixed_costs.undiscounted isa DataFrame
+
+    materialize_planning_solution!(planning_bundle.planning_instances)
+
+    first_period_system = case.systems[1]
+    @test all(
+        value -> value isa Number || value isa AbstractDict || value isa AbstractArray,
+        [
+            begin
+                first_capacity_component = first(vcat(
+                    MacroEnergy.edges_with_capacity_variables(get_edges(first_period_system)),
+                    get_storages(first_period_system),
+                ))
+                MacroEnergy.capacity(first_capacity_component)
+            end,
+            begin
+                first_node_with_policy = findfirst(
+                    node -> !isempty(MacroEnergy.policy_budgeting_vars(node)),
+                    get_nodes(first_period_system),
+                )
+                isnothing(first_node_with_policy) ? Dict() :
+                    MacroEnergy.policy_budgeting_vars(get_nodes(first_period_system)[first_node_with_policy])
+            end,
+        ],
+    )
+
+    fresh_case = load_case(joinpath(@__DIR__, "test_small_case"))
+    populated_planning_instance = build_planning_problem_instances(fresh_case)[1]
     populated_planning_model = create_named_problem_model(populated_planning_instance)
     @variable(populated_planning_model, vREF == 1)
     populated_planning_model[:eFixedCost] = AffExpr(0.0)

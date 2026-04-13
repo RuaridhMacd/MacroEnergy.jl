@@ -68,7 +68,7 @@ end
 # This function is used when the results are distributed across multiple processes (Benders)
 function write_non_served_demand(
     file_path::AbstractString, 
-    system::System, 
+    system::Union{System,StaticSystem}, 
     nsd_dfs::Vector{DataFrame}
 )
     @info "Writing non-served demand results to $file_path"
@@ -90,6 +90,31 @@ function write_non_served_demand(
         nsd_results = reshape_wide(nsd_results, :time, :component_id_seg, :value)
     end
     
+    write_dataframe(file_path, nsd_results)
+    return nothing
+end
+
+function write_non_served_demand(
+    file_path::AbstractString,
+    system::StaticSystem,
+    nsd_dfs::Vector{DataFrame},
+)
+    @info "Writing non-served demand results to $file_path"
+
+    non_empty_dfs = filter(!isempty, nsd_dfs)
+    if isempty(non_empty_dfs)
+        @debug "No non-served demand results found (no nodes have NSD variables)"
+        return nothing
+    end
+
+    nsd_results = reduce(vcat, non_empty_dfs)
+
+    layout = get_output_layout(system, :NonServedDemand)
+    if layout == "wide"
+        nsd_results[!, :component_id_seg] = string.(nsd_results.component_id) .* "_seg" .* string.(nsd_results.segment)
+        nsd_results = reshape_wide(nsd_results, :time, :component_id_seg, :value)
+    end
+
     write_dataframe(file_path, nsd_results)
     return nothing
 end

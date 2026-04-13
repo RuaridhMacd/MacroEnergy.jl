@@ -28,7 +28,7 @@ The extension of the file determines the format of the file.
 """
 function write_costs(
     file_path::AbstractString, 
-    system::System, 
+    system::Union{System,StaticSystem,ProblemInstance}, 
     model::Union{Model,NamedTuple};
     scaling::Float64=1.0, 
     drop_cols::Vector{<:AbstractString}=String[]
@@ -71,7 +71,7 @@ The extension of the file determines the format (CSV, Parquet, etc.).
 """
 function write_undiscounted_costs(
     file_path::AbstractString, 
-    system::System, 
+    system::Union{System,StaticSystem,ProblemInstance}, 
     model::Union{Model,NamedTuple};
     scaling::Float64=1.0, 
     drop_cols::Vector{<:AbstractString}=String[]
@@ -160,6 +160,15 @@ function compute_fixed_costs!(system::System, model::Model, cost_type::Symbol=:P
     end
 end
 
+function compute_fixed_costs!(static_system::StaticSystem, model::Model, cost_type::Symbol=:PV)
+    for edge in get_edges(static_system)
+        compute_fixed_costs!(edge, model, cost_type)
+    end
+    for storage in get_storages(static_system)
+        compute_fixed_costs!(storage, model, cost_type)
+    end
+end
+
 function compute_fixed_costs!(a::AbstractAsset, model::Model, cost_type::Symbol=:PV)
     for t in fieldnames(typeof(a))
         compute_fixed_costs!(getfield(a, t), model, cost_type)
@@ -173,6 +182,15 @@ end
 function compute_investment_costs!(system::System, model::Model, cost_type::Function=pv_period_investment_cost)
     for a in system.assets
         compute_investment_costs!(a, model, cost_type)
+    end
+end
+
+function compute_investment_costs!(static_system::StaticSystem, model::Model, cost_type::Function=pv_period_investment_cost)
+    for edge in get_edges(static_system)
+        compute_investment_costs!(edge, model, cost_type)
+    end
+    for storage in get_storages(static_system)
+        compute_investment_costs!(storage, model, cost_type)
     end
 end
 
@@ -202,6 +220,16 @@ function compute_investment_cost(o::T)::NTuple{2,Float64} where T <: Union{Abstr
     return (pv * cap, cf * cap)
 end
 
+function compute_investment_cost(instance::ProblemInstance, o::T)::NTuple{2,Float64} where T <: Union{AbstractEdge, AbstractStorage}
+    (has_capacity(o) && can_expand(o)) || return (0.0, 0.0)
+    pv = pv_period_investment_cost(o)
+    isnothing(pv) && error("pv_period_investment_cost is not set for $(id(o)); call discount_fixed_costs! before writing costs")
+    cf = cf_period_investment_cost(o)
+    isnothing(cf) && error("cf_period_investment_cost is not set for $(id(o)); call undo_discount_fixed_costs! before writing costs")
+    cap = get_problem_instance_cost_field_value(instance, o, :new_capacity, new_capacity)
+    return (pv * cap, cf * cap)
+end
+
 """
     compute_fixed_om_cost(o::T) where T <: Union{AbstractEdge, AbstractStorage}
 
@@ -215,6 +243,16 @@ function compute_fixed_om_cost(o::T)::NTuple{2,Float64} where T <: Union{Abstrac
     cf = cf_period_fixed_om_cost(o)
     isnothing(cf) && error("cf_period_fixed_om_cost is not set for $(id(o)); call undo_discount_fixed_costs! before writing costs")
     cap = value(capacity(o))
+    return (pv * cap, cf * cap)
+end
+
+function compute_fixed_om_cost(instance::ProblemInstance, o::T)::NTuple{2,Float64} where T <: Union{AbstractEdge, AbstractStorage}
+    (has_capacity(o) && fixed_om_cost(o) > 0) || return (0.0, 0.0)
+    pv = pv_period_fixed_om_cost(o)
+    isnothing(pv) && error("pv_period_fixed_om_cost is not set for $(id(o)); call discount_fixed_costs! before writing costs")
+    cf = cf_period_fixed_om_cost(o)
+    isnothing(cf) && error("cf_period_fixed_om_cost is not set for $(id(o)); call undo_discount_fixed_costs! before writing costs")
+    cap = get_problem_instance_cost_field_value(instance, o, :capacity, capacity)
     return (pv * cap, cf * cap)
 end
 
@@ -346,7 +384,7 @@ function compute_slack_cost(n::Node)::Float64
     return slack_cost
 end
 
-function create_discounted_cost_expressions!(model::Model, system::System, settings::NamedTuple)
+function create_discounted_cost_expressions!(model::Model, system::Union{System,StaticSystem}, settings::NamedTuple)
     
     period_index = system.time_data[:Electricity].period_index;
     discount_rate = settings.DiscountRate
@@ -382,7 +420,10 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
     end
 end
 
-function compute_undiscounted_costs!(model::Model, system::System, settings::NamedTuple)
+create_discounted_cost_expressions!(model::Model, instance::ProblemInstance, settings::NamedTuple) =
+    create_discounted_cost_expressions!(model, instance.static_system, settings)
+
+function compute_undiscounted_costs!(model::Model, system::Union{System,StaticSystem}, settings::NamedTuple)
     
     period_lengths = collect(settings.PeriodLengths)
     discount_rate = settings.DiscountRate
@@ -403,6 +444,9 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
         model[:eVariableCost] = period_lengths[period_index] * model[:eVariableCostByPeriod][period_index] / (discount_factor * opexmult)
     end
 end
+
+compute_undiscounted_costs!(model::Model, instance::ProblemInstance, settings::NamedTuple) =
+    compute_undiscounted_costs!(model, instance.static_system, settings)
 
 ##############################
 ## Detailed Cost Breakdown  ##
@@ -494,7 +538,7 @@ Combines fixed costs from the planning problem with operational costs from subpr
 """
 function write_detailed_costs_benders(
     results_dir::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem,ProblemInstance},
     benders_costs::NamedTuple,
     operational_costs_df::Vector{DataFrame},
     settings::NamedTuple;
@@ -737,7 +781,7 @@ Returns a NamedTuple `(discounted=df_discounted, undiscounted=df_undiscounted)` 
 DataFrames having columns: zone, type, category, value.
 """
 function get_detailed_costs_benders(
-    system::System,
+    system::Union{System,StaticSystem,ProblemInstance},
     operational_costs::DataFrame,
     settings::NamedTuple;
     scaling::Float64=1.0
@@ -779,7 +823,7 @@ end
 Compute fixed costs (Investment, FixedOM) from the planning problem.
 Returns (discounted=df, undiscounted=df) for Benders decomposition.
 """
-function get_fixed_costs_benders(system::System, settings::NamedTuple; scaling::Float64=1.0)
+function get_fixed_costs_benders(system::Union{System,StaticSystem}, settings::NamedTuple; scaling::Float64=1.0)
     # Ensure cf_period_* attributes are available for undiscounted cost calculations
     undo_discount_fixed_costs!(system, settings)
 
@@ -840,6 +884,95 @@ function get_fixed_costs_benders(system::System, settings::NamedTuple; scaling::
     discount_factor = present_value_factor(discount_rate, period_start_year)
 
     # Investment/FixedOM values hold pv_period_* * capacity (PV at period start)
+    values_discounted .*= discount_factor
+
+    if scaling != 1.0
+        values_discounted .*= scaling^2
+        values_undiscounted .*= scaling^2
+    end
+
+    return (
+        discounted = DataFrame(zone=zones, type=types, category=categories, value=values_discounted),
+        undiscounted = DataFrame(zone=zones, type=types, category=categories, value=values_undiscounted)
+    )
+end
+
+function get_problem_instance_cost_field_value(
+    instance::ProblemInstance,
+    obj::Union{AbstractEdge,AbstractStorage},
+    field_symbol::Symbol,
+    fallback_field::Function,
+)::Float64
+    state = maybe_get_local_state(instance, obj)
+    if !isnothing(state)
+        if haskey(state.values, field_symbol)
+            payload = state.values[field_symbol]
+            return payload isa Number ? Float64(payload) : Float64(value(payload))
+        elseif haskey(state.variables, field_symbol)
+            return Float64(capture_numeric_payload(state.variables[field_symbol]))
+        end
+    end
+
+    payload = fallback_field(obj)
+    return payload isa Number ? Float64(payload) : Float64(value(payload))
+end
+
+function get_fixed_costs_benders(instance::ProblemInstance, settings::NamedTuple; scaling::Float64=1.0)
+    undo_discount_fixed_costs!(instance.static_system, settings)
+
+    zones = String[]
+    types = String[]
+    categories = Symbol[]
+    values_discounted = Float64[]
+    values_undiscounted = Float64[]
+
+    edges, edge_asset_map = get_edges(instance.static_system, return_ids_map=true)
+    storages, storage_asset_map = get_storages(instance.static_system, return_ids_map=true)
+
+    for e in edges
+        inv_pv, inv_cf = compute_investment_cost(instance, e)
+        fom_pv, fom_cf = compute_fixed_om_cost(instance, e)
+
+        (inv_pv == 0 && inv_cf == 0 && fom_pv == 0 && fom_cf == 0) && continue
+
+        zone = get_zone_name(e)
+        asset_type = get_type(edge_asset_map[id(e)])
+
+        for (category, cost_pv, cost_cf) in [(:Investment, inv_pv, inv_cf), (:FixedOM, fom_pv, fom_cf)]
+            (cost_pv == 0 && cost_cf == 0) && continue
+            push!(zones, zone)
+            push!(types, asset_type)
+            push!(categories, category)
+            push!(values_discounted, cost_pv)
+            push!(values_undiscounted, cost_cf)
+        end
+    end
+
+    for g in storages
+        inv_pv, inv_cf = compute_investment_cost(instance, g)
+        fom_pv, fom_cf = compute_fixed_om_cost(instance, g)
+
+        (inv_pv == 0 && inv_cf == 0 && fom_pv == 0 && fom_cf == 0) && continue
+
+        zone = get_zone_name(g)
+        asset_type = get_type(storage_asset_map[id(g)])
+
+        for (category, cost_pv, cost_cf) in [(:Investment, inv_pv, inv_cf), (:FixedOM, fom_pv, fom_cf)]
+            (cost_pv == 0 && cost_cf == 0) && continue
+            push!(zones, zone)
+            push!(types, asset_type)
+            push!(categories, category)
+            push!(values_discounted, cost_pv)
+            push!(values_undiscounted, cost_cf)
+        end
+    end
+
+    period_index = instance.static_system.time_data[:Electricity].period_index
+    discount_rate = settings.DiscountRate
+    period_lengths = settings.PeriodLengths
+    period_start_year = total_years(period_lengths[1:period_index-1])
+    discount_factor = present_value_factor(discount_rate, period_start_year)
+
     values_discounted .*= discount_factor
 
     if scaling != 1.0

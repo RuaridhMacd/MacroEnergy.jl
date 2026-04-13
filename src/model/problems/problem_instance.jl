@@ -98,11 +98,23 @@ function apply_planning_solution!(
 end
 
 capture_numeric_payload(payload::VariableRef) = JuMP.value(payload)
+capture_numeric_payload(payload::JuMP.AffExpr) = JuMP.value(payload)
 capture_numeric_payload(payload::JuMP.Containers.DenseAxisArray) = JuMP.value.(payload)
 capture_numeric_payload(payload::AbstractArray) = JuMP.value.(payload)
 capture_numeric_payload(payload::AbstractDict) =
     Dict(key => capture_numeric_payload(item) for (key, item) in pairs(payload))
 capture_numeric_payload(payload) = payload
+
+capture_numeric_payload(payload::VariableRef, source_values::AbstractDict) = source_values[name(payload)]
+capture_numeric_payload(payload::JuMP.AffExpr, source_values::AbstractDict) =
+    JuMP.value(x -> source_values[name(x)], payload)
+capture_numeric_payload(payload::JuMP.Containers.DenseAxisArray, source_values::AbstractDict) =
+    JuMP.value(x -> source_values[name(x)], payload)
+capture_numeric_payload(payload::AbstractArray, source_values::AbstractDict) =
+    map(item -> capture_numeric_payload(item, source_values), payload)
+capture_numeric_payload(payload::AbstractDict, source_values::AbstractDict) =
+    Dict(key => capture_numeric_payload(item, source_values) for (key, item) in pairs(payload))
+capture_numeric_payload(payload, source_values::AbstractDict) = payload
 
 function capture_problem_solution_values!(instance::ProblemInstance)
     for (idx, state) in pairs(instance.node_state)
@@ -126,6 +138,28 @@ function capture_problem_solution_values!(instance::ProblemInstance)
     return instance
 end
 
+function capture_problem_solution_values!(instance::ProblemInstance, source_values::AbstractDict)
+    for state in values(instance.node_state)
+        capture_node_solution_values!(state, source_values)
+    end
+    for state in values(instance.unidirectional_edge_state)
+        capture_edge_solution_values!(state, source_values)
+    end
+    for state in values(instance.bidirectional_edge_state)
+        capture_edge_solution_values!(state, source_values)
+    end
+    for state in values(instance.unit_commitment_edge_state)
+        capture_edge_solution_values!(state, source_values)
+    end
+    for state in values(instance.storage_state)
+        capture_storage_solution_values!(state, source_values)
+    end
+    for state in values(instance.long_duration_storage_state)
+        capture_storage_solution_values!(state, source_values)
+    end
+    return instance
+end
+
 function capture_node_solution_values!(state::NodeLocalState, node::Node)
     for key in (:non_served_demand, :policy_budgeting_vars, :policy_slack_vars, :supply_flow)
         if haskey(state.variables, key)
@@ -144,10 +178,28 @@ function capture_node_solution_values!(state::NodeLocalState, node::Node)
     return state
 end
 
+function capture_node_solution_values!(state::NodeLocalState, source_values::AbstractDict)
+    for key in (:non_served_demand, :policy_budgeting_vars, :policy_slack_vars, :supply_flow)
+        if haskey(state.variables, key)
+            state.values[key] = capture_numeric_payload(state.variables[key], source_values)
+        end
+    end
+    return state
+end
+
 function capture_edge_solution_values!(state::EdgeLocalState)
     for key in (:capacity, :new_capacity, :retired_capacity, :retrofitted_capacity, :flow, :ucommit, :ustart, :ushut)
         if haskey(state.variables, key)
             state.values[key] = capture_numeric_payload(state.variables[key])
+        end
+    end
+    return state
+end
+
+function capture_edge_solution_values!(state::EdgeLocalState, source_values::AbstractDict)
+    for key in (:capacity, :new_capacity, :retired_capacity, :retrofitted_capacity, :flow, :ucommit, :ustart, :ushut)
+        if haskey(state.variables, key)
+            state.values[key] = capture_numeric_payload(state.variables[key], source_values)
         end
     end
     return state
@@ -160,4 +212,84 @@ function capture_storage_solution_values!(state::StorageLocalState)
         end
     end
     return state
+end
+
+function capture_storage_solution_values!(state::StorageLocalState, source_values::AbstractDict)
+    for key in (:capacity, :new_capacity, :retired_capacity, :storage_level, :storage_initial, :storage_change)
+        if haskey(state.variables, key)
+            state.values[key] = capture_numeric_payload(state.variables[key], source_values)
+        end
+    end
+    return state
+end
+
+function materialize_problem_solution!(instance::ProblemInstance)
+    for (idx, state) in pairs(instance.node_state)
+        materialize_node_solution!(instance.static_system.nodes[idx], state)
+    end
+    for (idx, state) in pairs(instance.unidirectional_edge_state)
+        materialize_edge_solution!(instance.static_system.unidirectional_edges[idx], state)
+    end
+    for (idx, state) in pairs(instance.bidirectional_edge_state)
+        materialize_edge_solution!(instance.static_system.bidirectional_edges[idx], state)
+    end
+    for (idx, state) in pairs(instance.unit_commitment_edge_state)
+        materialize_edge_solution!(instance.static_system.unit_commitment_edges[idx], state)
+    end
+    for (idx, state) in pairs(instance.storage_state)
+        materialize_storage_solution!(instance.static_system.storages[idx], state)
+    end
+    for (idx, state) in pairs(instance.long_duration_storage_state)
+        materialize_storage_solution!(instance.static_system.long_duration_storages[idx], state)
+    end
+    return instance
+end
+
+function materialize_problem_solutions!(instances)
+    for instance in instances
+        materialize_problem_solution!(instance)
+    end
+    return instances
+end
+
+function coerce_materialized_payload(field_type::Type, payload)
+    if payload isa field_type
+        return payload
+    elseif field_type == JuMP.AffExpr && payload isa Number
+        return JuMP.AffExpr(payload)
+    end
+    return payload
+end
+
+function materialize_node_solution!(node::Node, state::NodeLocalState)
+    for key in (:non_served_demand, :policy_budgeting_vars, :policy_slack_vars, :supply_flow)
+        if haskey(state.values, key)
+            payload = deepcopy(state.values[key])
+            field_type = fieldtype(typeof(node), key)
+            setfield!(node, key, coerce_materialized_payload(field_type, payload))
+        end
+    end
+    return node
+end
+
+function materialize_edge_solution!(edge::AbstractEdge, state::EdgeLocalState)
+    for key in (:capacity, :new_capacity, :retired_capacity, :retrofitted_capacity, :flow, :ucommit, :ustart, :ushut)
+        if haskey(state.values, key) && key in Base.fieldnames(typeof(edge))
+            payload = deepcopy(state.values[key])
+            field_type = fieldtype(typeof(edge), key)
+            setfield!(edge, key, coerce_materialized_payload(field_type, payload))
+        end
+    end
+    return edge
+end
+
+function materialize_storage_solution!(storage::AbstractStorage, state::StorageLocalState)
+    for key in (:capacity, :new_capacity, :retired_capacity, :storage_level, :storage_initial, :storage_change)
+        if haskey(state.values, key) && key in Base.fieldnames(typeof(storage))
+            payload = deepcopy(state.values[key])
+            field_type = fieldtype(typeof(storage), key)
+            setfield!(storage, key, coerce_materialized_payload(field_type, payload))
+        end
+    end
+    return storage
 end

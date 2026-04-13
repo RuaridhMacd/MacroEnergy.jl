@@ -279,6 +279,21 @@ function undo_discount_fixed_costs!(system::System, settings::NamedTuple)
     end
 end
 
+function undo_discount_fixed_costs!(static_system::StaticSystem, settings::NamedTuple)
+    for edge in get_edges(static_system)
+        undo_discount_fixed_costs!(edge, settings)
+    end
+    for storage in get_storages(static_system)
+        undo_discount_fixed_costs!(storage, settings)
+    end
+    for transformation in get_transformations(static_system)
+        undo_discount_fixed_costs!(transformation, settings)
+    end
+    for node in get_nodes(static_system)
+        undo_discount_fixed_costs!(node, settings)
+    end
+end
+
 function undo_discount_fixed_costs!(a::AbstractAsset,settings::NamedTuple)
     for t in fieldnames(typeof(a))
         undo_discount_fixed_costs!(getfield(a, t), settings)
@@ -315,6 +330,21 @@ end
 function add_costs_not_seen_by_myopic!(system::System, settings::NamedTuple)
     for a in system.assets
         add_costs_not_seen_by_myopic!(a, settings)
+    end
+end
+
+function add_costs_not_seen_by_myopic!(static_system::StaticSystem, settings::NamedTuple)
+    for edge in get_edges(static_system)
+        add_costs_not_seen_by_myopic!(edge, settings)
+    end
+    for storage in get_storages(static_system)
+        add_costs_not_seen_by_myopic!(storage, settings)
+    end
+    for transformation in get_transformations(static_system)
+        add_costs_not_seen_by_myopic!(transformation, settings)
+    end
+    for node in get_nodes(static_system)
+        add_costs_not_seen_by_myopic!(node, settings)
     end
 end
 

@@ -84,8 +84,32 @@ is collected from multiple subproblem periods and concatenated before writing.
 """
 function write_curtailment(
     file_path::AbstractString,
-    system::System,
+    system::Union{System,StaticSystem},
     curtailment_dfs::Vector{DataFrame}
+)
+    @info "Writing curtailment results to $file_path"
+
+    non_empty_dfs = filter(!isempty, curtailment_dfs)
+    if isempty(non_empty_dfs)
+        @debug "No curtailment results found (no VRE assets in system)"
+        return nothing
+    end
+
+    curtailment_results = reduce(vcat, non_empty_dfs)
+
+    layout = get_output_layout(system, :Curtailment)
+    if layout == "wide"
+        curtailment_results = reshape_wide(curtailment_results, :time, :resource_id, :value)
+    end
+
+    write_dataframe(file_path, curtailment_results)
+    return nothing
+end
+
+function write_curtailment(
+    file_path::AbstractString,
+    system::StaticSystem,
+    curtailment_dfs::Vector{DataFrame},
 )
     @info "Writing curtailment results to $file_path"
 

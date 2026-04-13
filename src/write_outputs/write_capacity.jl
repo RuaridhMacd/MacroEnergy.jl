@@ -132,6 +132,138 @@ function write_capacity(
     return nothing
 end
 
+function write_capacity(
+    file_path::AbstractString,
+    static_system::StaticSystem;
+    scaling::Float64=1.0,
+    drop_cols::Vector{<:AbstractString}=String[],
+    commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    asset_type::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing
+)
+    @info "Writing capacity results to $file_path"
+    capacity_results = get_optimal_capacity(static_system; scaling)
+    new_capacity_results = get_optimal_new_capacity(static_system; scaling)
+    retired_capacity_results = get_optimal_retired_capacity(static_system; scaling)
+    existing_capacity_results = get_existing_capacity(static_system; scaling)
+    if static_system.settings.Retrofitting
+        retrofitted_capacity_results = get_optimal_retrofitted_capacity(static_system; scaling)
+        all_capacity_results = vcat(capacity_results, new_capacity_results, retired_capacity_results, retrofitted_capacity_results, existing_capacity_results)
+    else
+        all_capacity_results = vcat(capacity_results, new_capacity_results, retired_capacity_results, existing_capacity_results)
+    end
+
+    layout = get_output_layout(static_system, :Capacity)
+    all_capacity_results = layout == "wide" ? reshape_wide(all_capacity_results) : all_capacity_results
+
+    commodities_in_df = string.(collect(Set(all_capacity_results.commodity)))
+    asset_types_in_df = string.(collect(Set(all_capacity_results.resource_type)))
+
+    if !isnothing(commodity)
+        @debug "Filtering by commodity $commodity"
+        (matched_commodity, missed_commodites) = search_commodities(commodity, commodities_in_df)
+
+        if !isempty(missed_commodites)
+            @warn("The following commodities were not found in your results: $missed_commodites\nThe missed outputs will omitted from the output file\nYour results include the following commodities $commodities_in_df.")
+        end
+        filter!(:commodity => in(matched_commodity), all_capacity_results)
+        if isempty(all_capacity_results)
+            @warn "No results found after filtering by commodity $commodity"
+            return write_dataframe(file_path, all_capacity_results, drop_cols)
+        end
+    end
+
+    if !isnothing(asset_type)
+        @debug "Filtering by asset type $asset_type"
+        all_assets = string.(collect(Set(all_capacity_results.resource_type)))
+        (matched_asset_type, missed_asset_types) = search_assets(asset_type, all_assets)
+
+        if !isempty(missed_asset_types)
+            s = "The following assets were not found in your results: $missed_asset_types.\n" *
+                "The missed outputs will omitted from the output file.\n" *
+                "Your results include the following assets $asset_types_in_df."
+            @warn(s)
+            if !isnothing(commodity)
+                s = "Please check also your commodity filter ($commodity) to ensure that it is correct."
+                @warn(s)
+            end
+        end
+        @debug "Writing capacity results for asset type $asset_type"
+        filter!(:resource_type => in(matched_asset_type), all_capacity_results)
+        if isempty(all_capacity_results)
+            @warn "No results found after filtering by asset type $asset_type"
+        end
+    end
+
+    write_dataframe(file_path, all_capacity_results, drop_cols)
+    return nothing
+end
+
+function write_capacity(
+    file_path::AbstractString,
+    instance::ProblemInstance;
+    scaling::Float64=1.0,
+    drop_cols::Vector{<:AbstractString}=String[],
+    commodity::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing,
+    asset_type::Union{AbstractString,Vector{<:AbstractString},Nothing}=nothing
+)
+    @info "Writing capacity results to $file_path"
+    capacity_results = get_optimal_capacity(instance; scaling)
+    new_capacity_results = get_optimal_new_capacity(instance; scaling)
+    retired_capacity_results = get_optimal_retired_capacity(instance; scaling)
+    existing_capacity_results = get_existing_capacity(instance; scaling)
+    if instance.static_system.settings.Retrofitting
+        retrofitted_capacity_results = get_optimal_retrofitted_capacity(instance; scaling)
+        all_capacity_results = vcat(capacity_results, new_capacity_results, retired_capacity_results, retrofitted_capacity_results, existing_capacity_results)
+    else
+        all_capacity_results = vcat(capacity_results, new_capacity_results, retired_capacity_results, existing_capacity_results)
+    end
+
+    layout = get_output_layout(instance, :Capacity)
+    all_capacity_results = layout == "wide" ? reshape_wide(all_capacity_results) : all_capacity_results
+
+    commodities_in_df = string.(collect(Set(all_capacity_results.commodity)))
+    asset_types_in_df = string.(collect(Set(all_capacity_results.resource_type)))
+
+    if !isnothing(commodity)
+        @debug "Filtering by commodity $commodity"
+        (matched_commodity, missed_commodites) = search_commodities(commodity, commodities_in_df)
+
+        if !isempty(missed_commodites)
+            @warn("The following commodities were not found in your results: $missed_commodites\nThe missed outputs will omitted from the output file\nYour results include the following commodities $commodities_in_df.")
+        end
+        filter!(:commodity => in(matched_commodity), all_capacity_results)
+        if isempty(all_capacity_results)
+            @warn "No results found after filtering by commodity $commodity"
+            return write_dataframe(file_path, all_capacity_results, drop_cols)
+        end
+    end
+
+    if !isnothing(asset_type)
+        @debug "Filtering by asset type $asset_type"
+        all_assets = string.(collect(Set(all_capacity_results.resource_type)))
+        (matched_asset_type, missed_asset_types) = search_assets(asset_type, all_assets)
+
+        if !isempty(missed_asset_types)
+            s = "The following assets were not found in your results: $missed_asset_types.\n" *
+                "The missed outputs will omitted from the output file.\n" *
+                "Your results include the following assets $asset_types_in_df."
+            @warn(s)
+            if !isnothing(commodity)
+                s = "Please check also your commodity filter ($commodity) to ensure that it is correct."
+                @warn(s)
+            end
+        end
+        @debug "Writing capacity results for asset type $asset_type"
+        filter!(:resource_type => in(matched_asset_type), all_capacity_results)
+        if isempty(all_capacity_results)
+            @warn "No results found after filtering by asset type $asset_type"
+        end
+    end
+
+    write_dataframe(file_path, all_capacity_results, drop_cols)
+    return nothing
+end
+
 ## Capacity extraction functions ##
 """
     get_optimal_capacity(system::System; scaling::Float64=1.0)
@@ -158,6 +290,10 @@ get_optimal_capacity(system)
 ```
 """
 get_optimal_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, capacity, scaling)
+get_optimal_capacity(static_system::StaticSystem; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(static_system, capacity, scaling)
+get_optimal_capacity(instance::ProblemInstance; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(instance, capacity, scaling)
 get_optimal_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_capacity_by_field(asset, capacity, scaling)
 
 """
@@ -184,6 +320,10 @@ get_optimal_new_capacity(system)
 ```
 """
 get_optimal_new_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, new_capacity, scaling)
+get_optimal_new_capacity(static_system::StaticSystem; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(static_system, new_capacity, scaling)
+get_optimal_new_capacity(instance::ProblemInstance; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(instance, new_capacity, scaling)
 get_optimal_new_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_capacity_by_field(asset, new_capacity, scaling)
 
 """
@@ -210,12 +350,24 @@ get_optimal_retired_capacity(system)
 ```
 """
 get_optimal_retired_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, retired_capacity, scaling)
+get_optimal_retired_capacity(static_system::StaticSystem; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(static_system, retired_capacity, scaling)
+get_optimal_retired_capacity(instance::ProblemInstance; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(instance, retired_capacity, scaling)
 get_optimal_retired_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_capacity_by_field(asset, retired_capacity, scaling)
 
 get_optimal_retrofitted_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, retrofitted_capacity, scaling)
+get_optimal_retrofitted_capacity(static_system::StaticSystem; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(static_system, retrofitted_capacity, scaling)
+get_optimal_retrofitted_capacity(instance::ProblemInstance; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(instance, retrofitted_capacity, scaling)
 get_optimal_retrofitted_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_capacity_by_field(asset, retrofitted_capacity, scaling)
 
 get_existing_capacity(system::System; scaling::Float64=1.0) = get_optimal_capacity_by_field(system, existing_capacity, scaling)
+get_existing_capacity(static_system::StaticSystem; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(static_system, existing_capacity, scaling)
+get_existing_capacity(instance::ProblemInstance; scaling::Float64=1.0) =
+    get_optimal_capacity_by_field(instance, existing_capacity, scaling)
 get_existing_capacity(asset::AbstractAsset; scaling::Float64=1.0) = get_optimal_capacity_by_field(asset, existing_capacity, scaling)
 
 # Utility function to get the optimal capacity by macro object field
@@ -229,6 +381,26 @@ function get_optimal_capacity_by_field(system::System, capacity_func::Function, 
     asset_capacity[!, (!isa).(eachcol(asset_capacity), Vector{Missing})] # remove missing columns
 end
 
+function get_optimal_capacity_by_field(static_system::StaticSystem, capacity_func::Function, scaling::Float64=1.0)
+    @debug " -- Getting optimal values for $(Symbol(capacity_func)) for the static system."
+    edges = edges_with_capacity_variables(get_edges(static_system))
+    storages = storages_with_capacity_variables(get_storages(static_system))
+    edges_capacity = get_optimal_capacity_by_field(edges, capacity_func, scaling, get_edge_asset_map(static_system))
+    storages_capacity = get_optimal_capacity_by_field(storages, capacity_func, scaling, get_storage_asset_map(static_system))
+    asset_capacity = vcat(edges_capacity, storages_capacity)
+    asset_capacity[!, (!isa).(eachcol(asset_capacity), Vector{Missing})]
+end
+
+function get_optimal_capacity_by_field(instance::ProblemInstance, capacity_func::Function, scaling::Float64=1.0)
+    @debug " -- Getting optimal values for $(Symbol(capacity_func)) for the problem instance."
+    edges = edges_with_capacity_variables(get_edges(instance.static_system))
+    storages = storages_with_capacity_variables(get_storages(instance.static_system))
+    edges_capacity = get_optimal_capacity_by_field(instance, edges, capacity_func, scaling, get_edge_asset_map(instance.static_system))
+    storages_capacity = get_optimal_capacity_by_field(instance, storages, capacity_func, scaling, get_storage_asset_map(instance.static_system))
+    asset_capacity = vcat(edges_capacity, storages_capacity)
+    asset_capacity[!, (!isa).(eachcol(asset_capacity), Vector{Missing})]
+end
+
 function get_optimal_capacity_by_field(asset::AbstractAsset, capacity_func::Function, scaling::Float64=1.0)
     @debug " -- Getting optimal values for $(Symbol(capacity_func)) for the asset $(id(asset))."
     edges, edge_asset_idmap = edges_with_capacity_variables(asset, return_ids_map=true)
@@ -240,14 +412,14 @@ end
 # The following functions are used to extract capacity values after the model has been solved
 # from a list of MacroObjects (e.g., edges, and storage) and a list of fields (e.g., capacity, new_capacity, retired_capacity)
 
-get_optimal_capacity_by_field(objs::Vector{T}, field::Function, scaling::Float64=1.0, obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()) where {T<:MacroObject} =
+get_optimal_capacity_by_field(objs::Vector{T}, field::Function, scaling::Float64=1.0, obj_asset_map::AbstractDict=Dict{Symbol,Any}()) where {T<:MacroObject} =
     get_optimal_capacity_by_field(objs, (field,), scaling, obj_asset_map)
 
 function get_optimal_capacity_by_field(
     objs::Vector{T},
     field_list::Tuple,
     scaling::Float64=1.0,
-    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}()
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
 ) where {T<:MacroObject}
     # Check if the objects is empty
     isempty(objs) && return DataFrame()
@@ -279,6 +451,84 @@ function get_optimal_capacity_by_field(
             variable = [Symbol(f) for obj in objs for f in field_list],
             year = fill(missing, total_rows),
             value = [Float64(value(f(obj))) * scaling for obj in objs for f in field_list]
+        )
+    end
+end
+
+function get_problem_instance_capacity_field_value(
+    instance::ProblemInstance,
+    obj::MacroObject,
+    field::Function,
+)
+    field_symbol = Symbol(field)
+    if field_symbol == :existing_capacity
+        return existing_capacity(obj)
+    end
+
+    state = maybe_get_local_state(instance, obj)
+    if !isnothing(state)
+        if haskey(state.values, field_symbol)
+            return state.values[field_symbol]
+        elseif haskey(state.variables, field_symbol)
+            return capture_numeric_payload(state.variables[field_symbol])
+        end
+    end
+
+    payload = field(obj)
+    return payload isa Number ? payload : value(payload)
+end
+
+function get_optimal_capacity_by_field(
+    instance::ProblemInstance,
+    objs::Vector{T},
+    field::Function,
+    scaling::Float64=1.0,
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
+) where {T<:MacroObject}
+    get_optimal_capacity_by_field(instance, objs, (field,), scaling, obj_asset_map)
+end
+
+function get_optimal_capacity_by_field(
+    instance::ProblemInstance,
+    objs::Vector{T},
+    field_list::Tuple,
+    scaling::Float64=1.0,
+    obj_asset_map::AbstractDict=Dict{Symbol,Any}()
+) where {T<:MacroObject}
+    isempty(objs) && return DataFrame()
+
+    total_rows = length(objs) * length(field_list)
+
+    if isempty(obj_asset_map)
+        return DataFrame(
+            case_name = fill(missing, total_rows),
+            commodity = [get_commodity_name(obj) for obj in objs for _ in field_list],
+            zone = [get_zone_name(obj) for obj in objs for _ in field_list],
+            resource_id = [get_component_id(obj) for obj in objs for _ in field_list],
+            component_id = [get_component_id(obj) for obj in objs for _ in field_list],
+            component_type = [get_type(obj) for obj in objs for _ in field_list],
+            variable = [Symbol(f) for obj in objs for f in field_list],
+            year = fill(missing, total_rows),
+            value = [
+                Float64(get_problem_instance_capacity_field_value(instance, obj, f)) * scaling
+                for obj in objs for f in field_list
+            ],
+        )
+    else
+        return DataFrame(
+            case_name = fill(missing, total_rows),
+            commodity = [get_commodity_name(obj) for obj in objs for _ in field_list],
+            zone = [get_zone_name(obj) for obj in objs for _ in field_list],
+            resource_id = [get_resource_id(obj, obj_asset_map) for obj in objs for _ in field_list],
+            component_id = [get_component_id(obj) for obj in objs for _ in field_list],
+            resource_type = [get_type(obj_asset_map[id(obj)]) for obj in objs for _ in field_list],
+            component_type = [get_type(obj) for obj in objs for _ in field_list],
+            variable = [Symbol(f) for obj in objs for f in field_list],
+            year = fill(missing, total_rows),
+            value = [
+                Float64(get_problem_instance_capacity_field_value(instance, obj, f)) * scaling
+                for obj in objs for f in field_list
+            ],
         )
     end
 end
