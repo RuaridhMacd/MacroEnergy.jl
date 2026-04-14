@@ -36,7 +36,9 @@ a complete Macro workflow.
 # Returns
 - `systems::Vector{System}`: Vector of solved system objects (one per period).
 - `solution`: The solution object (type depends on the solution algorithm: `Model` for 
-  Monolithic, `MyopicResults` for Myopic, `BendersResults` for Benders).
+  Monolithic, `MyopicResults` for Myopic (both Monolithic and Benders), `BendersModel`
+  for Perfect Foresight + Benders). `MyopicResults.results` holds a `Vector` of per-period
+  results when `ReturnModels=true`, or `nothing` when `ReturnModels=false`.
 
 # Examples
 
@@ -128,13 +130,13 @@ function run_case(
         case = load_case(case_path; lazy_load=lazy_load)
 
         # Create optimizer based on solution algorithm
-        optimizer = if isa(solution_algorithm(case), Monolithic) || isa(solution_algorithm(case), Myopic)
+        optimizer = if isa(solution_algorithm(case), Monolithic)
             create_optimizer(optimizer, optimizer_env, optimizer_attributes)
         elseif isa(solution_algorithm(case), Benders)
             create_optimizer_benders(planning_optimizer, subproblem_optimizer,
                 planning_optimizer_attributes, subproblem_optimizer_attributes)
         else
-            error("The solution algorithm is not Monolithic, Myopic, or Benders. Please double check the `SolutionAlgorithm` in the `settings/case_settings.json` file.")
+            error("Unknown solution algorithm. Please check `SolutionAlgorithm` in `settings/case_settings.json`. Valid values are \"Monolithic\" and \"Benders\".")
         end
 
         # If Benders, create processes for subproblems optimization
@@ -150,7 +152,7 @@ function run_case(
         postprocess!(case, solution)
 
         # Myopic outputs are written during iteration, so we don't need to write them here
-        if !isa(solution_algorithm(case), Myopic)
+        if !isa(expansion_horizon(case), Myopic)
             if length(case.systems) ≥ 1
                 case_path = create_output_path(case.systems[1], case_path)
             end
