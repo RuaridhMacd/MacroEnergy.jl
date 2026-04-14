@@ -69,7 +69,7 @@ function initialize_local_subproblems!(system_local::Vector,subproblems_local::V
     end
 end
 
-function initialize_subproblems!(system_decomp::Vector,opt::Dict,case_settings::NamedTuple,distributed_bool::Bool,include_subproblem_slacks::Bool)
+function generate_subproblems(system_decomp::Vector,opt::Dict,case_settings::NamedTuple,distributed_bool::Bool,include_subproblem_slacks::Bool)
     
     if distributed_bool
         subproblems, linking_variables_sub = initialize_dist_subproblems!(system_decomp,opt,case_settings,include_subproblem_slacks)
@@ -272,14 +272,4 @@ function get_all_policy_constraints(system::System)
         end
     end 
     return policy_constraints
-end
-
-function update_with_subproblem_solutions!(subproblems::Union{Vector{Dict{Any, Any}},DistributedArrays.DArray}, results::NamedTuple)
-
-    subop_sol = MacroEnergySolvers.solve_subproblems(subproblems, results.planning_sol, true)
-
-    results = (; results..., subop_sol = subop_sol)
-
-    return nothing
-    
 end
