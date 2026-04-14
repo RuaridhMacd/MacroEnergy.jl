@@ -1,5 +1,6 @@
+####### Entry point: dispatch on ExpansionHorizon then SolutionAlgorithm #######
 function solve_case(case::Case, opt::O) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
-    solve_case(case, opt, solution_algorithm(case))
+    solve_case(case, opt, expansion_horizon(case))
 end
 
 function solve_case(case::Case, opt::Optimizer, ::Monolithic)
