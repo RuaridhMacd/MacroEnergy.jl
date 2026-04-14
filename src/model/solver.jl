@@ -3,21 +3,11 @@ function solve_case(case::Case, opt::O) where O <: Union{Optimizer, Dict{Symbol,
     solve_case(case, opt, expansion_horizon(case))
 end
 
-function solve_case(case::Case, opt::Optimizer, ::Monolithic)
-
-    @info("*** Running simulation with monolithic solver ***")
-
-    model = generate_model(case, opt)
-
-    # For monolithic solution there is only one model
-    # scale constraints if the flag is true in the first system
-    if case.systems[1].settings.ConstraintScaling
-        @info "Scaling constraints and RHS"
-        scale_constraints!(model)
-    end
-
+####### Perfect foresight: generate a single model + optimize! #######
+function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
+    alg = solution_algorithm(case)
+    model = generate_model(case, opt, alg)
     optimize!(model)
-
     return (case, model)
 end
 
