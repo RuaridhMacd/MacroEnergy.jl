@@ -1,20 +1,20 @@
-function write_benders_convergence(case_path::AbstractString, bd_results::BendersResults)
+function write_benders_convergence(case_path::AbstractString, conv::BendersConvergence)
     
-    number_of_iterations = length(bd_results.LB_hist)
+    number_of_iterations = length(conv.LB_hist)
 
-    dfConv = DataFrame(Iter = 1:number_of_iterations, CPU_Time = bd_results.cpu_time, LB = bd_results.LB_hist, UB  = bd_results.UB_hist, Gap = bd_results.gap_hist, Status = append!([bd_results.termination_status],repeat([""],number_of_iterations-1)))
+    dfConv = DataFrame(Iter = 1:number_of_iterations, CPU_Time = conv.cpu_time, LB = conv.LB_hist, UB  = conv.UB_hist, Gap = conv.gap_hist, Status = append!([conv.termination_status],repeat([""],number_of_iterations-1)))
     
     CSV.write(joinpath(case_path, "benders_convergence.csv"), dfConv)
 end
 
 function prepare_costs_benders(system::System, 
-    bd_results::BendersResults, 
+    bm::BendersModel,
     subop_indices::Vector{Int64}, 
     settings::NamedTuple
 )
-    planning_problem = bd_results.planning_problem
-    subop_sol = bd_results.subop_sol
-    planning_variable_values = bd_results.planning_sol.values
+    planning_problem = bm.planning_problem
+    subop_sol = bm.subop_sol
+    planning_variable_values = bm.planning_sol.values
 
     create_discounted_cost_expressions!(planning_problem, system, settings)
     compute_undiscounted_costs!(planning_problem, system, settings)
@@ -54,17 +54,17 @@ function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{I
 end
     
 """
-    collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
+    collect_data_from_subproblems(settings::NamedTuple, subproblems; scaling::Float64=1.0)
 
 Collect all data from all Benders subproblems, handling both distributed and local cases.
 Returns a `SubproblemsData` struct whose fields (`.flows`, `.storage_levels`, `.nsd`, `.operational_costs`)
 are `Vector{DataFrame}` with one element per Benders subproblem.
 """
-function collect_data_from_subproblems(case::Case, bd_results::BendersResults; scaling::Float64=1.0)
-    if case.settings.BendersSettings[:Distributed]
-        return collect_distributed_data(bd_results, scaling)
+function collect_data_from_subproblems(settings::NamedTuple, subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray}; scaling::Float64=1.0)
+    if settings.BendersSettings[:Distributed]
+        return collect_distributed_data(subproblems, scaling)
     else
-        return collect_local_data(bd_results, scaling)
+        return collect_local_data(subproblems, scaling)
     end
 end
 
@@ -73,14 +73,14 @@ end
 Collect all data from distributed Benders subproblems.
 Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
-function collect_distributed_data(bd_results::BendersResults, scaling::Float64=1.0)
+function collect_distributed_data(subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray}, scaling::Float64=1.0)
     p_id = workers()
     np_id = length(p_id)
     result_chunks = Vector{Vector{NamedTuple}}(undef, np_id)
 
     @sync for i in 1:np_id
         @async result_chunks[i] = @fetchfrom p_id[i] begin
-            local_subproblems = DistributedArrays.localpart(bd_results.op_subproblem)
+            local_subproblems = DistributedArrays.localpart(subproblems)
             [extract_subproblem_results(sp[:system_local]; scaling=scaling) for sp in local_subproblems]
         end
     end
@@ -93,12 +93,12 @@ end
 Collect all data from local Benders subproblems.
 Returns a `SubproblemsData` with one DataFrame per Benders subproblem in each field.
 """
-function collect_local_data(bd_results::BendersResults, scaling::Float64=1.0)
-    n = length(bd_results.op_subproblem)
+function collect_local_data(subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray}, scaling::Float64=1.0)
+    n = length(subproblems)
     results = SubproblemsData(n)
 
-    for i in eachindex(bd_results.op_subproblem)
-        system = bd_results.op_subproblem[i][:system_local]
+    for i in eachindex(subproblems)
+        system = subproblems[i][:system_local]
         results[i] = extract_subproblem_results(system; scaling)
     end
 
@@ -365,22 +365,22 @@ function populate_slack_vars_from_subproblems!(period::System, slack_vars::Dict{
 end
 
 """
-    collect_distributed_policy_slack_vars(bd_results::BendersResults)
+    collect_distributed_policy_slack_vars(subproblems)
 
 Collect policy slack variables from distributed Benders subproblems across multiple workers.
 
 # Arguments
-- `bd_results::BendersResults`: Benders decomposition results containing distributed subproblems
+- `subproblems`: Benders subproblems (local vector or distributed array)
 
 # Returns
 - Dictionary with structure: period_index => (node_id, slack_vars_key) => {axis_idx => value}
 """
-function collect_distributed_policy_slack_vars(bd_results::BendersResults)
+function collect_distributed_policy_slack_vars(subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray})
     p_id = workers()
     np_id = length(p_id)
     slack_vars = Vector{Dict{Int64, Dict{Tuple{Symbol,Symbol}, Dict{Int64, Float64}}}}(undef, np_id)
     @sync for i in 1:np_id
-        @async slack_vars[i] = @fetchfrom p_id[i] collect_local_slack_vars(DistributedArrays.localpart(bd_results.op_subproblem))
+        @async slack_vars[i] = @fetchfrom p_id[i] collect_local_slack_vars(DistributedArrays.localpart(subproblems))
     end
     
     # Merge dictionaries by period_index
@@ -520,12 +520,12 @@ end
 
 """
     collect_distributed_constraint_duals(
-        bd_results::BendersResults,
+        subproblems,
         ::Type{BalanceConstraint}
     )
 
 # Arguments
-- `bd_results::BendersResults`: Benders decomposition results containing subproblems
+- `subproblems`: Benders subproblems (local vector or distributed array)
 - `::Type{BalanceConstraint}`: The constraint type to collect duals for
 
 # Returns
@@ -534,13 +534,13 @@ end
 The returned dictionary has the following structure:
 - period_index => node_id => balance_id => {time_idx => dual_value}
 """
-function collect_distributed_constraint_duals(bd_results::BendersResults, ::Type{BalanceConstraint})
+function collect_distributed_constraint_duals(subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray}, ::Type{BalanceConstraint})
     p_id = workers()
     np_id = length(p_id)
     constraint_duals = Vector{Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}}(undef, np_id)
     @sync for i in 1:np_id
         @async constraint_duals[i] = @fetchfrom p_id[i] collect_local_constraint_duals(
-            DistributedArrays.localpart(bd_results.op_subproblem),
+            DistributedArrays.localpart(subproblems),
             BalanceConstraint
         )
     end
