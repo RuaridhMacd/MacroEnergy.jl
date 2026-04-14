@@ -22,7 +22,7 @@ using Logging
 using LoggingExtras
 
 import MacroEnergyScaling: scale_constraints!
-import JuMP: set_optimizer, set_optimizer_attributes
+import JuMP: set_optimizer, set_optimizer_attributes, optimize!
 
 import Base: /, push!, merge!
 
@@ -180,10 +180,10 @@ include("model/optimizer.jl")
 include("model/generate_model.jl")
 include("model/retrofit.jl")
 include("model/scaling.jl")
-include("model/solver.jl")
 include("model/myopic.jl")
 include_all_in_folder("model/constraints")
 include_all_in_folder("model/benders")
+include("model/solver.jl")
 
 include("utilities/postprocessing.jl")
 
