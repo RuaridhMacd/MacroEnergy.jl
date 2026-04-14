@@ -1,5 +1,5 @@
-
-function generate_model(case::Case,opt::Optimizer)
+function generate_model(case::Case, opt::Optimizer, ::Monolithic)
+    @info("*** Running simulation with monolithic solver ***")
 
     if case.systems[1].settings.EnableJuMPDirectModel
         model = create_direct_model_with_optimizer(opt)
@@ -8,97 +8,236 @@ function generate_model(case::Case,opt::Optimizer)
         set_optimizer(model, opt)
     end
 
-    set_string_names_on_creation(model,case.systems[1].settings.EnableJuMPStringNames)
-
-    periods = get_periods(case)
-    settings = get_settings(case)
-    num_periods = number_of_periods(case)
+    set_string_names_on_creation(model, case.systems[1].settings.EnableJuMPStringNames)
 
     @info("Generating model")
-
-    start_time = time();
+    start_time = time()
 
     @variable(model, vREF == 1)
 
-    fixed_cost = Dict()
-    om_fixed_cost = Dict()
-    investment_cost = Dict()
-    variable_cost = Dict()
+    periods = get_periods(case)
+    settings = get_settings(case)
+    fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
 
-    for (period_idx,system) in enumerate(periods)
-
-        @info(" -- Period $period_idx")
-
-        model[:eFixedCost] = AffExpr(0.0)
-        model[:eInvestmentFixedCost] = AffExpr(0.0)
-        model[:eOMFixedCost] = AffExpr(0.0)
-        model[:eVariableCost] = AffExpr(0.0)
-
-        @info(" -- Adding linking variables")
-        add_linking_variables!(system, model) 
-
-        @info(" -- Defining available capacity")
-        define_available_capacity!(system, model)
-
-        @info(" -- Generating planning model")
-        planning_model!(system, model)
-        
-        if system.settings.Retrofitting
-            @info(" -- Adding retrofit constraints")
-            add_retrofit_constraints!(system, period_idx, model)
-        end
-
-        @info(" -- Including age-based retirements")
-        add_age_based_retirements!.(system.assets, model)
-
-        if period_idx < num_periods
-            @info(" -- Available capacity in period $(period_idx) is being carried over to period $(period_idx+1)")
-            carry_over_capacities!(periods[period_idx+1], system)
-        end
-
-        @info(" -- Generating operational model")
-        operation_model!(system, model)
-
-        model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost]
-        fixed_cost[period_idx] = model[:eFixedCost];
-        investment_cost[period_idx] = model[:eInvestmentFixedCost];
-        om_fixed_cost[period_idx] = model[:eOMFixedCost];
-	    unregister(model,:eFixedCost)
-        unregister(model,:eInvestmentFixedCost)
-        unregister(model,:eOMFixedCost)
-
-        variable_cost[period_idx] = model[:eVariableCost];
-        unregister(model,:eVariableCost)
-
+    for (period_idx, system) in enumerate(periods)
+        next = period_idx < length(periods) ? periods[period_idx+1] : nothing
+        add_period_to_model!(model, system, next, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
     end
 
-    #The settings are the same in all case, we have a single settings file that gets copied into each system struct
-    period_lengths = collect(settings.PeriodLengths)
-
-    discount_rate = settings.DiscountRate
-
-    discount_factor = present_value_factor(discount_rate, period_lengths)
-
-    @expression(model, eFixedCostByPeriod[s in 1:num_periods], discount_factor[s] * fixed_cost[s])
-
-    @expression(model, eInvestmentFixedCostByPeriod[s in 1:num_periods], discount_factor[s] * investment_cost[s])
-
-    @expression(model, eOMFixedCostByPeriod[s in 1:num_periods], discount_factor[s] * om_fixed_cost[s])
-
-    @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in 1:num_periods))
-
-    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
-
-    @expression(model, eVariableCostByPeriod[s in 1:num_periods], discount_factor[s] * opexmult[s] * variable_cost[s])
-
-    @expression(model, eVariableCost, sum(eVariableCostByPeriod[s] for s in 1:num_periods))
-
-    @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
+    finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
     @info(" -- Model generation complete, it took $(time() - start_time) seconds")
 
+    if case.systems[1].settings.ConstraintScaling
+        @info "Scaling constraints and RHS"
+        scale_constraints!(model)
+    end
+
     return model
+
+end
+
+function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::Monolithic)
+
+    if system.settings.EnableJuMPDirectModel
+        model = create_direct_model_with_optimizer(opt)
+    else
+        model = Model()
+        set_optimizer(model, opt)
+    end
+
+    set_string_names_on_creation(model, system.settings.EnableJuMPStringNames)
+
+    @variable(model, vREF == 1)
+
+    fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
+
+    add_period_to_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+
+    finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+
+    if system.settings.ConstraintScaling
+        @info "Scaling constraints and RHS"
+        scale_constraints!(model)
+    end
+
+    return model
+
+end
+
+function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Benders)
+    @info("*** Running simulation with Benders decomposition ***")
     
+    planning_model = Model()
+    planning_optimizer = opt[:planning]
+    optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
+    set_optimizer(planning_model, optimizer)
+    set_silent(planning_model)
+    
+    @info("Generating planning problem")
+    start_time = time()
+    
+    @variable(planning_model, vREF == 1)
+    
+    periods = get_periods(case)
+    settings = get_settings(case)
+    fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
+
+    periods_decomp = generate_decomposed_system(periods)
+    
+    for (i, system) in enumerate(periods)
+        next = i < length(periods) ? periods[i+1] : nothing
+        add_period_to_planning_model!(planning_model, system, next, fixed_cost, investment_cost, om_fixed_cost)
+    end
+    
+    finalize_planning_model_objective!(planning_model, periods, settings, fixed_cost, investment_cost, om_fixed_cost)
+    
+    @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")
+    
+    if case.systems[1].settings.ConstraintScaling
+        @info "Scaling constraints and RHS"
+        scale_constraints!(planning_model)
+    end
+    
+    bd_setup = settings.BendersSettings
+    subproblems, linking_variables_sub = generate_subproblems(
+        periods_decomp, opt[:subproblems], settings,
+        bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
+    )
+
+    return BendersModel(bd_setup, case, planning_model, subproblems, linking_variables_sub)
+end
+
+function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, settings::NamedTuple, ::Benders)
+    @info("*** Running simulation with Benders decomposition ***")
+    
+    model = Model()
+    planning_optimizer = opt[:planning]
+    optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
+    set_optimizer(model, optimizer)
+    set_silent(model)
+    
+    @info("Generating planning problem for period $(period_index(system))")
+    
+    @variable(model, vREF == 1)
+    
+    fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
+    
+    period_decomp = generate_decomposed_system([system])
+    
+    add_period_to_planning_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost)
+    
+    finalize_planning_model_objective!(model, [system], settings, fixed_cost, investment_cost, om_fixed_cost)
+    
+    if system.settings.ConstraintScaling
+        @info "Scaling constraints and RHS"
+        scale_constraints!(model)
+    end
+    
+    bd_setup = settings.BendersSettings
+    subproblems, linking_variables_sub = generate_subproblems(
+        period_decomp, opt[:subproblems], settings,
+        bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
+    )
+
+    return BendersModel(bd_setup, system, model, subproblems, linking_variables_sub)
+end
+
+
+"""Set up the shared planning components for a single period: cost expressions,
+linking variables, available capacity, planning model, retrofitting, age-based
+retirements, and capacity carry-over."""
+function build_period_planning!(
+    model::Model,
+    system::System,
+    next_system::Union{System, Nothing}
+)
+    @info(" -- Period $(period_index(system))")
+
+    model[:eFixedCost] = AffExpr(0.0)
+    model[:eInvestmentFixedCost] = AffExpr(0.0)
+    model[:eOMFixedCost] = AffExpr(0.0)
+
+    @info(" -- Adding linking variables")
+    add_linking_variables!(system, model)
+
+    @info(" -- Defining available capacity")
+    define_available_capacity!(system, model)
+
+    @info(" -- Generating planning model")
+    planning_model!(system, model)
+
+    if system.settings.Retrofitting
+        @info(" -- Adding retrofit constraints")
+        add_retrofit_constraints!(system, model)
+    end
+
+    @info(" -- Including age-based retirements")
+    add_age_based_retirements!.(system.assets, model)
+
+    if !isnothing(next_system)
+        @info(" -- Available capacity in period $(period_index(system)) is being carried over to period $(period_index(next_system))")
+        carry_over_capacities!(next_system, system)
+    end
+end
+
+"""Store fixed cost expressions in the cost dicts and unregister them from the model."""
+function store_and_unregister_costs!(model::Model, system::System, fixed_cost::Dict, investment_cost::Dict, om_fixed_cost::Dict)
+    curr_period = period_index(system)
+    model[:eFixedCost] = model[:eInvestmentFixedCost] + model[:eOMFixedCost]
+    fixed_cost[curr_period] = model[:eFixedCost]
+    investment_cost[curr_period] = model[:eInvestmentFixedCost]
+    om_fixed_cost[curr_period] = model[:eOMFixedCost]
+    unregister(model, :eFixedCost)
+    unregister(model, :eInvestmentFixedCost)
+    unregister(model, :eOMFixedCost)
+end
+
+function add_period_to_model!(
+    model::Model,
+    system::System,
+    next_system::Union{System, Nothing},
+    fixed_cost::Dict,
+    investment_cost::Dict,
+    om_fixed_cost::Dict,
+    variable_cost::Dict
+)
+    model[:eVariableCost] = AffExpr(0.0)
+
+    build_period_planning!(model, system, next_system)
+
+    @info(" -- Generating operational model")
+    operation_model!(system, model)
+
+    store_and_unregister_costs!(model, system, fixed_cost, investment_cost, om_fixed_cost)
+
+    variable_cost[period_index(system)] = model[:eVariableCost]
+    unregister(model, :eVariableCost)
+end
+
+function finalize_model_objective!(
+    model::Model,
+    settings::NamedTuple,
+    fixed_cost::Dict,
+    investment_cost::Dict,
+    om_fixed_cost::Dict,
+    variable_cost::Dict
+)
+    period_indices = sort(collect(keys(fixed_cost)))
+    period_lengths = collect(settings.PeriodLengths)
+    discount_rate = settings.DiscountRate
+    discount_factor = present_value_factor(discount_rate, period_lengths)
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
+
+    @expression(model, eFixedCostByPeriod[s in period_indices], discount_factor[s] * fixed_cost[s])
+    @expression(model, eInvestmentFixedCostByPeriod[s in period_indices], discount_factor[s] * investment_cost[s])
+    @expression(model, eOMFixedCostByPeriod[s in period_indices], discount_factor[s] * om_fixed_cost[s])
+    @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in period_indices))
+    @expression(model, eVariableCostByPeriod[s in period_indices], discount_factor[s] * opexmult[s] * variable_cost[s])
+    @expression(model, eVariableCost, sum(eVariableCostByPeriod[s] for s in period_indices))
+
+    @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
+
 end
 
 function planning_model!(system::System, model::Model)
