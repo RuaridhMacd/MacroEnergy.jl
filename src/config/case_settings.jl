@@ -176,16 +176,16 @@ function set_solution_algorithm!(case_settings::AbstractDict{Symbol,Any})
 end
 
 function set_expansion_horizon!(case_settings::AbstractDict{Symbol,Any})
-    @info(" -- Setting expansion mode")
+    @info(" -- Setting expansion horizon")
     if case_settings[:ExpansionHorizon] == "PerfectForesight"
         case_settings[:ExpansionHorizon] = PerfectForesight()
     elseif case_settings[:ExpansionHorizon] == "Myopic"
         case_settings[:ExpansionHorizon] = Myopic()
     else
-        @warn("Unknown expansion mode '$(case_settings[:ExpansionHorizon])', defaulting to PerfectForesight")
+        @warn("Unknown expansion horizon '$(case_settings[:ExpansionHorizon])', defaulting to PerfectForesight")
         case_settings[:ExpansionHorizon] = PerfectForesight()
     end
-    @info(" -- Expansion mode set to $(case_settings[:ExpansionHorizon])")
+    @info(" -- Expansion horizon set to $(case_settings[:ExpansionHorizon])")
     return nothing
 end
 
