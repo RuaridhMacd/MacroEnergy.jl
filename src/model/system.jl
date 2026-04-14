@@ -65,6 +65,8 @@ ids = location_ids(system)
 """
 location_ids(system::System) = map(x -> x.id, system.locations)
 
+period_index(system::System) = first(values(system.time_data)).period_index;
+
 """
     get_asset_types(system::System)
 
