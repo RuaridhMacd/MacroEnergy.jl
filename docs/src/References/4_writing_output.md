@@ -64,6 +64,11 @@ MacroEnergy.get_optimal_undiscounted_costs
 MacroEnergy.write_balance_duals
 ```
 
+## `write_benders_period_outputs!`
+```@docs
+MacroEnergy.write_benders_period_outputs!
+```
+
 ## `write_capacity`
 
 ```@docs

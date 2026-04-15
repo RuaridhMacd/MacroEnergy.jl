@@ -29,6 +29,11 @@ MacroEnergy.balance_ids
 MacroEnergy.balance_data
 ```
 
+## `build_period_planning!`
+```@docs
+MacroEnergy.build_period_planning!
+```
+
 ## `create_output_path`
 ```@docs
 MacroEnergy.create_output_path
@@ -188,6 +193,11 @@ MacroEnergy.set_value
 ## `set_constraint_dual!`
 ```@docs
 MacroEnergy.set_constraint_dual!
+```
+
+## `store_and_unregister_costs!`
+```@docs
+MacroEnergy.store_and_unregister_costs!
 ```
 
 ## `struct_info`

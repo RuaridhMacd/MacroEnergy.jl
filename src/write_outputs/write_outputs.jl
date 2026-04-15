@@ -114,8 +114,8 @@ end
 
 """
     write_benders_period_outputs!(results_dir, period_idx, system, bm,
-                                   subop_indices, subproblems_data, slack_vars,
-                                   balance_duals, settings)
+        subop_indices, subproblems_data, slack_vars,
+        balance_duals, settings)
 
 Internal helper: write all outputs for one Benders period given pre-collected subproblem
 data. Called by both `write_outputs(BendersModel)` (multi-period loop) and

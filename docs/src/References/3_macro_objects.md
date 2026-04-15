@@ -38,3 +38,13 @@ MacroEnergy.Transformation
 ```@docs
 MacroEnergy.@AbstractVertexBaseAttributes
 ```
+
+## [`BendersModel`](@id bendersmodel-reference)
+```@docs
+MacroEnergy.BendersModel
+```
+
+## [`BendersConvergence`](@id bendersconvergence-reference)
+```@docs
+MacroEnergy.BendersConvergence
+```
