@@ -1,5 +1,5 @@
 function generate_model(case::Case, opt::Optimizer, ::Monolithic)
-    @info("*** Running simulation with monolithic solver ***")
+    @info("*** Generating monolithic model ***")
 
     if case.systems[1].settings.EnableJuMPDirectModel
         model = create_direct_model_with_optimizer(opt)
@@ -26,18 +26,18 @@ function generate_model(case::Case, opt::Optimizer, ::Monolithic)
 
     finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
-    @info(" -- Model generation complete, it took $(time() - start_time) seconds")
-
     if case.systems[1].settings.ConstraintScaling
         @info "Scaling constraints and RHS"
         scale_constraints!(model)
     end
-
+    
+    @info(" -- Model generation complete, it took $(time() - start_time) seconds")
+    
     return model
-
 end
 
 function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::Monolithic)
+    @info("*** Generating monolithic model for period $(period_index(system)) ***")
 
     if system.settings.EnableJuMPDirectModel
         model = create_direct_model_with_optimizer(opt)
@@ -66,7 +66,7 @@ function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::
 end
 
 function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Benders)
-    @info("*** Running simulation with Benders decomposition ***")
+    @info("*** Generating Benders decomposition model ***")
     
     planning_model = Model()
     planning_optimizer = opt[:planning]
@@ -109,7 +109,7 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
 end
 
 function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, settings::NamedTuple, ::Benders)
-    @info("*** Running simulation with Benders decomposition ***")
+    @info("*** Generating Benders decomposition model ***")
     
     model = Model()
     planning_optimizer = opt[:planning]
@@ -227,17 +227,24 @@ function finalize_model_objective!(
     period_lengths = collect(settings.PeriodLengths)
     discount_rate = settings.DiscountRate
     discount_factor = present_value_factor(discount_rate, period_lengths)
-    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
 
     @expression(model, eFixedCostByPeriod[s in period_indices], discount_factor[s] * fixed_cost[s])
+
     @expression(model, eInvestmentFixedCostByPeriod[s in period_indices], discount_factor[s] * investment_cost[s])
+
     @expression(model, eOMFixedCostByPeriod[s in period_indices], discount_factor[s] * om_fixed_cost[s])
+
     @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in period_indices))
+
+    opexmult = present_value_annuity_factor.(discount_rate, period_lengths)
+
     @expression(model, eVariableCostByPeriod[s in period_indices], discount_factor[s] * opexmult[s] * variable_cost[s])
+
     @expression(model, eVariableCost, sum(eVariableCostByPeriod[s] for s in period_indices))
 
     @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
 
+    return nothing
 end
 
 function planning_model!(system::System, model::Model)

@@ -89,6 +89,8 @@ function write_outputs(
     # Collect subproblem data (flows, NSD, storage levels, operational costs)
     @info "Collecting subproblem results..."
     subproblems_data = collect_data_from_subproblems(settings, bm.subproblems)
+
+    # get the policy slack variables from the operational subproblems
     slack_vars = collect_distributed_policy_slack_vars(bm.subproblems)
 
     # get the constraint duals from the operational subproblems
@@ -145,12 +147,16 @@ function write_benders_period_outputs!(
 
     # Flow results
     write_flows(joinpath(results_dir, "flows.csv"), system, flow_df[subop_indices])
+
     # Non-served demand results
     write_non_served_demand(joinpath(results_dir, "non_served_demand.csv"), system, nsd_df[subop_indices])
+
     # Storage level results
     write_storage_level(joinpath(results_dir, "storage_level.csv"), system, storage_level_df[subop_indices])
+    
     # Curtailment results
     write_curtailment(joinpath(results_dir, "curtailment.csv"), system, curtailment_df[subop_indices])
+
     # Sub-period weights (for downstream revenue and weighted-sum calculations)
     write_time_weights(joinpath(results_dir, "time_weights.csv"), system)
 
@@ -171,6 +177,7 @@ function write_benders_period_outputs!(
         else
             @debug "No slack variables found for period $period_idx"
         end
+        
         # Calculate and store constraint duals from subproblems to planning problem
         if haskey(balance_duals, period_idx)
             populate_constraint_duals_from_subproblems!(system, balance_duals[period_idx], BalanceConstraint)

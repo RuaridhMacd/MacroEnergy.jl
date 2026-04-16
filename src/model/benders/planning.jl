@@ -21,16 +21,18 @@ function finalize_planning_model_objective!(
     investment_cost::Dict,
     om_fixed_cost::Dict
 )
+    model[:eAvailableCapacity] = get_available_capacity(periods)
+
     period_indices = sort([s.time_data[:Electricity].period_index for s in periods])
     period_lengths = collect(settings.PeriodLengths)
     discount_rate = settings.DiscountRate
     discount_factor = present_value_factor(discount_rate, period_lengths)
 
-    model[:eAvailableCapacity] = get_available_capacity(periods)
-
     @expression(model, eFixedCostByPeriod[s in period_indices], discount_factor[s] * fixed_cost[s])
     @expression(model, eFixedCost, sum(eFixedCostByPeriod[s] for s in period_indices))
+
     @expression(model, eInvestmentFixedCostByPeriod[s in period_indices], discount_factor[s] * investment_cost[s])
+
     @expression(model, eOMFixedCostByPeriod[s in period_indices], discount_factor[s] * om_fixed_cost[s])
 
     _, number_of_subperiods = get_period_to_subproblem_mapping(periods)
@@ -38,6 +40,7 @@ function finalize_planning_model_objective!(
 
     @objective(model, Min, model[:eFixedCost])
 
+    return nothing
 end
 
 function get_available_capacity(periods::Vector{System})

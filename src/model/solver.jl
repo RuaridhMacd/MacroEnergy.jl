@@ -6,14 +6,23 @@ end
 ####### Perfect foresight: generate a single model + optimize! #######
 function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
     alg = solution_algorithm(case)
+
+    @info("*** Running simulation with Perfect Foresight expansion horizon and $(nameof(typeof(alg))) solution algorithm ***")
+
+    # For Perfect Foresight, we generate a single model for the entire case and solve it once
+    # generate_model will dispatch on the solution algorithm to generate the appropriate model structure
     model = generate_model(case, opt, alg)
+
     optimize!(model)
+
     return (case, model)
 end
 
 ####### Myopic: one model for each period, capacity carry-over, and outputs #######
 function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
     alg = solution_algorithm(case)
+
+    @info("*** Running simulation with Myopic expansion horizon and $(nameof(typeof(alg))) solution algorithm ***")
 
     periods = get_periods(case)
     settings = get_settings(case)
@@ -47,6 +56,7 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
             break
         end
 
+        # generate_model will dispatch on the solution algorithm to generate the appropriate model structure for this period
         model = generate_model(system, opt, settings, alg)
 
         optimize!(model)
@@ -64,14 +74,19 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
 end
 
 ####### optimize! for BendersModel #######
-function optimize!(bm::BendersModel)
+function JuMP.optimize!(bm::BendersModel)
+    # call MESolvers.jl to solve the Benders decomposition problem
     raw = MacroEnergySolvers.benders(
         bm.planning_problem, bm.subproblems, bm.linking_variables_sub, Dict(pairs(bm.settings))
     )
+
+    # update case or system with the best planning solution found by Benders
     update_with_planning_solution!(bm.update_target, raw.planning_sol.values)
+
     @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
     bm.planning_sol = raw.planning_sol
     bm.subop_sol = MacroEnergySolvers.solve_subproblems(bm.subproblems, raw.planning_sol, true)
+
     bm.convergence = BendersConvergence(raw)
 end
 
