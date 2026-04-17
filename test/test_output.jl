@@ -1001,7 +1001,7 @@ function test_writing_output()
         node1.timedata = electricity_timedata
         edge_to_transformation.timedata = electricity_timedata
         system.time_data[:Electricity] = electricity_timedata
-        settings = (PeriodLengths=[10], DiscountRate=0.5, SolutionAlgorithm=MacroEnergy.Monolithic())
+        settings = (PeriodLengths=[10], DiscountRate=0.5, SolutionAlgorithm=MacroEnergy.Monolithic(), ExpansionHorizon=MacroEnergy.PerfectForesight(),)
 
         # Add costs to edge_to_transformation
         edge_to_transformation.variable_om_cost = 1.0
