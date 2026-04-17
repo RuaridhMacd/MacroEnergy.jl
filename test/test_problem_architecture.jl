@@ -7,12 +7,14 @@ using DataFrames
 using MacroEnergy
 
 import MacroEnergy:
+    add_linking_variables!,
     apply_planning_solution!,
     build_monolithic_problem_instances,
     build_planning_problem,
     build_planning_problem_instances,
     build_temporal_subproblem_bundles,
     Case,
+    carry_over_capacities!,
     capture_planning_solution!,
     create_named_problem_model,
     materialize_planning_solution!,
@@ -31,6 +33,7 @@ import MacroEnergy:
     get_existing_capacity,
     get_all_balance_constraints,
     get_all_policy_constraints,
+    get_available_capacity,
     get_optimal_capacity,
     initialize_subproblems!,
     load_case,
@@ -95,6 +98,27 @@ function test_problem_architecture()
     @test instance.spec.long_duration_storage_indices == spec.long_duration_storage_indices
     @test instance.spec.time_indices == spec.time_indices
     @test instance.model isa Model
+
+    staged_instance = ProblemInstance(static_system, nothing; id=:staged_problem)
+    staged_model = create_named_problem_model(staged_instance)
+    @variable(staged_model, vREF == 1)
+    add_linking_variables!(staged_instance, staged_model; sync=true)
+    @test any(
+        state -> !isempty(state.variables),
+        values(staged_instance.node_state),
+    ) ||
+    any(
+        state -> !isempty(state.variables),
+        values(staged_instance.unidirectional_edge_state),
+    ) ||
+    any(
+        state -> !isempty(state.variables),
+        values(staged_instance.storage_state),
+    ) ||
+    any(
+        state -> !isempty(state.variables),
+        values(staged_instance.long_duration_storage_state),
+    )
 
     instances = build_monolithic_problem_instances(case)
     @test length(instances) == length(case.systems)
@@ -188,13 +212,21 @@ function test_problem_architecture()
     planning_model = generate_planning_problem(case)
     @test planning_model isa Model
     planning_bundle = build_planning_problem(case)
+    available_capacity = get_available_capacity(planning_bundle.planning_instances)
     planning_values = Dict(
         name(variable) => 0.0 for variable in all_variables(planning_bundle.model)
         if !isempty(name(variable))
     )
     capture_planning_solution!(planning_bundle.planning_instances, planning_values)
-
     first_planning_instance = planning_bundle.planning_instances[1]
+
+    if !isempty(first_planning_instance.unidirectional_edge_state)
+        first_edge_idx = first(keys(first_planning_instance.unidirectional_edge_state))
+        first_edge = first_planning_instance.static_system.unidirectional_edges[first_edge_idx]
+        @test available_capacity[(MacroEnergy.id(first_edge), MacroEnergy.period_index(first_edge))] ===
+              first_planning_instance.unidirectional_edge_state[first_edge_idx].variables[:capacity]
+    end
+
     @test any(
         state -> get(state.values, :capacity, nothing) isa Number ||
                  get(state.values, :new_capacity, nothing) isa Number,
@@ -232,6 +264,42 @@ function test_problem_architecture()
     )
     @test planning_detailed_costs.discounted isa DataFrame
     @test planning_detailed_costs.undiscounted isa DataFrame
+
+    if length(planning_bundle.planning_instances) > 1
+        second_planning_instance = planning_bundle.planning_instances[2]
+        carry_over_capacities!(second_planning_instance, first_planning_instance)
+        if !isempty(first_planning_instance.unidirectional_edge_state)
+            first_edge_idx = first(keys(first_planning_instance.unidirectional_edge_state))
+            carried_edge = second_planning_instance.static_system.unidirectional_edges[first_edge_idx]
+            previous_state = first_planning_instance.unidirectional_edge_state[first_edge_idx]
+            previous_edge = first_planning_instance.static_system.unidirectional_edges[first_edge_idx]
+
+            @test MacroEnergy.existing_capacity(carried_edge) === previous_state.variables[:capacity]
+            @test MacroEnergy.new_capacity_track(
+                carried_edge,
+                MacroEnergy.period_index(previous_edge),
+            ) === previous_state.variables[:new_capacity]
+            @test MacroEnergy.retired_capacity_track(
+                carried_edge,
+                MacroEnergy.period_index(previous_edge),
+            ) === previous_state.variables[:retired_capacity]
+        elseif !isempty(first_planning_instance.storage_state)
+            first_storage_idx = first(keys(first_planning_instance.storage_state))
+            carried_storage = second_planning_instance.static_system.storages[first_storage_idx]
+            previous_state = first_planning_instance.storage_state[first_storage_idx]
+            previous_storage = first_planning_instance.static_system.storages[first_storage_idx]
+
+            @test MacroEnergy.existing_capacity(carried_storage) === previous_state.variables[:capacity]
+            @test MacroEnergy.new_capacity_track(
+                carried_storage,
+                MacroEnergy.period_index(previous_storage),
+            ) === previous_state.variables[:new_capacity]
+            @test MacroEnergy.retired_capacity_track(
+                carried_storage,
+                MacroEnergy.period_index(previous_storage),
+            ) === previous_state.variables[:retired_capacity]
+        end
+    end
 
     materialize_planning_solution!(planning_bundle.planning_instances)
 

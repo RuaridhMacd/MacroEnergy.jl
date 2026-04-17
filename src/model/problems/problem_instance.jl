@@ -88,6 +88,33 @@ function maybe_get_local_state(instance::ProblemInstance, storage::LongDurationS
     return isnothing(global_index) ? nothing : get(instance.long_duration_storage_state, global_index, nothing)
 end
 
+function maybe_get_local_state_entry(
+    instance::ProblemInstance,
+    component,
+    category::Symbol,
+    key::Symbol,
+)
+    state = maybe_get_local_state(instance, component)
+    isnothing(state) && return nothing
+
+    payloads = getfield(state, category)
+    return get(payloads, key, nothing)
+end
+
+function get_local_state_entry(
+    instance::ProblemInstance,
+    component,
+    category::Symbol,
+    key::Symbol,
+)
+    payload = maybe_get_local_state_entry(instance, component, category, key)
+    isnothing(payload) &&
+        error(
+            "Local state entry $(category).$(key) is not available for component $(id(component)) in problem $(instance.id).",
+        )
+    return payload
+end
+
 function apply_planning_solution!(
     instance::ProblemInstance,
     planning_variable_values::AbstractDict;

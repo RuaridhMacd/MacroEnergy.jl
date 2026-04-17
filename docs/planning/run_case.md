@@ -7,6 +7,11 @@ These flow charts are grounded in the current implementations in:
 - `src/model/case.jl`
 - `src/config/case_settings.jl`
 - `src/load_inputs/generate_system.jl`
+- `src/model/solver.jl`
+- `src/model/generate_model.jl`
+- `src/model/myopic.jl`
+- `src/model/benders/planning.jl`
+- `src/model/problems/build.jl`
 
 ## Notes
 
@@ -16,6 +21,8 @@ These flow charts are grounded in the current implementations in:
 - `create_optimizer_benders` is used for `Benders`.
 - output writing is skipped for `Myopic` in `_run_case_impl`, because Myopic writes during iteration.
 - distributed workers are only started and removed for distributed Benders runs.
+- `ProblemInstance` creation happens below `solve_case`, not during `load_case`.
+- the public APIs still look `Case`/`System`-based, but model construction now largely routes through `StaticSystem` + `ProblemSpec` + `ProblemInstance`.
 
 ---
 ## `run_case`
@@ -71,6 +78,31 @@ flowchart TD
     N --> O
 
     click B "#load_case" "Jump to load_case"
+```
+
+---
+<a id="solve_case"></a>
+## `solve_case`
+---
+
+```mermaid
+flowchart TD
+    A[solve_case] --> B{solution algorithm}
+
+    B -- Monolithic --> C[generate_model]
+    B -- Myopic --> D[run_myopic_iteration!]
+    B -- Benders --> E[build_temporal_subproblem_bundles]
+
+    E --> F[initialize_planning_problem!]
+    F --> G[MacroEnergySolvers.benders]
+    G --> H[capture_planning_solution!]
+    H --> I[materialize_planning_solution!]
+    I --> J[update_with_subproblem_solutions!]
+
+    click C "#probleminstances-monolithic" "Jump to monolithic ProblemInstance creation"
+    click D "#probleminstances-myopic" "Jump to Myopic ProblemInstance creation"
+    click E "#probleminstances-benders" "Jump to Benders ProblemInstance creation"
+    click F "#probleminstances-benders" "Jump to Benders planning ProblemInstances"
 ```
 
 ---
@@ -199,6 +231,205 @@ flowchart TD
     G --> I[next system]
     H --> I
 ```
+
+---
+## ProblemInstances
+---
+
+This section traces where `ProblemInstance`s are actually created in the current refactor.
+
+- `load_case` and `generate_case` still produce a `Case` containing legacy `System`s.
+- `ProblemInstance` creation begins only when we start building optimization problems.
+- the common pattern is:
+  `System -> StaticSystem -> ProblemSpec -> ProblemInstance -> populate_*_problem!`
+
+```mermaid
+flowchart TD
+    A[System] --> B[StaticSystem system]
+    B --> C[problem_spec or nothing]
+    C --> D[build_problem_instance]
+    D --> E[initialize_local_state!]
+    E --> F[initialize_reassembly_map!]
+    F --> G[populate_planning_problem or populate_problem_model or generate_operation_subproblem]
+
+    click D "#build_problem_instance" "Jump to build_problem_instance"
+```
+
+---
+<a id="probleminstances-monolithic"></a>
+## ProblemInstances For Monolithic
+---
+
+```mermaid
+flowchart TD
+    A[solve_case Monolithic] --> B[generate_model]
+    B --> C[build_monolithic_problem_instances]
+    C --> D[for each system build_problem_instance StaticSystem system nothing]
+    D --> E[create_problem_model]
+    E --> F[populate_problem_model!]
+    F --> G[return one JuMP model]
+
+    click C "#build_monolithic_problem_instances" "Jump to build_monolithic_problem_instances"
+    click D "#build_problem_instance" "Jump to build_problem_instance"
+```
+
+Monolithic uses the default/full problem spec internally:
+
+- `spec = nothing`
+- interpreted as all components, all times, no decomposition boundary
+
+---
+<a id="probleminstances-myopic"></a>
+## ProblemInstances For Myopic
+---
+
+```mermaid
+flowchart TD
+    A[solve_case Myopic] --> B[run_myopic_iteration!]
+    B --> C[loop over periods]
+    C --> D[build_problem_instance system nothing]
+    D --> E[create_problem_model instance optimizer]
+    E --> F[populate_problem_model!]
+    F --> G[solve and write outputs]
+    G --> H[carry_over_capacities! next period]
+
+    click D "#build_problem_instance" "Jump to build_problem_instance"
+```
+
+Myopic currently creates one fresh `ProblemInstance` per period iteration.
+
+---
+<a id="probleminstances-benders"></a>
+## ProblemInstances For Benders
+---
+
+```mermaid
+flowchart TD
+    A[solve_case Benders] --> B[build_temporal_subproblem_bundles]
+    A --> C[initialize_planning_problem!]
+
+    B --> D[build temporal subproblem ProblemInstances]
+    C --> E[build_planning_problem]
+    E --> F[build planning ProblemInstances]
+
+    D --> G[initialize_subproblems!]
+    F --> H[planning_problem model]
+    G --> I[MacroEnergySolvers.benders]
+    H --> I
+
+    click B "#build_temporal_subproblem_bundles" "Jump to build_temporal_subproblem_bundles"
+    click E "#build_planning_problem" "Jump to build_planning_problem"
+```
+
+Benders currently creates two families of `ProblemInstance`s:
+
+- planning-period instances:
+  one per period, used to build the master/planning problem
+- temporal subproblem instances:
+  one per temporal subproblem, used to build persistent operational subproblems
+
+After the Benders loop:
+
+- planning solution values are captured onto planning `ProblemInstance`s
+- final subproblem solves capture operational values onto subproblem `ProblemInstance`s
+- output writing increasingly reads from those instances and their `StaticSystem` / local state
+
+---
+<a id="build_problem_instance"></a>
+## `build_problem_instance`
+---
+
+```mermaid
+flowchart TD
+    A[build_problem_instance] --> B[ProblemInstance static_system spec]
+    B --> C[initialize_local_state!]
+    C --> D[initialize_reassembly_map!]
+    D --> E[return ProblemInstance]
+```
+
+`build_problem_instance` does not populate a JuMP model by itself.
+
+It creates the persistent container that owns:
+
+- `static_system`
+- `spec`
+- `model`
+- local state dictionaries like `node_state` and `edge_state`
+- `update_map`
+- `reassembly_map`
+
+---
+<a id="build_monolithic_problem_instances"></a>
+## `build_monolithic_problem_instances`
+---
+
+```mermaid
+flowchart TD
+    A[build_monolithic_problem_instances] --> B[map case.systems]
+    B --> C[StaticSystem system]
+    C --> D[build_problem_instance static_system nothing]
+    D --> E[return Vector ProblemInstance]
+```
+
+---
+<a id="build_planning_problem"></a>
+## `build_planning_problem`
+---
+
+```mermaid
+flowchart TD
+    A[build_planning_problem] --> B[build_planning_problem_instances]
+    B --> C[create_named_problem_model first instance]
+    C --> D[loop over planning instances]
+    D --> E[populate_planning_problem!]
+    E --> F[carry_over_capacities! next planning instance]
+    F --> G[assemble planning objective expressions]
+    G --> H[return model and planning_instances]
+
+    click B "#build_planning_problem_instances" "Jump to build_planning_problem_instances"
+```
+
+---
+<a id="build_planning_problem_instances"></a>
+## `build_planning_problem_instances`
+---
+
+```mermaid
+flowchart TD
+    A[build_planning_problem_instances] --> B[map case.systems]
+    B --> C[StaticSystem system]
+    C --> D[problem_spec role planning]
+    D --> E[build_problem_instance static_system spec]
+    E --> F[return Vector planning ProblemInstance]
+```
+
+---
+<a id="build_temporal_subproblem_bundles"></a>
+## `build_temporal_subproblem_bundles`
+---
+
+```mermaid
+flowchart TD
+    A[build_temporal_subproblem_bundles] --> B[loop over case.systems]
+    B --> C[loop over subperiod positions]
+    C --> D[build_temporal_subproblem_system]
+    D --> E[problem_spec role temporal_subproblem time_indices metadata]
+    E --> F[build_problem_instance static_system spec]
+    F --> G[return bundle instance period_index subproblem_index subperiod_index]
+
+    click F "#build_problem_instance" "Jump to build_problem_instance"
+```
+
+This is the current place where temporal Benders subproblem instances are created.
+
+Each returned bundle holds:
+
+- `instance`
+- `period_index`
+- `subproblem_index`
+- `subperiod_index`
+
+The active Benders flow then converts those bundles into persistent subproblem models.
 
 ---
 <a id="load_system_data"></a>

@@ -108,7 +108,38 @@ function reset_local_state_payloads!(instance::ProblemInstance)
     return instance
 end
 
+function local_state_initialized(instance::ProblemInstance)
+    return all((
+        all(haskey(instance.node_state, idx) for idx in instance.spec.node_indices),
+        all(
+            haskey(instance.unidirectional_edge_state, idx) for
+            idx in instance.spec.unidirectional_edge_indices
+        ),
+        all(
+            haskey(instance.bidirectional_edge_state, idx) for
+            idx in instance.spec.bidirectional_edge_indices
+        ),
+        all(
+            haskey(instance.unit_commitment_edge_state, idx) for
+            idx in instance.spec.unit_commitment_edge_indices
+        ),
+        all(
+            haskey(instance.transformation_state, idx) for
+            idx in instance.spec.transformation_indices
+        ),
+        all(haskey(instance.storage_state, idx) for idx in instance.spec.storage_indices),
+        all(
+            haskey(instance.long_duration_storage_state, idx) for
+            idx in instance.spec.long_duration_storage_indices
+        ),
+    ))
+end
+
 function sync_problem_local_state!(instance::ProblemInstance)
+    if !local_state_initialized(instance)
+        initialize_local_state!(instance)
+    end
+
     reset_local_state_payloads!(instance)
 
     for (idx, node) in zip(instance.spec.node_indices, selected_nodes(instance))
@@ -301,7 +332,11 @@ end
 
 function build_monolithic_problem_instances(case::Case)
     return [
-        build_problem_instance(StaticSystem(system), nothing; id=Symbol(:period_, period_idx))
+        build_problem_instance(
+            StaticSystem(system), 
+            nothing; 
+            id=Symbol(:period_, period_idx)
+        )
         for (period_idx, system) in enumerate(case.systems)
     ]
 end
@@ -454,7 +489,7 @@ function create_named_problem_model(instance::ProblemInstance, opt::Optimizer)
     return model
 end
 
-function add_linking_variables!(instance::ProblemInstance, model::Model)
+function add_linking_variables!(instance::ProblemInstance, model::Model; sync::Bool=false)
     for node in selected_nodes(instance)
         add_linking_variables!(node, model)
     end
@@ -476,10 +511,11 @@ function add_linking_variables!(instance::ProblemInstance, model::Model)
     for edge in selected_unit_commitment_edges(instance)
         add_linking_variables!(edge, model)
     end
+    sync && sync_problem_local_state!(instance)
     return nothing
 end
 
-function define_available_capacity!(instance::ProblemInstance, model::Model)
+function define_available_capacity!(instance::ProblemInstance, model::Model; sync::Bool=false)
     for node in selected_nodes(instance)
         define_available_capacity!(node, model)
     end
@@ -501,10 +537,11 @@ function define_available_capacity!(instance::ProblemInstance, model::Model)
     for edge in selected_unit_commitment_edges(instance)
         define_available_capacity!(edge, model)
     end
+    sync && sync_problem_local_state!(instance)
     return nothing
 end
 
-function planning_model!(instance::ProblemInstance, model::Model)
+function planning_model!(instance::ProblemInstance, model::Model; sync::Bool=false)
     for node in selected_nodes(instance)
         planning_model!(node, model)
     end
@@ -528,10 +565,11 @@ function planning_model!(instance::ProblemInstance, model::Model)
     end
 
     add_constraints_by_type!(instance, model, PlanningConstraint)
+    sync && sync_problem_local_state!(instance)
     return nothing
 end
 
-function operation_model!(instance::ProblemInstance, model::Model)
+function operation_model!(instance::ProblemInstance, model::Model; sync::Bool=false)
     for node in selected_nodes(instance)
         operation_model!(node, model)
     end
@@ -555,6 +593,7 @@ function operation_model!(instance::ProblemInstance, model::Model)
     end
 
     add_constraints_by_type!(instance, model, OperationConstraint)
+    sync && sync_problem_local_state!(instance)
     return nothing
 end
 
@@ -653,13 +692,22 @@ function get_available_capacity!(
     available_capacity::Dict{Tuple{Symbol,Int64},Union{JuMPVariable,AffExpr}},
 )
     for storage in selected_storages(instance)
-        available_capacity[storage.id, period_index(storage)] = storage.capacity
+        available_capacity[storage.id, period_index(storage)] = something(
+            maybe_get_local_state_entry(instance, storage, :variables, :capacity),
+            capacity(storage),
+        )
     end
     for storage in selected_long_duration_storages(instance)
-        available_capacity[storage.id, period_index(storage)] = storage.capacity
+        available_capacity[storage.id, period_index(storage)] = something(
+            maybe_get_local_state_entry(instance, storage, :variables, :capacity),
+            capacity(storage),
+        )
     end
     for edge in selected_edges(instance)
-        available_capacity[edge.id, period_index(edge)] = edge.capacity
+        available_capacity[edge.id, period_index(edge)] = something(
+            maybe_get_local_state_entry(instance, edge, :variables, :capacity),
+            capacity(edge),
+        )
     end
     return available_capacity
 end
@@ -670,13 +718,13 @@ function populate_planning_problem!(
     period_idx::Union{Int,Nothing}=nothing,
 )
     @info(" -- Adding linking variables")
-    add_linking_variables!(instance, model)
+    add_linking_variables!(instance, model; sync=true)
 
     @info(" -- Defining available capacity")
-    define_available_capacity!(instance, model)
+    define_available_capacity!(instance, model; sync=true)
 
     @info(" -- Generating planning model")
-    planning_model!(instance, model)
+    planning_model!(instance, model; sync=true)
 
     if instance.static_system.settings.Retrofitting
         isnothing(period_idx) &&
@@ -696,10 +744,9 @@ function populate_planning_problem!(
 end
 
 function populate_operation_problem!(instance::ProblemInstance, model::Model)
-    add_linking_variables!(instance, model)
-    define_available_capacity!(instance, model)
-    operation_model!(instance, model)
-    sync_problem_local_state!(instance)
+    add_linking_variables!(instance, model; sync=true)
+    define_available_capacity!(instance, model; sync=true)
+    operation_model!(instance, model; sync=true)
     return nothing
 end
 
@@ -757,11 +804,54 @@ function carry_over_capacities!(
             @info("Skipping component $(id(y)) as it was not present in the previous period")
             validate_existing_capacity(y)
         else
-            carry_over_capacities!(y, y_prev; perfect_foresight)
+            carry_over_capacities!(y, y_prev, instance_prev; perfect_foresight)
         end
     end
 
     return nothing
+end
+
+function get_carryover_capacity_payload(
+    instance_prev::ProblemInstance,
+    y_prev::Union{AbstractEdge,AbstractStorage};
+    perfect_foresight::Bool=true,
+)
+    category = perfect_foresight ? :variables : :values
+    payload = maybe_get_local_state_entry(instance_prev, y_prev, category, :capacity)
+
+    if !isnothing(payload)
+        return payload
+    elseif perfect_foresight
+        return capacity(y_prev)
+    end
+
+    return value(capacity(y_prev))
+end
+
+function get_carryover_track_payload(
+    instance_prev::ProblemInstance,
+    y_prev::Union{AbstractEdge,AbstractStorage},
+    period_idx::Int,
+    track_accessor::Function,
+    local_state_key::Symbol;
+    perfect_foresight::Bool=true,
+)
+    current_period_idx = period_index(y_prev)
+
+    if period_idx == current_period_idx
+        category = perfect_foresight ? :variables : :values
+        payload = maybe_get_local_state_entry(instance_prev, y_prev, category, local_state_key)
+        if !isnothing(payload)
+            return payload
+        end
+    end
+
+    tracked_payload = track_accessor(y_prev, period_idx)
+    if perfect_foresight || tracked_payload isa Number
+        return tracked_payload
+    end
+
+    return value(tracked_payload)
 end
 
 function carry_over_capacities!(
@@ -777,7 +867,54 @@ function carry_over_capacities!(
             @info("Skipping component $(id(y)) as it was not present in the previous period")
             validate_existing_capacity(y)
         else
-            carry_over_capacities!(y, y_prev; perfect_foresight)
+            carry_over_capacities!(y, y_prev, instance_prev; perfect_foresight)
+        end
+    end
+
+    return nothing
+end
+
+function carry_over_capacities!(
+    y::Union{AbstractEdge,AbstractStorage},
+    y_prev::Union{AbstractEdge,AbstractStorage},
+    instance_prev::ProblemInstance;
+    perfect_foresight::Bool=true,
+)
+    if has_capacity(y_prev)
+        y.existing_capacity = get_carryover_capacity_payload(
+            instance_prev,
+            y_prev;
+            perfect_foresight,
+        )
+
+        for prev_period in keys(new_capacity_track(y_prev))
+            y.new_capacity_track[prev_period] = get_carryover_track_payload(
+                instance_prev,
+                y_prev,
+                prev_period,
+                new_capacity_track,
+                :new_capacity;
+                perfect_foresight,
+            )
+            y.retired_capacity_track[prev_period] = get_carryover_track_payload(
+                instance_prev,
+                y_prev,
+                prev_period,
+                retired_capacity_track,
+                :retired_capacity;
+                perfect_foresight,
+            )
+
+            if y isa AbstractEdge
+                y.retrofitted_capacity_track[prev_period] = get_carryover_track_payload(
+                    instance_prev,
+                    y_prev,
+                    prev_period,
+                    retrofitted_capacity_track,
+                    :retrofitted_capacity;
+                    perfect_foresight,
+                )
+            end
         end
     end
 
@@ -791,8 +928,7 @@ function populate_problem_model!(
 )
     populate_planning_problem!(instance, model; period_idx)
     @info(" -- Generating operational model")
-    operation_model!(instance, model)
-    sync_problem_local_state!(instance)
+    operation_model!(instance, model; sync=true)
 
     return nothing
 end

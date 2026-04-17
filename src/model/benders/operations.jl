@@ -10,17 +10,15 @@ function generate_operation_subproblem(
 
     model[:eVariableCost] = AffExpr(0.0)
     
-    add_linking_variables!(instance, model)
-    sync_problem_local_state!(instance)
+    add_linking_variables!(instance, model; sync=true)
 
     linking_variable_refs = setdiff(all_variables(model), model[:vREF])
     register_linking_variable_updates!(instance, linking_variable_refs)
     linking_variables = name.(linking_variable_refs)
 
-    define_available_capacity!(instance, model)
+    define_available_capacity!(instance, model; sync=true)
 
-    operation_model!(instance, model)
-    sync_problem_local_state!(instance)
+    operation_model!(instance, model; sync=true)
 
     if include_subproblem_slacks == true
         @info("Adding slack variables to ensure subproblems are always feasible")

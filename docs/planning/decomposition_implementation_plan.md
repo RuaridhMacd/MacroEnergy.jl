@@ -329,9 +329,13 @@ Notes:
 
 - `ProblemInstance` population now synchronizes currently-built JuMP refs and expressions into local state dictionaries
 - temporal subproblem generation now performs that local-state sync after operation model construction
-- the next target is to consume that local state from internal result-reconstruction paths instead of reading exclusively from legacy component fields
 - persistent subproblem re-solves now capture solved numeric outputs back into `ProblemInstance` local-state value stores
 - Benders-side operational extraction and local slack/dual collection now prefer those cached local-state values when present
+- the Benders solver path now retains planning `ProblemInstance`s and captures the returned planning solution onto local-state value stores without requiring eager write-back onto legacy component fields
+- `solve_case(..., ::Benders)` no longer depends exclusively on the old recursive `update_with_planning_solution!` walk to push planning results back onto the case
+- `BendersResults` now carries planning instances, and the Benders writer can use planning-period `StaticSystem`s directly for capacity and total-cost outputs
+- the Benders writer now also uses planning-period `StaticSystem`s for detailed fixed-cost reconstruction, reducing another write-path dependency on mutated period `System`s
+- Benders time-weight, direct dual/slack, and Benders full-timeseries metadata paths now also accept planning-period `StaticSystem`s
 
 ## Compatibility Strategy
 
@@ -363,13 +367,17 @@ What is already done on this branch:
 - planning note updated to use `StaticSystem` and `ReassemblyMap`
 - first `src/model/problems/` scaffolding added
 - monolithic `generate_model` now routes through a `ProblemInstance`-based builder
-- exports added in `src/MacroEnergy.jl`
-- focused architecture test added and passing
+- Myopic now reuses the same problem-layer builder path as monolithic
+- temporal Benders planning and subproblem construction now route through `ProblemInstance`
+- persistent temporal subproblem models are updated and re-solved in place through `UpdateMap`
+- active Benders subproblem dicts no longer carry `:system_local`
+- Benders output reconstruction now prefers `ProblemInstance` local state plus `ReassemblyMap`
+- focused architecture and Benders output utility tests cover the new planning/subproblem seams and are passing
 
 Immediate next task:
 
-- finish Stage 2 stabilization
-- reduce remaining monolithic dependence on legacy `System`-only helpers where practical
+- continue shrinking the remaining dependence on component-owned solve state and copied subproblem systems
+- keep moving Benders-side postprocessing and any remaining legacy materialization shims onto `ProblemInstance` local state
 
 ## Open Questions To Revisit Later
 
