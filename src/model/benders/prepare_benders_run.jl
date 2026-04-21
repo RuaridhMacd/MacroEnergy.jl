@@ -59,8 +59,16 @@ function start_distributed_processes!(number_of_processes::Int64,case_path::Abst
         parse(Int, ENV["SLURM_NTASKS"]) > number_of_processes ? @warn("SLURM_NTASKS is greater than the number of processes specified. Only $number_of_processes processes will be used.") : nothing
         cpus_per_task = parse(Int, ENV["SLURM_CPUS_PER_TASK"]);
         addprocs(SlurmClusterManager.SlurmManager(); exeflags=["-t $cpus_per_task"])
+    elseif haskey(ENV,"LSB_DJOB_NUMPROC")
+        lsb_numproc = parse(Int, ENV["LSB_DJOB_NUMPROC"])
+        if lsb_numproc ÷ lsf_cpus_per_task > number_of_subproblems*lsf_cpus_per_task
+            @warn("LSB_DJOB_NUMPROC is greater than the number of subproblems multiplied by number of CPUs per task: number_of_subproblems = $number_of_subproblems, cpus_per_task = $lsf_cpus_per_task, LSB_DJOB_NUMPROC = $lsb_numproc.
+            Only $number_of_subproblems processes will be used.")
+        end
+        number_of_processes= min(lsb_numproc ÷ lsf_cpus_per_task, number_of_subproblems)
+        addprocs(number_of_processes; exeflags=["-t $lsf_cpus_per_task"])
     else
-        ntasks = min(number_of_processes,Sys.CPU_THREADS)
+        ntasks = min(number_of_subproblems,Sys.CPU_THREADS)
         cpus_per_task = 1;
         addprocs(ntasks)
     end
