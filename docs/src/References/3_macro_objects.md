@@ -1,35 +1,40 @@
 # Macro Objects
 
 ```@index
-Pages = ["2_macro_objects.md"]
+Pages = ["3_macro_objects.md"]
 ```
 
-## `Edge` (with and without UC)
+## [`UnidirectionalEdge`](@id unidirectionaledge-reference)
 ```@docs
-MacroEnergy.Edge
+MacroEnergy.UnidirectionalEdge
 ```
 
-## `EdgeWithUC`
+## [`BidirectionalEdge`](@id bidirectionaledge-reference)
+```@docs
+MacroEnergy.BidirectionalEdge
+```
+
+## [`EdgeWithUC`](@id edgewithuc-reference)
 ```@docs
 MacroEnergy.EdgeWithUC
 ```
 
-## `Node`
+## [`Node`](@id node-reference)
 ```@docs
 MacroEnergy.Node
 ```
 
-## `Storage`
+## [`Storage`](@id storage-reference)
 ```@docs
 MacroEnergy.Storage
 ```
 
-## `Transformation`
+## [`Transformation`](@id transformation-reference)
 ```@docs
 MacroEnergy.Transformation
 ```
 
-## `@AbstractVertexBaseAttributes`
+## [`@AbstractVertexBaseAttributes`](@id abstractvertexbaseattributes-reference)
 ```@docs
 MacroEnergy.@AbstractVertexBaseAttributes
 ```

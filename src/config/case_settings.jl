@@ -6,14 +6,17 @@ function default_case_settings()
     return Dict(
         :PeriodLengths => [1],
         :DiscountRate => 0.,
-        :SolutionAlgorithm => "Monolithic"
+        :SolutionAlgorithm => "Monolithic",
+        :WriteFullTimeseries => false
     )
 end
 
 function default_myopic_settings()
     return Dict(
         :ReturnModels => false,
-        :WriteModelLP => false
+        :WriteModelLP => false,
+        :Restart => Dict(:enabled=>false, :folder => "results_001", :from_period => 1),
+        :StopAfterPeriod => Inf
     )
 end
 
@@ -138,6 +141,7 @@ function validate_case_settings(case_settings::AbstractDict{Symbol,Any})
     @assert all(case_settings[:PeriodLengths].>0)
     @assert case_settings[:DiscountRate] >= 0
     @assert isa(case_settings[:SolutionAlgorithm], AbstractSolutionAlgorithm)
+    @assert isa(case_settings[:WriteFullTimeseries], Bool)
 end
 
 function set_period_lengths!(case_settings::AbstractDict{Symbol,Any})
@@ -201,4 +205,12 @@ end
 function validate_myopic_settings(myopic_settings::AbstractDict{Symbol,Any})
     @assert isa(myopic_settings[:ReturnModels], Bool)
     @assert isa(myopic_settings[:WriteModelLP], Bool)
+    @assert isa(myopic_settings[:Restart][:enabled], Bool)
+    @assert isa(myopic_settings[:Restart][:folder], AbstractString)
+    @assert isa(myopic_settings[:Restart][:from_period], Int)
+    @assert isa(myopic_settings[:StopAfterPeriod], Number)
+    @assert myopic_settings[:StopAfterPeriod] >= 1
+    @assert myopic_settings[:Restart][:from_period] >= 1
+    @assert (!myopic_settings[:Restart][:enabled]) || (myopic_settings[:Restart][:from_period] <= myopic_settings[:StopAfterPeriod])
+
 end

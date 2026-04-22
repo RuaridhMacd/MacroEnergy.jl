@@ -17,6 +17,7 @@ function edge_default_data()
         :capacity_size => 1.0,
         :existing_capacity => 0.0,
         :min_capacity => 0.0,
+        :min_retired_capacity => 0.0,
         :max_capacity => Inf,
         :max_new_capacity => Inf,
         :integer_decisions => false,
@@ -42,7 +43,13 @@ function edge_default_data()
         :capital_recovery_period => 1,
         :wacc => 0.0,
         :retirement_period => 0,
-        :annualized_investment_cost => nothing
+        :annualized_investment_cost => nothing,
+        :pv_period_investment_cost => nothing,
+        :cf_period_investment_cost => nothing,
+        :pv_period_fixed_om_cost => nothing,
+        :cf_period_fixed_om_cost => nothing,
+        :pv_period_variable_om_cost => nothing,
+        :cf_period_variable_om_cost => nothing
     )
 end
 
@@ -72,12 +79,13 @@ function storage_default_data()
         :capacity_size => 1.0,
         :existing_capacity => 0.0,
         :min_capacity => 0.0,
+        :min_retired_capacity => 0.0,
         :max_capacity => Inf,
         :max_new_capacity => Inf,
         :min_duration => 0.0,
         :max_duration => 0.0,
         :min_storage_level => 0.0,
-        :max_storage_level => 0.0,
+        :max_storage_level => 1.0,
         :min_outflow_fraction => 0.0,
         :loss_fraction => Float64[],
         :investment_cost => 0.0,
@@ -87,7 +95,13 @@ function storage_default_data()
         :lifetime => 1,
         :wacc => 0.0,
         :retirement_period =>0,
-        :annualized_investment_cost => nothing
+        :annualized_investment_cost => nothing,
+        :pv_period_investment_cost => nothing,
+        :cf_period_investment_cost => nothing,
+        :pv_period_fixed_om_cost => nothing,
+        :cf_period_fixed_om_cost => nothing,
+        :pv_period_variable_om_cost => nothing,
+        :cf_period_variable_om_cost => nothing
     )
 end
 
@@ -96,14 +110,15 @@ function node_default_data()
         :id => missing,
         :timedata => missing,
         :location => missing,
-        :constraints => Dict{Symbol,Bool}(),
+        :constraints => Dict{Symbol,Bool}(
+            :BalanceConstraint => true,
+        ),
         :demand => Float64[],
         :max_nsd => [0.0],
         :min_nsd => [0.0],
         :price => Float64[],
         :price_nsd => [0.0],
-        :price_supply => [0.0],
-        :max_supply => [0.0],
+        :supply => OrderedDict{Symbol,SupplySegment}(),
         :price_unmet_policy => Dict{Symbol,Any}(),
         :rhs_policy => Dict{Symbol,Any}(),
     )

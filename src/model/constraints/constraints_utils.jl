@@ -22,7 +22,7 @@ function add_constraints_by_type!(
 )
     for c in all_constraints(y)
         if isa(c, constraint_type)
-            add_model_constraint!(c, y, model)
+            Base.invokelatest(add_model_constraint!, c, y, model)
         end
     end
 end
