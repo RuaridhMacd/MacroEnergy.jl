@@ -506,6 +506,11 @@ A macro to add a balance definition to a `Node`, `Transformation`, or `Storage`.
 supports equality and inequality balances with `flow(...)` terms and scalar or
 time-varying coefficients.
 
+At a high level, `@add_balance` lets a modeler write a named flow relationship
+in ordinary algebraic form and attach it to a vertex. Macro stores that
+relationship as normalized balance data, which `BalanceConstraint` later
+enforces at each time step.
+
 # Arguments
 - `component`: The component object to add balance data to
 - `balance_id`: Symbol key for the balance equation (e.g., `:energy`, `:mass`)
@@ -525,6 +530,13 @@ Coefficients may be:
 @add_balance(transform, :energy, flow(elec_edge) == 0.5 * flow(h2_edge))
 @add_balance(transform, :energy_lb, flow(elec_edge) >= eff * flow(h2_edge))
 ```
+
+# Method
+`@add_balance` parses the equation, moves all terms onto the left-hand side,
+records the constraint sense (`:eq`, `:le`, or `:ge`), and converts each
+`flow(...)` term into a `BalanceTerm`. For flow terms, the stored coefficient is
+pre-adjusted using the edge incidence at the host vertex so that the compiled
+balance reproduces the algebraic equation the user wrote.
 """
 macro add_balance(component, balance_id, equation)
     add_balance_fn = GlobalRef(@__MODULE__, :add_balance)
@@ -606,6 +618,8 @@ function stoichiometric_flow_edge(term)
 end
 
 function stoichiometric_flow_edge(term::Expr)
+    # Orientation checks need the edge itself. For a term like flow(elec_edge),
+    # extract and return elec_edge so the caller can inspect its incidence.
     if term.head == :call && term.args[1] == :flow && length(term.args) == 2
         return term.args[2]
     end
@@ -689,6 +703,10 @@ multiple pairwise balances anchored on `base_term`.
 This macro is a convenience wrapper for recipe-style or chemical-style
 relationships. For general balances, `@add_balance` is the preferred interface.
 
+At a high level, `@add_stoichiometric_balance` lets a modeler describe a recipe
+using `incoming_terms --> outgoing_terms`, then expands that shorthand into one
+or more ordinary balances that Macro can store and enforce.
+
 # Example
 ```julia
 @add_stoichiometric_balance(
@@ -698,6 +716,14 @@ relationships. For general balances, `@add_balance` is the preferred interface.
     flow(h2_edge),
 )
 ```
+
+# Method
+The macro parses the left and right sides of `-->` into weighted `flow(...)`
+terms, validates that left-hand terms are incoming and right-hand terms are
+outgoing relative to the host component, identifies the coefficient on
+`base_term`, and generates one pairwise `@add_balance` call for each remaining
+term. This keeps the recipe syntax compact while delegating final balance
+construction to `@add_balance`.
 """
 macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
@@ -733,6 +759,8 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_calls = Expr[]
     validation_calls = Expr[]
 
+    # The --> syntax is directional: left-hand terms are interpreted as
+    # incoming recipe terms and right-hand terms as outgoing recipe terms.
     for (_, term_variable) in input_terms
         edge_expr = stoichiometric_flow_edge(term_variable)
         if !isnothing(edge_expr)
