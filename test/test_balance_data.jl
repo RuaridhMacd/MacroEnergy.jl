@@ -374,12 +374,12 @@ end
         @add_balance(
             transform,
             :expected_1,
-            flow(h2_edge) + efficiency_rate * flow(elec_edge) == 0.0,
+            efficiency_rate * flow(elec_edge) - flow(h2_edge) == 0.0,
         )
         @add_balance(
             transform,
             :expected_2,
-            flow(h2_edge) + water_consumption * flow(water_edge) == 0.0,
+            water_consumption * flow(water_edge) - flow(h2_edge) == 0.0,
         )
 
         @test balance_signature(balance_data(transform, :energy_1)) ==
@@ -408,7 +408,7 @@ end
         @add_balance(
             transform,
             :expected_1,
-            flow(h2_edge) + fuel_consumption * flow(elec_edge) == 0.0,
+            fuel_consumption * flow(elec_edge) - flow(h2_edge) == 0.0,
         )
         @add_balance(
             transform,
@@ -442,12 +442,12 @@ end
         @add_balance(
             transform,
             :expected_1,
-            hydrogen_production * flow(elec_edge) + flow(h2_edge) == 0.0,
+            hydrogen_production * flow(elec_edge) - flow(h2_edge) == 0.0,
         )
         @add_balance(
             transform,
             :expected_2,
-            emission_rate * flow(elec_edge) + flow(co2_edge) == 0.0,
+            emission_rate * flow(elec_edge) - flow(co2_edge) == 0.0,
         )
 
         @test balance_signature(balance_data(transform, :beccs_style_1)) ==
@@ -492,6 +492,19 @@ end
                 )
             ),
         )
+    end
+
+    @testset "@add_stoichiometric_balance Rejects Terms On The Wrong Side" begin
+        parts = make_test_transformation_with_four_edges()
+
+        @test_throws ErrorException begin
+            @add_stoichiometric_balance(
+                parts.transform,
+                :wrong_side,
+                flow(parts.h2_edge) --> flow(parts.elec_edge),
+                flow(parts.h2_edge),
+            )
+        end
     end
 
     @testset "Edge balance_data Supports Time-Varying Coefficients" begin

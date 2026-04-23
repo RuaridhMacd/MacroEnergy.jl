@@ -464,16 +464,6 @@ function parse_balance_eq(ex)
     error("Unrecognized expression: $ex")
 end
 
-function post_process_terms(terms::Vector{<:NamedTuple{(:obj, :var, :coeff)}}, balance_term_type)
-    constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
-    terms_expr = [
-        :($balance_term_type(obj = $(t.obj), var = $(QuoteNode(t.var)), coeff = $(t.coeff)))
-        for t in terms if !isnothing(t.obj)
-    ]
-    return terms_expr, constant
-end
-
-
 function combine_constants!(constant_terms::Vector{<:NamedTuple{(:obj, :var, :coeff)}})
     if !isempty(constant_terms)
         constant_value = sum(t.coeff for t in constant_terms)
@@ -506,7 +496,7 @@ A macro to add a balance definition to a `Node`, `Transformation`, or `Storage`.
 supports equality and inequality balances with `flow(...)` terms and scalar or
 time-varying coefficients.
 
-At a high level, `@add_balance` lets a modeler write a named flow relationship
+`@add_balance` lets a modeler write a named flow relationship
 in ordinary algebraic form and attach it to a vertex. Macro stores that
 relationship as normalized balance data, which `BalanceConstraint` later
 enforces at each time step.
@@ -556,7 +546,9 @@ macro add_balance(component, balance_id, equation)
     # Check if operator is supported
     supported_ops = [:(==), :(=), :(<=), :(<), :(>=), :(>)]
     if operator ∉ supported_ops
-        error("Your balance constraint has an unsupported operator: $expr. Supported operators: $supported_ops")
+        error(
+            "Your balance constraint has an unsupported operator: $operator. Supported operators: $supported_ops",
+        )
     end
     
     # Step 2: Normalize the operator to an internal sense symbol.
@@ -703,7 +695,7 @@ multiple pairwise balances anchored on `base_term`.
 This macro is a convenience wrapper for recipe-style or chemical-style
 relationships. For general balances, `@add_balance` is the preferred interface.
 
-At a high level, `@add_stoichiometric_balance` lets a modeler describe a recipe
+`@add_stoichiometric_balance` lets a modeler describe a recipe
 using `incoming_terms --> outgoing_terms`, then expands that shorthand into one
 or more ordinary balances that Macro can store and enforce.
 
