@@ -601,6 +601,34 @@ function inexpr(large_expr::Expr, target_expr::Expr)::Bool
     return false
 end
 
+function stoichiometric_flow_edge(term)
+    return nothing
+end
+
+function stoichiometric_flow_edge(term::Expr)
+    if term.head == :call && term.args[1] == :flow && length(term.args) == 2
+        return term.args[2]
+    end
+    return nothing
+end
+
+function validate_stoichiometric_edge_orientation(
+    v::AbstractVertex,
+    e::AbstractEdge,
+    expected_incidence::Float64,
+    side::Symbol,
+)
+    incidence = balance_term_incidence(v, e)
+    if incidence != expected_incidence
+        expected_direction = expected_incidence > 0 ? "incoming" : "outgoing"
+        actual_direction = incidence > 0 ? "incoming" : "outgoing"
+        error(
+            "@add_stoichiometric_balance expects $side-hand terms to be $expected_direction relative to $(id(v)); edge $(id(e)) is $actual_direction",
+        )
+    end
+    return nothing
+end
+
 const EXPR_COEFF = Union{Real, Symbol, Expr}
 
 function find_expr_terms(equation::Any, negative_term::Bool=false)::Vector{Tuple{EXPR_COEFF, Expr}}
@@ -673,6 +701,7 @@ relationships. For general balances, `@add_balance` is the preferred interface.
 """
 macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
+    validate_orientation_fn = GlobalRef(@__MODULE__, :validate_stoichiometric_edge_orientation)
 
     # Check that the head of equation is :-->
     if !isa(equation, Expr) || equation.head != :-->
@@ -702,6 +731,20 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
 
     # Now, we work through each other term, creating balance data entries
     balance_calls = Expr[]
+    validation_calls = Expr[]
+
+    for (_, term_variable) in input_terms
+        edge_expr = stoichiometric_flow_edge(term_variable)
+        if !isnothing(edge_expr)
+            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, 1.0, :left)))
+        end
+    end
+    for (_, term_variable) in output_terms
+        edge_expr = stoichiometric_flow_edge(term_variable)
+        if !isnothing(edge_expr)
+            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, -1.0, :right)))
+        end
+    end
 
     if !isempty(input_terms)
         for input_term in input_terms
@@ -712,7 +755,7 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
             if found_in_input
                 balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
             else
-                balance_equation = :($base_coeff * $base_term + $term_coeff * $term_variable == 0)
+                balance_equation = :($term_coeff * $term_variable - $base_coeff * $base_term == 0)
             end
             new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
             balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
@@ -726,11 +769,7 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
             if term_variable == base_term
                 continue
             end
-            if found_in_input
-                balance_equation = :($term_coeff * $base_term + $base_coeff * $term_variable == 0)
-            else
-                balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
-            end
+            balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
             new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
             balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
             push!(balance_calls, balance_call)
@@ -811,6 +850,7 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
 
     # Return all the balance calls as a block expression
     return esc(quote
+        $(validation_calls...)
         $(balance_calls...)
     end)
 end
