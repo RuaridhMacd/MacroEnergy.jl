@@ -255,6 +255,22 @@ function add_balance(v::AbstractVertex, balance_id::Symbol, data)
     return nothing
 end
 
+function balance_term_incidence(v::AbstractVertex, e::AbstractEdge)
+    if start_vertex(e) === v
+        return -1.0
+    elseif end_vertex(e) === v
+        return 1.0
+    end
+    error("Edge $(id(e)) is not connected to vertex $(id(v))")
+end
+
+function balance_macro_coeff(v::AbstractVertex, obj, var::Symbol, coeff)
+    if var == :flow && obj isa AbstractEdge
+        return balance_term_incidence(v, obj) * coeff
+    end
+    return coeff
+end
+
 function initialize_balance_expression(v::AbstractVertex, balance_id::Symbol, model::Model)
     return @expression(model, [t in time_interval(v)], 0 * model[:vREF])
 end
@@ -509,6 +525,7 @@ Coefficients may be:
 """
 macro add_balance(component, balance_id, equation)
     add_balance_fn = GlobalRef(@__MODULE__, :add_balance)
+    balance_macro_coeff_fn = GlobalRef(@__MODULE__, :balance_macro_coeff)
     balance_data_type = GlobalRef(@__MODULE__, :BalanceData)
     balance_term_type = GlobalRef(@__MODULE__, :BalanceTerm)
 
@@ -540,7 +557,14 @@ macro add_balance(component, balance_id, equation)
     normalized_expr = :($left_side - $right_side)
 
     terms = parse_balance_eq(normalized_expr)
-    terms, constant = post_process_terms(terms, balance_term_type)
+    constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
+    terms = [
+        :($balance_term_type(
+            obj = $(t.obj),
+            var = $(QuoteNode(t.var)),
+            coeff = $balance_macro_coeff_fn($component, $(t.obj), $(QuoteNode(t.var)), $(t.coeff)),
+        )) for t in terms if !isnothing(t.obj)
+    ]
 
     # Embed the computed terms directly into the generated code
     return esc(quote
