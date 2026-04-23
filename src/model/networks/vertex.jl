@@ -484,13 +484,26 @@ function combine_constants!(constant_terms::Vector{<:NamedTuple{(:obj, :var, :co
     return 0.0
 end
 
+function validate_add_balance_terms(
+    terms::Vector{<:NamedTuple{(:obj, :var, :coeff)}},
+)
+    invalid_vars = unique(term.var for term in terms if !isnothing(term.obj) && term.var != :flow)
+    if !isempty(invalid_vars)
+        invalid_terms = join(string.(invalid_vars), ", ")
+        error(
+            "@add_balance only supports flow(...) terms. Found unsupported balance terms: $invalid_terms",
+        )
+    end
+    return nothing
+end
+
 """
     @add_balance(component, balance_id, equation)
 
 A macro to add a balance definition to a `Node`, `Transformation`, or `Storage`.
 
 `@add_balance` is the primary balance-definition interface for asset modelers. It
-supports equality and inequality balances, mixed variable types, and scalar or
+supports equality and inequality balances with `flow(...)` terms and scalar or
 time-varying coefficients.
 
 # Arguments
@@ -500,11 +513,6 @@ time-varying coefficients.
 
 # Supported terms
 - `flow(edge)`
-- `capacity(edge_or_storage)`
-- `existing_capacity(edge_or_storage)`
-- `new_capacity(edge_or_storage)`
-- `retired_capacity(edge_or_storage)`
-- `storage_level(storage)`
 
 # Coefficients
 Coefficients may be:
@@ -515,12 +523,7 @@ Coefficients may be:
 # Examples
 ```julia
 @add_balance(transform, :energy, flow(elec_edge) == 0.5 * flow(h2_edge))
-@add_balance(storage, :upper, storage_level(storage) <= capacity(storage))
-@add_balance(
-    transform,
-    :energy_lb,
-    flow(elec_edge) >= eff * flow(h2_edge) - area * capacity(h2_edge),
-)
+@add_balance(transform, :energy_lb, flow(elec_edge) >= eff * flow(h2_edge))
 ```
 """
 macro add_balance(component, balance_id, equation)
@@ -557,6 +560,7 @@ macro add_balance(component, balance_id, equation)
     normalized_expr = :($left_side - $right_side)
 
     terms = parse_balance_eq(normalized_expr)
+    validate_add_balance_terms(terms)
     constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
     terms = [
         :($balance_term_type(

@@ -21,11 +21,9 @@ import MacroEnergy:
     add_model_constraint!,
     balance_data,
     balance_sense,
-    capacity,
     flow,
     get_balance,
-    operation_model!,
-    storage_level
+    operation_model!
 
 function make_test_timedata(num_steps::Int = 1)
     return TimeData{Electricity}(;
@@ -36,19 +34,6 @@ function make_test_timedata(num_steps::Int = 1)
         subperiod_indices = [1],
         subperiod_weights = Dict(1 => 1.0),
         subperiod_map = Dict(1 => 1),
-    )
-end
-
-function make_test_storage(;
-    id::Symbol = :test_storage,
-    capacity_value::Float64 = 4.0,
-    num_steps::Int = 1,
-)
-    return Storage{Electricity}(;
-        id = id,
-        timedata = make_test_timedata(num_steps),
-        capacity = capacity_value,
-        balance_data = Dict(:storage => BalanceData()),
     )
 end
 
@@ -262,36 +247,18 @@ end
         @test transform.balance_data[:energy] isa BalanceData
     end
 
-    @testset "@add_balance Creates BalanceData" begin
-        storage = make_test_storage(id = :macro_storage, capacity_value = 8.0)
+    @testset "@add_balance Rejects Non-Flow Terms" begin
+        invalid_expressions = [
+            :(@add_balance(x, :bad_capacity, capacity(edge) == flow(other_edge))),
+            :(@add_balance(x, :bad_existing_capacity, existing_capacity(edge) == flow(other_edge))),
+            :(@add_balance(x, :bad_new_capacity, new_capacity(edge) == flow(other_edge))),
+            :(@add_balance(x, :bad_retired_capacity, retired_capacity(edge) == flow(other_edge))),
+            :(@add_balance(x, :bad_storage_level, storage_level(storage) == flow(edge))),
+        ]
 
-        @add_balance(storage, :upper, storage_level(storage) <= capacity(storage))
-        @add_balance(storage, :equal, storage_level(storage) == 0.5 * capacity(storage))
-        @add_balance(storage, :lower, storage_level(storage) >= 0.25 * capacity(storage))
-
-        upper = balance_data(storage, :upper)
-        equal = balance_data(storage, :equal)
-        lower = balance_data(storage, :lower)
-
-        @test balance_sense(storage, :upper) == :le
-        @test balance_sense(storage, :equal) == :eq
-        @test balance_sense(storage, :lower) == :ge
-
-        upper_terms = Dict(term.var => term for term in upper.terms)
-        equal_terms = Dict(term.var => term for term in equal.terms)
-        lower_terms = Dict(term.var => term for term in lower.terms)
-
-        @test all(term.obj === storage for term in upper.terms)
-        @test upper_terms[:storage_level].coeff == 1.0
-        @test upper_terms[:capacity].coeff == -1.0
-
-        @test all(term.obj === storage for term in equal.terms)
-        @test equal_terms[:storage_level].coeff == 1.0
-        @test equal_terms[:capacity].coeff == -0.5
-
-        @test all(term.obj === storage for term in lower.terms)
-        @test lower_terms[:storage_level].coeff == 1.0
-        @test lower_terms[:capacity].coeff == -0.25
+        for expr in invalid_expressions
+            @test_throws ErrorException macroexpand(@__MODULE__, expr)
+        end
     end
 
     @testset "@add_balance Normalizes Scalar And Vector Coefficients" begin
@@ -327,64 +294,6 @@ end
         @test scalar_term.coeff == scalar_eff
         @test singleton_term.coeff == only(singleton_eff)
         @test profile_term.coeff == profile_eff
-    end
-
-    @testset "@add_balance Handles Mixed Flow And Capacity Terms" begin
-        parts = make_test_transformation_with_edges()
-        transform = parts.transform
-        elec_edge = parts.elec_edge
-        h2_edge = parts.h2_edge
-
-        eff = 0.8
-        area = 0.1
-
-        @add_balance(
-            transform,
-            :ge_energy,
-            flow(elec_edge) >= eff * flow(h2_edge) - area * capacity(h2_edge)
-        )
-        @add_balance(
-            transform,
-            :eq_energy,
-            flow(elec_edge) == eff * flow(h2_edge) - area * capacity(h2_edge)
-        )
-        @add_balance(
-            transform,
-            :le_energy,
-            flow(elec_edge) <= eff * flow(h2_edge) - area * capacity(h2_edge)
-        )
-
-        ge_data = balance_data(transform, :ge_energy)
-        eq_data = balance_data(transform, :eq_energy)
-        le_data = balance_data(transform, :le_energy)
-
-        @test balance_sense(transform, :ge_energy) == :ge
-        @test balance_sense(transform, :eq_energy) == :eq
-        @test balance_sense(transform, :le_energy) == :le
-
-        for data in (ge_data, eq_data, le_data)
-            @test data.constant == 0.0
-            @test find_term(data, elec_edge, :flow).coeff == 1.0
-            @test find_term(data, h2_edge, :flow).coeff == eff
-            @test find_term(data, h2_edge, :capacity).coeff == area
-        end
-
-        model = Model(HiGHS.Optimizer)
-        set_silent(model)
-        model[:vREF] = @variable(model, base_name = "vREF")
-
-        operation_model!(parts.input_node, model)
-        operation_model!(parts.output_node, model)
-        operation_model!(transform, model)
-        operation_model!(elec_edge, model)
-        operation_model!(h2_edge, model)
-
-        ct = BalanceConstraint()
-        add_model_constraint!(ct, transform, model)
-
-        @test constraint_object(ct.constraint_ref[:ge_energy][1]).set isa MOI.GreaterThan{Float64}
-        @test constraint_object(ct.constraint_ref[:eq_energy][1]).set isa MOI.EqualTo{Float64}
-        @test constraint_object(ct.constraint_ref[:le_energy][1]).set isa MOI.LessThan{Float64}
     end
 
     @testset "@add_balance Handles All Edge Orientations For Eq And Inequalities" begin
@@ -686,36 +595,6 @@ end
         @test is_solved_and_feasible(model)
         @test value(flow(edge, 1)) ≈ 0.0 atol = 1e-8
         @test value(get_balance(end_node, :demand, 1)) ≈ 0.0 atol = 1e-8
-    end
-
-    @testset "BalanceConstraint Honors Eq Le Ge Senses" begin
-        storage = make_test_storage(id = :constraint_storage, capacity_value = 4.0)
-
-        @add_balance(storage, :eq_balance, storage_level(storage) == 0.5 * capacity(storage))
-        @add_balance(storage, :le_balance, storage_level(storage) <= 0.75 * capacity(storage))
-        @add_balance(storage, :ge_balance, storage_level(storage) >= 0.25 * capacity(storage))
-
-        model = Model(HiGHS.Optimizer)
-        set_silent(model)
-        model[:vREF] = @variable(model, base_name = "vREF")
-
-        operation_model!(storage, model)
-
-        ct = BalanceConstraint()
-        add_model_constraint!(ct, storage, model)
-
-        @test constraint_object(ct.constraint_ref[:eq_balance][1]).set isa MOI.EqualTo{Float64}
-        @test constraint_object(ct.constraint_ref[:le_balance][1]).set isa MOI.LessThan{Float64}
-        @test constraint_object(ct.constraint_ref[:ge_balance][1]).set isa MOI.GreaterThan{Float64}
-
-        @objective(model, Max, storage_level(storage, 1))
-        optimize!(model)
-
-        @test is_solved_and_feasible(model)
-        @test value(storage_level(storage, 1)) ≈ 2.0 atol = 1e-8
-        @test value(get_balance(storage, :eq_balance, 1)) ≈ 0.0 atol = 1e-8
-        @test value(get_balance(storage, :le_balance, 1)) <= 1e-8
-        @test value(get_balance(storage, :ge_balance, 1)) >= -1e-8
     end
 
     @testset "Time-Varying Flow Coefficients Apply By Timestep" begin
