@@ -85,6 +85,43 @@ function make_test_transformation_with_edges(num_steps::Int = 1)
     return (; input_node, output_node, transform, elec_edge, h2_edge)
 end
 
+function make_test_transformation_with_oriented_edges(
+    elec_incoming::Bool,
+    h2_incoming::Bool,
+    num_steps::Int = 1,
+)
+    timedata = make_test_timedata(num_steps)
+
+    elec_other_node = Node{Electricity}(;
+        id = Symbol(:balance_elec_other_node_, elec_incoming ? :in : :out),
+        timedata = timedata,
+    )
+    h2_other_node = Node{Electricity}(;
+        id = Symbol(:balance_h2_other_node_, h2_incoming ? :in : :out),
+        timedata = timedata,
+    )
+    transform = Transformation(;
+        id = Symbol(:balance_transform_, elec_incoming ? :ein : :eout, :_, h2_incoming ? :hin : :hout),
+        timedata = timedata,
+    )
+    elec_edge = UnidirectionalEdge{Electricity}(;
+        id = Symbol(:balance_elec_edge_, elec_incoming ? :in : :out),
+        timedata = timedata,
+        start_vertex = elec_incoming ? elec_other_node : transform,
+        end_vertex = elec_incoming ? transform : elec_other_node,
+        capacity = 6.0,
+    )
+    h2_edge = UnidirectionalEdge{Electricity}(;
+        id = Symbol(:balance_h2_edge_, h2_incoming ? :in : :out),
+        timedata = timedata,
+        start_vertex = h2_incoming ? h2_other_node : transform,
+        end_vertex = h2_incoming ? transform : h2_other_node,
+        capacity = 6.0,
+    )
+
+    return (; elec_other_node, h2_other_node, transform, elec_edge, h2_edge)
+end
+
 function make_test_transformation_with_four_edges(num_steps::Int = 1)
     timedata = make_test_timedata(num_steps)
 
@@ -184,6 +221,23 @@ function balance_signature(data::BalanceData)
     return (sense = data.sense, constant = data.constant, terms = terms)
 end
 
+function setup_balance_test_model(parts)
+    model = Model(HiGHS.Optimizer)
+    set_silent(model)
+    model[:vREF] = @variable(model, base_name = "vREF")
+
+    operation_model!(parts.elec_other_node, model)
+    operation_model!(parts.h2_other_node, model)
+    operation_model!(parts.transform, model)
+    operation_model!(parts.elec_edge, model)
+    operation_model!(parts.h2_edge, model)
+
+    ct = BalanceConstraint()
+    add_model_constraint!(ct, parts.transform, model)
+
+    return model, ct
+end
+
 @testset "Balance Data" begin
     @testset "Legacy Dict Normalizes To BalanceData" begin
         transform = Transformation(;
@@ -270,9 +324,9 @@ end
         singleton_term = find_term(balance_data(transform, :singleton_energy), h2_edge, :flow)
         profile_term = find_term(balance_data(transform, :profile_energy), h2_edge, :flow)
 
-        @test scalar_term.coeff == -scalar_eff
-        @test singleton_term.coeff == -only(singleton_eff)
-        @test profile_term.coeff == -profile_eff
+        @test scalar_term.coeff == scalar_eff
+        @test singleton_term.coeff == only(singleton_eff)
+        @test profile_term.coeff == profile_eff
     end
 
     @testset "@add_balance Handles Mixed Flow And Capacity Terms" begin
@@ -311,7 +365,7 @@ end
         for data in (ge_data, eq_data, le_data)
             @test data.constant == 0.0
             @test find_term(data, elec_edge, :flow).coeff == 1.0
-            @test find_term(data, h2_edge, :flow).coeff == -eff
+            @test find_term(data, h2_edge, :flow).coeff == eff
             @test find_term(data, h2_edge, :capacity).coeff == area
         end
 
@@ -331,6 +385,64 @@ end
         @test constraint_object(ct.constraint_ref[:ge_energy][1]).set isa MOI.GreaterThan{Float64}
         @test constraint_object(ct.constraint_ref[:eq_energy][1]).set isa MOI.EqualTo{Float64}
         @test constraint_object(ct.constraint_ref[:le_energy][1]).set isa MOI.LessThan{Float64}
+    end
+
+    @testset "@add_balance Handles All Edge Orientations For Eq And Inequalities" begin
+        expected_coeffs = Dict(
+            (true, true) => (elec = 1.0, h2 = -0.5),
+            (true, false) => (elec = 1.0, h2 = 0.5),
+            (false, true) => (elec = -1.0, h2 = -0.5),
+            (false, false) => (elec = -1.0, h2 = 0.5),
+        )
+
+        senses = [
+            (name = :eq_energy, op = :(==), expected_sense = :eq, objective = :Max),
+            (name = :le_energy, op = :(<=), expected_sense = :le, objective = :Max),
+            (name = :ge_energy, op = :(>=), expected_sense = :ge, objective = :Min),
+        ]
+
+        for ((elec_incoming, h2_incoming), expected) in expected_coeffs
+            for sense in senses
+                parts = make_test_transformation_with_oriented_edges(elec_incoming, h2_incoming)
+
+                equation = Expr(
+                    :call,
+                    sense.op,
+                    :(flow($(parts.elec_edge))),
+                    :($(0.5) * flow($(parts.h2_edge))),
+                )
+                @eval @add_balance($(parts.transform), $(QuoteNode(sense.name)), $equation)
+
+                data = balance_data(parts.transform, sense.name)
+                @test balance_sense(parts.transform, sense.name) == sense.expected_sense
+                @test find_term(data, parts.elec_edge, :flow).coeff == expected.elec
+                @test find_term(data, parts.h2_edge, :flow).coeff == expected.h2
+
+                model, ct = setup_balance_test_model(parts)
+
+                @constraint(model, flow(parts.h2_edge, 1) == 1.0)
+                if sense.objective == :Max
+                    @objective(model, Max, flow(parts.elec_edge, 1))
+                else
+                    @objective(model, Min, flow(parts.elec_edge, 1))
+                end
+                optimize!(model)
+
+                @test is_solved_and_feasible(model)
+                @test value(flow(parts.h2_edge, 1)) ≈ 1.0 atol = 1e-8
+                @test value(flow(parts.elec_edge, 1)) ≈ 0.5 atol = 1e-8
+                if sense.expected_sense == :eq
+                    @test constraint_object(ct.constraint_ref[sense.name][1]).set isa MOI.EqualTo{Float64}
+                    @test value(get_balance(parts.transform, sense.name, 1)) ≈ 0.0 atol = 1e-8
+                elseif sense.expected_sense == :le
+                    @test constraint_object(ct.constraint_ref[sense.name][1]).set isa MOI.LessThan{Float64}
+                    @test value(get_balance(parts.transform, sense.name, 1)) <= 1e-8
+                else
+                    @test constraint_object(ct.constraint_ref[sense.name][1]).set isa MOI.GreaterThan{Float64}
+                    @test value(get_balance(parts.transform, sense.name, 1)) >= -1e-8
+                end
+            end
+        end
     end
 
     @testset "@add_stoichiometric_balance Expands Multiple Inputs To Pairwise Balances" begin
@@ -494,10 +606,10 @@ end
         @test balance_data(charge_edge, storage, :storage, 2) == charge_eff[2]
         @test balance_data(charge_edge, storage, :storage, 3) == charge_eff[3]
 
-        @test balance_data(discharge_edge, storage, :storage) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 1) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 2) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 3) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage) == -discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 1) == -discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 2) == -discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 3) == -discharge_eff
     end
 
     @testset "Legacy Flow Balances Still Update Node Balance Expressions" begin
@@ -617,7 +729,7 @@ end
         @add_balance(
             transform,
             :energy,
-            flow(elec_edge) + efficiency_profile * flow(h2_edge) == 0.0
+            flow(elec_edge) == efficiency_profile * flow(h2_edge)
         )
 
         model = Model(HiGHS.Optimizer)
@@ -647,46 +759,6 @@ end
         end
     end
 
-    @testset "Incoming Edge Coefficients Preserve Electrolyzer-Style Efficiency" begin
-        parts = make_test_transformation_with_edges(3)
-        transform = parts.transform
-        elec_edge = parts.elec_edge
-        h2_edge = parts.h2_edge
-
-        efficiency_profile = [0.6, 0.7, 0.8]
-
-        @add_balance(
-            transform,
-            :energy,
-            efficiency_profile * flow(elec_edge) + flow(h2_edge) == 0.0
-        )
-
-        model = Model(HiGHS.Optimizer)
-        set_silent(model)
-        model[:vREF] = @variable(model, base_name = "vREF")
-
-        operation_model!(parts.input_node, model)
-        operation_model!(parts.output_node, model)
-        operation_model!(transform, model)
-        operation_model!(elec_edge, model)
-        operation_model!(h2_edge, model)
-
-        ct = BalanceConstraint()
-        add_model_constraint!(ct, transform, model)
-
-        for t in 1:3
-            @constraint(model, flow(elec_edge, t) == 1.0)
-        end
-        @objective(model, Max, sum(flow(h2_edge, t) for t in 1:3))
-        optimize!(model)
-
-        @test is_solved_and_feasible(model)
-        for (t, eff) in enumerate(efficiency_profile)
-            @test value(flow(elec_edge, t)) ≈ 1.0 atol = 1e-8
-            @test value(flow(h2_edge, t)) ≈ eff atol = 1e-8
-            @test value(get_balance(transform, :energy, t)) ≈ 0.0 atol = 1e-8
-        end
-    end
 end
 
 end
