@@ -342,10 +342,13 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
     gas_storage.discharge_edge = gas_storage_discharge
     gas_storage.charge_edge = gas_storage_charge
 
-    @add_balance(
+    @add_to_storage_balance(
         gas_storage,
-        :storage,
-        1 / get(discharge_edge_data, :efficiency, 1.0) * flow(gas_storage_discharge) + get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge) == 0.0
+        1 / get(discharge_edge_data, :efficiency, 1.0) * flow(gas_storage_discharge),
+    )
+    @add_to_storage_balance(
+        gas_storage,
+        get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge),
     )
     @add_balance(
         pump_transform,
