@@ -588,6 +588,74 @@ macro add_balance(component, balance_id, equation)
     end)
 end
 
+function validate_add_to_balance_expression(expression)
+    if isa(expression, Expr) && expression.head == :call
+        operator = expression.args[1]
+        supported_ops = [:(==), :(=), :(<=), :(<), :(>=), :(>)]
+        if operator in supported_ops
+            error(
+                "@add_to_balance expects a term expression, not an equation with operator $operator",
+            )
+        end
+    end
+    return nothing
+end
+
+"""
+    @add_to_balance(component, balance_id, expression)
+
+Add one or more terms to an existing named balance without writing an explicit
+constraint sense. This is a thin wrapper around `@add_balance` that treats the
+provided `expression` as an additive contribution to `balance_id`.
+
+# Example
+```julia
+@add_to_balance(transform, :energy, flow(elec_edge))
+@add_to_balance(transform, :energy, -0.5 * flow(h2_edge))
+```
+"""
+macro add_to_balance(component, balance_id, expression)
+    validate_add_to_balance_expression(expression)
+    return esc(quote
+        @add_balance($component, $balance_id, $expression == 0.0)
+    end)
+end
+
+"""
+    @add_to_storage_balance(storage, expression)
+    @add_to_storage_balance(storage, :storage, expression)
+
+Add terms to the reserved `:storage` balance on a storage component. This macro
+is a convenience wrapper around `@add_to_balance` that defaults the balance ID
+to `:storage`.
+
+# Example
+```julia
+@add_to_storage_balance(storage, charge_efficiency * flow(charge_edge))
+@add_to_storage_balance(storage, 1 / discharge_efficiency * flow(discharge_edge))
+```
+"""
+macro add_to_storage_balance(storage, expression)
+    validate_add_to_balance_expression(expression)
+    return esc(quote
+        @add_to_balance($storage, :storage, $expression)
+    end)
+end
+
+macro add_to_storage_balance(storage, balance_id, expression)
+    validate_add_to_balance_expression(expression)
+    if balance_id isa QuoteNode
+        balance_id.value == :storage ||
+            error("@add_to_storage_balance only supports the :storage balance id")
+    end
+    return esc(quote
+        local _balance_id = $balance_id
+        _balance_id == :storage ||
+            error("@add_to_storage_balance only supports the :storage balance id, got $(_balance_id)")
+        @add_to_balance($storage, _balance_id, $expression)
+    end)
+end
+
 function inexpr(large_expr::Expr, target_expr::Expr)::Bool
     if target_expr == large_expr
         return true

@@ -9,6 +9,8 @@ const MOI = JuMP.MOI
 
 import MacroEnergy:
     @add_balance,
+    @add_to_balance,
+    @add_to_storage_balance,
     @add_stoichiometric_balance,
     BalanceConstraint,
     BalanceData,
@@ -296,6 +298,36 @@ end
         @test profile_term.coeff == profile_eff
     end
 
+    @testset "@add_to_balance Adds Terms And Constants" begin
+        parts = make_test_transformation_with_edges()
+        transform = parts.transform
+        elec_edge = parts.elec_edge
+        h2_edge = parts.h2_edge
+
+        @add_to_balance(transform, :energy, flow(elec_edge) + 1.25)
+        @add_to_balance(transform, :energy, -0.5 * flow(h2_edge) - 0.25)
+
+        data = balance_data(transform, :energy)
+
+        @test balance_sense(transform, :energy) == :eq
+        @test data.constant == 1.0
+        @test length(data.terms) == 2
+        @test find_term(data, elec_edge, :flow).coeff == 1.0
+        @test find_term(data, h2_edge, :flow).coeff == 0.5
+    end
+
+    @testset "@add_to_balance Rejects Equations" begin
+        invalid_expressions = [
+            :(@add_to_balance(x, :bad_eq, flow(edge_a) == flow(edge_b))),
+            :(@add_to_balance(x, :bad_le, flow(edge_a) <= flow(edge_b))),
+            :(@add_to_balance(x, :bad_ge, flow(edge_a) >= flow(edge_b))),
+        ]
+
+        for expr in invalid_expressions
+            @test_throws ErrorException macroexpand(@__MODULE__, expr)
+        end
+    end
+
     @testset "@add_balance Handles All Edge Orientations For Eq And Inequalities" begin
         expected_coeffs = Dict(
             (true, true) => (elec = 1.0, h2 = -0.5),
@@ -516,11 +548,8 @@ end
         charge_eff = [0.5, 0.6, 0.7]
         discharge_eff = 1.25
 
-        @add_balance(
-            storage,
-            :storage,
-            discharge_eff * flow(discharge_edge) + charge_eff * flow(charge_edge) == 0.0
-        )
+        @add_to_storage_balance(storage, discharge_eff * flow(discharge_edge))
+        @add_to_storage_balance(storage, :storage, charge_eff * flow(charge_edge))
 
         @test_throws ErrorException balance_data(charge_edge, storage, :storage)
 
@@ -532,6 +561,21 @@ end
         @test balance_data(discharge_edge, storage, :storage, 1) == -discharge_eff
         @test balance_data(discharge_edge, storage, :storage, 2) == -discharge_eff
         @test balance_data(discharge_edge, storage, :storage, 3) == -discharge_eff
+    end
+
+    @testset "@add_to_storage_balance Rejects Invalid Usage" begin
+        @test_throws ErrorException macroexpand(
+            @__MODULE__,
+            :(@add_to_storage_balance(storage, flow(charge_edge) == flow(discharge_edge))),
+        )
+        @test_throws ErrorException macroexpand(
+            @__MODULE__,
+            :(@add_to_storage_balance(storage, :energy, flow(charge_edge))),
+        )
+
+        parts = make_test_storage_with_edges()
+        bad_id = :energy
+        @test_throws ErrorException @add_to_storage_balance(parts.storage, bad_id, flow(parts.charge_edge))
     end
 
     @testset "Legacy Flow Balances Still Update Node Balance Expressions" begin
