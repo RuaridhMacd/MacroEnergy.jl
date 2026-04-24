@@ -1,4 +1,4 @@
-struct FossilLiquidFuelsRefinery <: AbstractAsset
+struct ConstrainedFossilLiquidFuels <: AbstractAsset
     id::AssetId
     refinery_transform::Transformation
     fossil_gasoline_edge::Edge{<:LiquidFuels}
@@ -10,7 +10,7 @@ struct FossilLiquidFuelsRefinery <: AbstractAsset
     co2_edge::Edge{<:CO2}
 end
 
-function default_data(t::Type{FossilLiquidFuelsRefinery}, id=missing, style="full")
+function default_data(t::Type{ConstrainedFossilLiquidFuels}, id=missing, style="full")
     if style == "full"
         return full_default_data(t, id)
     else
@@ -18,7 +18,7 @@ function default_data(t::Type{FossilLiquidFuelsRefinery}, id=missing, style="ful
     end
 end
 
-function full_default_data(::Type{FossilLiquidFuelsRefinery}, id=missing)
+function full_default_data(::Type{ConstrainedFossilLiquidFuels}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :transforms => @transform_data(
@@ -73,7 +73,7 @@ function full_default_data(::Type{FossilLiquidFuelsRefinery}, id=missing)
     )
 end
 
-function simple_default_data(::Type{FossilLiquidFuelsRefinery}, id=missing)
+function simple_default_data(::Type{ConstrainedFossilLiquidFuels}, id=missing)
     return OrderedDict{Symbol,Any}(
         :id => id,
         :location => missing,
@@ -86,7 +86,7 @@ function simple_default_data(::Type{FossilLiquidFuelsRefinery}, id=missing)
     )
 end
 
-function make(asset_type::Type{FossilLiquidFuelsRefinery}, data::AbstractDict{Symbol,Any}, system::System)
+function make(asset_type::Type{ConstrainedFossilLiquidFuels}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
 
     @setup_data(asset_type, data, id)
@@ -332,7 +332,7 @@ function make(asset_type::Type{FossilLiquidFuelsRefinery}, data::AbstractDict{Sy
         ),
     )
 
-    return FossilLiquidFuelsRefinery(
+    return ConstrainedFossilLiquidFuels(
         id,
         refinery_transform,
         fossil_gasoline_edge,

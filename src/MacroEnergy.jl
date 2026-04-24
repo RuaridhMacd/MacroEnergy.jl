@@ -206,7 +206,7 @@ include("model/assets/hydrores.jl")
 include("model/assets/mustrun.jl")
 include("model/assets/upstreamemissions.jl")
 include("model/assets/downstreamemissions.jl")
-include("model/assets/fossilliquidfuelsrefinery.jl")
+include("model/assets/constrainedfossilliquidfuels.jl")
 include("model/assets/syntheticnaturalgas.jl")
 include("model/assets/syntheticliquidfuels.jl")
 include("model/assets/syntheticammonia.jl")
@@ -279,7 +279,7 @@ export AbstractAsset,
     ElectricHeating,
     ElectricSteam,
     UpstreamEmissions,
-    FossilLiquidFuelsRefinery,
+    ConstrainedFossilLiquidFuels,
     FuelCell,
     DownstreamEmissions,
     ThermalHeating,

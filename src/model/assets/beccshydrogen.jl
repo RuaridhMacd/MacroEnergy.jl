@@ -54,7 +54,9 @@ function full_default_data(::Type{BECCSHydrogen}, id=missing)
             :fuel_consumption => 0.0,
             :capture_rate => 1.0,
             :co2_content => 0.0,
-            :emission_rate => 1.0
+            :emission_rate => 1.0,
+            :fuel_emission_rate => 0.0,
+            :fuel_capture_rate => 0.0
         ),
         :edges => Dict{Symbol, Any}(
             :elec_edge => @edge_data(
@@ -105,6 +107,8 @@ function simple_default_data(::Type{BECCSHydrogen}, id=missing)
         :fuel_consumption => 0.0,
         :co2_content => 0.0,
         :emission_rate => 1.0,
+        :fuel_emission_rate => 0.0,
+        :fuel_capture_rate => 0.0,
         :capture_rate => 1.0,
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
@@ -360,10 +364,12 @@ function make(asset_type::Type{BECCSHydrogen}, data::AbstractDict{Symbol,Any}, s
         ),
         :emissions => Dict(
             biomass_edge.id => get(transform_data, :emission_rate, 1.0),
+            fuel_edge.id => get(transform_data, :fuel_emission_rate, 0.0),
             co2_emission_edge.id => 1.0
         ),
         :capture => Dict(
             biomass_edge.id => get(transform_data, :capture_rate, 1.0),
+            fuel_edge.id => get(transform_data, :fuel_capture_rate, 0.0),
             co2_captured_edge.id => 1.0
         )
     )
