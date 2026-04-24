@@ -135,6 +135,11 @@ MacroEnergy.write_balance_duals_full_timeseries
 MacroEnergy.write_non_served_demand
 ```
 
+## `write_objective_value`
+```@docs
+MacroEnergy.write_objective_value
+```
+
 ## `write_settings`
 
 ```@docs

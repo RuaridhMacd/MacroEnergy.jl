@@ -1,4 +1,16 @@
 """
+    write_objective_value(results_dir::AbstractString, model::Model)
+
+Write the solver objective value to `objective_value.csv` in `results_dir`.
+"""
+function write_objective_value(results_dir::AbstractString, model::Model)
+    file_path = joinpath(results_dir, "objective_value.csv")
+    @info "Writing objective value to $file_path"
+    CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(model)]))
+    return nothing
+end
+
+"""
 Write results when using Monolithic as solution algorithm.
 """
 function write_outputs(
@@ -279,6 +291,8 @@ function write_period_outputs(
     if settings.WriteFullTimeseries
         write_full_timeseries(results_dir, system; var_cost_discount)
     end
+
+    write_objective_value(results_dir, model)
 
     return nothing
 end
