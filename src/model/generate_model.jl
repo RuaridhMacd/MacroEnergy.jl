@@ -143,6 +143,27 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
     return BendersModel(bd_setup, system, model, subproblems, linking_variables_sub)
 end
 
+function add_period_to_model!(
+    model::Model,
+    system::System,
+    next_system::Union{System, Nothing},
+    fixed_cost::Dict,
+    investment_cost::Dict,
+    om_fixed_cost::Dict,
+    variable_cost::Dict
+)
+    model[:eVariableCost] = AffExpr(0.0)
+
+    build_period_planning!(model, system, next_system)
+
+    @info(" -- Generating operational model")
+    operation_model!(system, model)
+
+    store_and_unregister_costs!(model, system, fixed_cost, investment_cost, om_fixed_cost)
+
+    variable_cost[period_index(system)] = model[:eVariableCost]
+    unregister(model, :eVariableCost)
+end
 
 """Set up the shared planning components for a single period: cost expressions,
 linking variables, available capacity, planning model, retrofitting, age-based
@@ -191,28 +212,6 @@ function store_and_unregister_costs!(model::Model, system::System, fixed_cost::D
     unregister(model, :eFixedCost)
     unregister(model, :eInvestmentFixedCost)
     unregister(model, :eOMFixedCost)
-end
-
-function add_period_to_model!(
-    model::Model,
-    system::System,
-    next_system::Union{System, Nothing},
-    fixed_cost::Dict,
-    investment_cost::Dict,
-    om_fixed_cost::Dict,
-    variable_cost::Dict
-)
-    model[:eVariableCost] = AffExpr(0.0)
-
-    build_period_planning!(model, system, next_system)
-
-    @info(" -- Generating operational model")
-    operation_model!(system, model)
-
-    store_and_unregister_costs!(model, system, fixed_cost, investment_cost, om_fixed_cost)
-
-    variable_cost[period_index(system)] = model[:eVariableCost]
-    unregister(model, :eVariableCost)
 end
 
 function finalize_model_objective!(

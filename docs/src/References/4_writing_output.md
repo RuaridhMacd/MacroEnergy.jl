@@ -66,7 +66,7 @@ MacroEnergy.write_balance_duals
 
 ## `write_benders_period_outputs!`
 ```@docs
-MacroEnergy.write_benders_period_outputs!
+MacroEnergy._write_benders_period_outputs
 ```
 
 ## `write_capacity`
@@ -171,11 +171,6 @@ MacroEnergy.write_dataframe
 ## `MacroEnergy.write_outputs`
 ```@docs
 MacroEnergy.MacroEnergy.write_outputs
-```
-
-## `MacroEnergy.write_outputs_myopic`
-```@docs
-MacroEnergy.write_outputs_myopic
 ```
 
 ## `MacroEnergy.write_period_outputs`

@@ -1,16 +1,4 @@
 """
-    write_objective_value(results_dir::AbstractString, model::Model)
-
-Write the solver objective value to `objective_value.csv` in `results_dir`.
-"""
-function write_objective_value(results_dir::AbstractString, model::Model)
-    file_path = joinpath(results_dir, "objective_value.csv")
-    @info "Writing objective value to $file_path"
-    CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(model)]))
-    return nothing
-end
-
-"""
 Write results when using Monolithic as solution algorithm.
 """
 function write_outputs(
@@ -31,9 +19,9 @@ function write_outputs(
 end
 
 """
-Write results when using Myopic as solution algorithm.
+Write results for a single Myopic iteration when using Myopic as expansion horizon and Monolithic as solution algorithm.
 """
-function write_outputs_myopic(
+function write_outputs(
     output_path::AbstractString, 
     case::Case, 
     model::Model, 
@@ -51,36 +39,6 @@ function write_outputs_myopic(
     end
 
     write_period_outputs(results_dir, period_idx, system, model, settings)
-    return nothing
-end
-
-"""
-Write results for a single period when using Myopic + Benders as solution algorithm.
-LP file writing is handled here using the planning problem stored in the BendersModel.
-"""
-function write_outputs_myopic(
-    output_path::AbstractString,
-    case::Case,
-    bm::BendersModel,
-    system::System,
-    period_idx::Int
-)
-    num_periods = number_of_periods(case)
-    settings = get_settings(case)
-    # Create results directory to store outputs for this period
-    results_dir = mkpath_for_period(output_path, num_periods, period_idx)
-
-    @info("Writing results for period $period_idx")
-
-    if settings.MyopicSettings[:WriteModelLP]
-        @info(" -- Writing LP file for period $(period_idx)")
-        write_to_file(
-            bm.planning_problem,
-            joinpath(results_dir, "planning_problem_period_$(period_idx).lp")
-        )
-    end
-
-    write_period_outputs(results_dir, period_idx, system, bm, settings)
     return nothing
 end
 
@@ -114,7 +72,7 @@ function write_outputs(
 
         ## Create results directory to store the results
         results_dir = mkpath_for_period(case_path, num_periods, period_idx)
-        write_benders_period_outputs!(
+        _write_benders_period_outputs(
             results_dir, period_idx, period, bm,
             period_to_subproblem_map[period_idx],
             subproblems_data, slack_vars, balance_duals, settings
@@ -126,8 +84,68 @@ function write_outputs(
     return nothing
 end
 
+
 """
-    write_benders_period_outputs!(results_dir, period_idx, system, bm,
+Write results for a single period when using Myopic + Benders as solution algorithm.
+LP file writing is handled here using the planning problem stored in the BendersModel.
+"""
+function write_outputs(
+    output_path::AbstractString,
+    case::Case,
+    bm::BendersModel,
+    system::System,
+    period_idx::Int
+)
+    num_periods = number_of_periods(case)
+    settings = get_settings(case)
+    # Create results directory to store outputs for this period
+    results_dir = mkpath_for_period(output_path, num_periods, period_idx)
+
+    @info("Writing results for period $period_idx")
+
+    if settings.MyopicSettings[:WriteModelLP]
+        @info(" -- Writing LP file for period $(period_idx)")
+        write_to_file(
+            bm.planning_problem,
+            joinpath(results_dir, "planning_problem_period_$(period_idx).lp")
+        )
+    end
+
+    write_period_outputs(results_dir, period_idx, system, bm, settings)
+    return nothing
+end
+
+"""
+    write_period_outputs(results_dir, period_idx, system, bm, settings)
+
+Write all outputs for a single period of a Myopic+Benders run.
+"""
+function write_period_outputs(
+    results_dir::AbstractString,
+    period_idx::Int,
+    system::System,
+    bm::BendersModel,
+    settings::NamedTuple
+)
+    period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
+    subop_indices = period_to_subproblem_map[period_idx]
+
+    subproblems_data = collect_data_from_subproblems(settings, bm.subproblems)
+    slack_vars    = collect_distributed_policy_slack_vars(bm.subproblems)
+    balance_duals = collect_distributed_constraint_duals(bm.subproblems, BalanceConstraint)
+
+    _write_benders_period_outputs(
+        results_dir, period_idx, system, bm,
+        subop_indices, subproblems_data, slack_vars, balance_duals, settings
+    )
+
+    write_benders_convergence(results_dir, bm.convergence)
+    return nothing
+end
+
+
+"""
+    _write_benders_period_outputs(results_dir, period_idx, system, bm,
         subop_indices, subproblems_data, slack_vars,
         balance_duals, settings)
 
@@ -135,7 +153,7 @@ Internal helper: write all outputs for one Benders period given pre-collected su
 data. Called by both `write_outputs(BendersModel)` (multi-period loop) and
 `write_period_outputs(BendersModel)` (Myopic+Benders single-period).
 """
-function write_benders_period_outputs!(
+function _write_benders_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
@@ -214,34 +232,6 @@ function write_benders_period_outputs!(
 end
 
 """
-    write_period_outputs(results_dir, period_idx, system, bm, settings)
-
-Write all outputs for a single period of a Myopic+Benders run.
-"""
-function write_period_outputs(
-    results_dir::AbstractString,
-    period_idx::Int,
-    system::System,
-    bm::BendersModel,
-    settings::NamedTuple
-)
-    period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
-    subop_indices = period_to_subproblem_map[period_idx]
-
-    subproblems_data = collect_data_from_subproblems(settings, bm.subproblems)
-    slack_vars    = collect_distributed_policy_slack_vars(bm.subproblems)
-    balance_duals = collect_distributed_constraint_duals(bm.subproblems, BalanceConstraint)
-
-    write_benders_period_outputs!(
-        results_dir, period_idx, system, bm,
-        subop_indices, subproblems_data, slack_vars, balance_duals, settings
-    )
-
-    write_benders_convergence(results_dir, bm.convergence)
-    return nothing
-end
-
-"""
     write_period_outputs(results_dir, period_idx, system, model, settings)
 
 Write all outputs for a single period (one iteration of the Monolithic/Myopic loop).
@@ -294,5 +284,17 @@ function write_period_outputs(
 
     write_objective_value(results_dir, model)
 
+    return nothing
+end
+
+"""
+    write_objective_value(results_dir::AbstractString, model::Model)
+
+Write the solver objective value to `objective_value.csv` in `results_dir`.
+"""
+function write_objective_value(results_dir::AbstractString, model::Model)
+    file_path = joinpath(results_dir, "objective_value.csv")
+    @info "Writing objective value to $file_path"
+    CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(model)]))
     return nothing
 end

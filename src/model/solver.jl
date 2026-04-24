@@ -9,8 +9,8 @@ function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Opt
 
     @info("*** Running simulation with Perfect Foresight expansion horizon and $(nameof(typeof(alg))) solution algorithm ***")
 
-    # For Perfect Foresight, we generate a single model for the entire case and solve it once
-    # generate_model will dispatch on the solution algorithm to generate the appropriate model structure
+    # For Perfect Foresight, we generate a single model for the entire case (planning periods) and solve it once
+    # generate_model will dispatch on the solution algorithm (e.g., Monolithic or Benders) to generate the appropriate model structure
     model = generate_model(case, opt, alg)
 
     optimize!(model)
@@ -28,7 +28,11 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
     settings = get_settings(case)
     myopic_settings = settings.MyopicSettings
     return_results = myopic_settings[:ReturnModels]
+
+     # Output path for writing results during iteration
     output_path = create_output_path(case.systems[1])
+
+    # Only allocate models vector if returning models is requested
     stored = return_results ? Vector{Any}(undef, length(periods)) : nothing
 
     if myopic_settings[:Restart][:enabled]
@@ -56,14 +60,14 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
             break
         end
 
-        # generate_model will dispatch on the solution algorithm to generate the appropriate model structure for this period
+        # generate_model will dispatch on the solution algorithm (e.g., Monolithic or Benders) to generate the appropriate model structure for this period
         model = generate_model(system, opt, settings, alg)
 
         optimize!(model)
 
         period_idx < length(periods) && carry_over_capacities!(periods[period_idx+1], system, perfect_foresight=false)
 
-        write_outputs_myopic(output_path, case, model, system, period_idx)
+        write_outputs(output_path, case, model, system, period_idx)
 
         return_results ? (stored[period_idx] = model) : (model = nothing; GC.gc())
     end
