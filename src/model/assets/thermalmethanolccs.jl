@@ -273,25 +273,22 @@ function make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,An
         co2_captured_end_node,
     )
 
-    thermalmethanolccs_transform.balance_data = Dict(
-        :energy => Dict(
-            ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
-            fuel_edge.id => 1.0,
-        ),
-        :electricity => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => 1.0,
-        ),
-        :capture => Dict(
-            fuel_edge.id => get(transform_data, :capture_rate, 0.0),
-            co2_captured_edge.id => 1.0,
-        ),
+    # Calculate emissions and capture per unit of methanol produced 
+    # so it can be used in the stoichiometric balance with the ch3oh_edge
+    emissions_per_ch3oh = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
+    capture_per_ch3oh = get(transform_data, :capture_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
+
+    @add_stoichiometric_balance(
+        thermalmethanol_transform,
+        :ch3oh_production,
+        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge)
+        + get(transform_data, :electricity_consumption, 1.0) * flow(elec_edge)
+        -->
+        flow(ch3oh_edge)
+        + emissions_per_ch3oh * flow(co2_edge)
+        + capture_per_ch3oh * flow(co2_captured_edge),
+        flow(ch3oh_edge)
     )
- 
 
     return ThermalMethanolCCS(id, thermalmethanolccs_transform, ch3oh_edge, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
 end 

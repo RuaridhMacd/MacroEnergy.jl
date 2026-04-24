@@ -283,29 +283,18 @@ function make(asset_type::Type{ElectricArcFurnace}, data::AbstractDict{Symbol,An
     co2_edge.constraints = Vector{AbstractTypeConstraint}()
 
     # stochiometry
-    eaf_transform.balance_data = Dict(
-        :electricity_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0,
-        ),
-        :steelscrap_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
-            steelscrap_edge.id => 1.0
-        ),
-        :naturalgas_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :naturalgas_consumption, 0.0),
-            naturalgas_edge.id => 1.0,
-        ),
-        :carbonsource_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :carbonsource_consumption, 0.0),
-            carbonsource_edge.id => 1.0,
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0,
-        ) 
+    @add_stoichiometric_balance(
+        eaf_transform,
+        :steel_production,
+        get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+        + get(transform_data, :steelscrap_consumption, 0.0) * flow(steelscrap_edge)
+        + get(transform_data, :naturalgas_consumption, 0.0) * flow(naturalgas_edge)
+        + get(transform_data, :carbonsource_consumption, 0.0) * flow(carbonsource_edge)
+        -->
+        flow(crudesteel_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
+        flow(crudesteel_edge)
     )
-
 
     return ElectricArcFurnace(id,
             eaf_transform,

@@ -293,27 +293,17 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
             CapacityConstraint()
         ])
 
-    dreaf_transform.balance_data = Dict(
-        :ironore_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
-            ironore_edge.id => 1.0
-        ),
-        :electricity_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :reductant_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :reductant_consumption, 0.0),
-            reductant_edge.id => 1.0
-        ),
-        :carbonsource_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :carbonsource_consumption, 0.0),
-            carbonsource_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0, 
-        ),
+    @add_stoichiometric_balance(
+        dreaf_transform,
+        :steel_production,
+        get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
+        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+        + get(transform_data, :reductant_consumption, 0.0) * flow(reductant_edge)
+        + get(transform_data, :carbonsource_consumption, 0.0) * flow(carbonsource_edge)
+        -->
+        flow(crudesteel_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
+        flow(crudesteel_edge)
     )
 
     return DirectReductionElectricArcFurnace(id,

@@ -195,15 +195,14 @@ function make(asset_type::Type{UpstreamEmissions}, data::AbstractDict{Symbol,Any
         co2_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         fossilfuelsupstream_transform,
-        :fuel,
-        flow(fossil_fuel_edge) + flow(fuel_edge) == 0.0
-    )
-    @add_balance(
-        fossilfuelsupstream_transform,
-        :emissions,
-        get(transform_data, :emission_rate, 0.0) * flow(fossil_fuel_edge) + flow(co2_edge) == 0.0
+        :upstream_emissions,
+        flow(fossil_fuel_edge) 
+        --> 
+        flow(fuel_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
+        flow(fossil_fuel_edge)
     )
 
     return UpstreamEmissions(id, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge) 

@@ -371,7 +371,7 @@ function make(asset_type::Type{BECCSLiquidFuels}, data::AbstractDict{Symbol,Any}
 
     @add_stoichiometric_balance(
         beccs_transform,
-        :beccselec_flow,
+        :beccs_liquid_fuels,
         flow(biomass_edge) 
         + get(transform_data, :electricity_consumption, 0.0) * flow(elec_consumption_edge) 
         + get(transform_data, :co2_content, 0.0) * flow(co2_edge)

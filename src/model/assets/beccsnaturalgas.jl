@@ -265,30 +265,17 @@ function make(asset_type::Type{BECCSNaturalGas}, data::AbstractDict{Symbol,Any},
         co2_captured_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         beccs_transform,
         :beccs_natural_gas,
-        flow(natgas_edge) +  get(transform_data, :natgas_production, 0.0) * flow(biomass_edge) == 0.0
-    )
-    @add_balance(
-        beccs_transform,
-        :elec_consumption,
-        get(transform_data, :electricity_consumption, 0.0) * flow(biomass_edge) == flow(elec_edge)
-    )
-    @add_balance(
-        beccs_transform,
-        :negative_emissions,
-        get(transform_data, :co2_content, 0.0) * flow(biomass_edge) == flow(co2_edge)
-    )
-    @add_balance(
-        beccs_transform,
-        :emissions,
-        get(transform_data, :emission_rate, 1.0) * flow(biomass_edge) + flow(co2_emission_edge) == 0.0
-    )
-    @add_balance(
-        beccs_transform,
-        :capture,
-        get(transform_data, :capture_rate, 1.0) * flow(biomass_edge) + flow(co2_captured_edge) == 0.0
+        flow(biomass_edge)
+        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+        + get(transform_data, :co2_content, 0.0) * flow(co2_edge)
+        -->
+        get(transform_data, :natgas_production, 0.0) * flow(natgas_edge)
+        + get(transform_data, :emission_rate, 1.0) * flow(co2_emission_edge)
+        + get(transform_data, :capture_rate, 1.0) * flow(co2_captured_edge),
+        flow(biomass_edge)
     )
 
     return BECCSNaturalGas(id, beccs_transform, biomass_edge,natgas_edge,elec_edge,co2_edge,co2_emission_edge,co2_captured_edge) 

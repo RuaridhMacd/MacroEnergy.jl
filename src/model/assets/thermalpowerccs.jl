@@ -249,20 +249,15 @@ function make(asset_type::Type{ThermalPowerCCS}, data::AbstractDict{Symbol,Any},
         co2_captured_end_node,
     )
 
-    @add_balance(
-        thermalccs_transform,
-        :energy,
-        flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) == 0.0,
-    )
-    @add_balance(
-        thermalccs_transform,
-        :emissions,
-        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0,
-    )
-    @add_balance(
-        thermalccs_transform,
-        :capture,
-        get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) + flow(co2_captured_edge) == 0.0
+    @add_stoichiometric_balance(
+        thermal_transform,
+        :thermal_power_ccs,
+        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge)
+        -->
+        flow(elec_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
+        + get(transform_data, :capture_rate, 1.0) * flow(co2_captured_edge),
+        flow(fuel_edge)
     )
 
     return ThermalPowerCCS(id, thermalccs_transform, elec_edge, fuel_edge, co2_edge, co2_captured_edge)

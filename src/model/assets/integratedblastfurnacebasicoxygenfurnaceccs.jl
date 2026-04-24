@@ -390,39 +390,20 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnaceCCS}, data::Abstrac
         [MustRunConstraint()])
     
     # stochiometry
-    bfbofccs_transform.balance_data = Dict(
-        :ironore_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
-            ironore_edge.id => 1.0
-        ),
-        :steelscrap_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :steelscrap_consumption, 0.0),
-            steelscrap_edge.id => 1.0
-        ),
-        :electricity_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :metcoal_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :metcoal_consumption, 0.0),
-            metcoal_edge.id => 1.0
-        ),
-        :thermalcoal_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :thermalcoal_consumption, 0.0),
-            thermalcoal_edge.id => 1.0
-        ),
-        :natgas_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :natgas_consumption, 0.0),
-            natgas_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0,
-        ),
-        :capture => Dict(
-            crudesteel_edge.id => get(transform_data, :capture_rate, 0.0),
-            co2_captured_edge.id => -1.0,
-        )
+    @add_stoichiometric_balance(
+        bfbof_transform,
+        :steel_production,
+        get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
+        + get(transform_data, :steelscrap_consumption, 0.0) * flow(steelscrap_edge)
+        + get(transform_data, :metcoal_consumption, 0.0) * flow(metcoal_edge)
+        + get(transform_data, :thermalcoal_consumption, 0.0) * flow(thermalcoal_edge)
+        + get(transform_data, :natgas_consumption, 0.0) * flow(natgas_edge)
+        --> 
+        flow(crudesteel_edge)
+        + get(transform_data, :electricity_production, 0.0) * flow(elec_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
+        + get(transform_data, :capture_rate, 0.0) * flow(co2_captured_edge),
+        flow(crudesteel_edge)
     )
 
     return BlastFurnaceBasicOxygenFurnaceCCS(id,

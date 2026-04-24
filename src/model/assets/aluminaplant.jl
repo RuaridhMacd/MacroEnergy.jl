@@ -250,26 +250,24 @@ function make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
+
+    # Calculate emissions per unit of alumina based on fuel consumption and emission rates
+    # so it can be used in the stoichiometric balance with the alumina_edge
+    fuel_per_alumina = get(transform_data, :fuel_alumina_rate, 0.0)
+    emissions_per_fuel = get(transform_data, :fuel_emissions_rate, 1.0)
+    emission_per_alumina = fuel_per_alumina * emissions_per_fuel
+
     # Balance Constraint Values
-    @add_balance(
+    @add_stoichiometric_balance(
         aluminaplant_transform,
-        :elec_to_alumina,
-        flow(elec_edge) + get(transform_data, :elec_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
-    )
-    @add_balance(
-        aluminaplant_transform,
-        :bauxite_to_alumina,
-        flow(bauxite_edge) + get(transform_data, :bauxite_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
-    )
-    @add_balance(
-        aluminaplant_transform,
-        :fuel_to_alumina,
-        flow(fuel_edge) + get(transform_data, :fuel_alumina_rate, 0.0) * flow(alumina_edge) == 0.0
-    )
-    @add_balance(
-        aluminaplant_transform,
-        :emissions,
-        get(transform_data, :fuel_emissions_rate, 1.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
+        :alumina_production,
+        get(transform_data, :elec_alumina_rate, 0.0) * flow(elec_edge)
+        + get(transform_data, :bauxite_alumina_rate, 0.0) * flow(bauxite_edge)
+        + fuel_per_alumina * flow(fuel_edge)
+        -->
+        flow(alumina_edge)
+        + emission_per_alumina * flow(co2_edge),
+        flow(alumina_edge)
     )
 
     return AluminaPlant(id, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)

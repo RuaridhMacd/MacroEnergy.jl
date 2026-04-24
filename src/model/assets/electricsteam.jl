@@ -160,11 +160,11 @@ function make(asset_type::Type{ElectricSteam}, data::AbstractDict{Symbol,Any}, s
         elec_end_node,
     )
 
-    steam_transform.balance_data = Dict(
-        :energy => Dict(
-            steam_edge.id => get(transform_data, :elec_consumption, 1.0),
-            elec_edge.id => 1.0,
-        ),
+    @add_stoichiometric_balance(
+        steam_transform,
+        :energy,
+        get(transform_data, :elec_consumption, 1.0) * flow(elec_edge) --> flow(steam_edge),
+        flow(steam_edge)
     )
 
     return ElectricSteam(id, steam_transform, steam_edge, elec_edge)

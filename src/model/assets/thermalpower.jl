@@ -217,15 +217,14 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
-    @add_balance(
+    @add_stoichiometric_balance(
         thermal_transform,
-        :energy,
-        flow(fuel_edge) + get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) == 0.0
-    )
-    @add_balance(
-        thermal_transform,
-        :emissions,
-        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0
+        :thermal_power,
+        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge)
+        -->
+        flow(elec_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
+        flow(fuel_edge)
     )
 
     return ThermalPower(id, thermal_transform, elec_edge, fuel_edge, co2_edge)

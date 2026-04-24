@@ -253,28 +253,20 @@ function make(asset_type::Type{CementPlant}, data::AbstractDict{Symbol,Any}, sys
         co2_captured_end_node,
     )
 
-    # Balance Constraint Values
-    @add_balance(
-        cement_transform,
-        :elec_to_cement,
-        flow(elec_edge) + get(transform_data, :elec_consumption_rate, 1.0) * flow(cement_edge) == 0.0
-    )
-    @add_balance(
-        cement_transform,
-        :fuel_to_cement,
-        flow(fuel_edge) + get(transform_data, :fuel_consumption_rate, 1.0) * flow(cement_edge) == 0.0
-    )
     cement_emiss_coeff = (1 - get(transform_data, :co2_capture_rate, 1.0)) * (get(transform_data, :fuel_emission_rate, 1.0) + get(transform_data, :process_emission_rate, 1.0))
-    @add_balance(
-        cement_transform,
-        :co2_emissions,
-        cement_emiss_coeff * flow(cement_edge) == flow(co2_emissions_edge)
-    )
     cement_captured_emiss_coeff = get(transform_data, :co2_capture_rate, 1.0) * (get(transform_data, :fuel_emission_rate, 1.0) + get(transform_data, :process_emission_rate, 1.0))
-    @add_balance(
+
+    # Balance Constraint Values
+    @add_stoichiometric_balance(
         cement_transform,
-        :co2_captured,
-        cement_captured_emiss_coeff * flow(cement_edge) == flow(co2_captured_edge)
+        :cement_production,
+        get(transform_data, :elec_consumption_rate, 1.0) * flow(elec_edge)
+        + get(transform_data, :fuel_consumption_rate, 1.0) * flow(fuel_edge)
+        -->
+        flow(cement_edge)
+        + cement_emiss_coeff * flow(co2_emissions_edge)
+        + cement_captured_emiss_coeff * flow(co2_captured_edge),
+        flow(cement_edge)
     )
     
     return CementPlant(id, cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
