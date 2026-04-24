@@ -608,6 +608,10 @@ Add one or more terms to an existing named balance without writing an explicit
 constraint sense. This is a thin wrapper around `@add_balance` that treats the
 provided `expression` as an additive contribution to `balance_id`.
 
+Modelers should write the `expression` in ordinary algebraic form, and generally 
+as a positive term. For `flow(...)` terms, MacroEnergy applies the edge-direction 
+handling under the hood so that outgoing flows will have their signs flipped.
+
 # Example
 ```julia
 @add_to_balance(transform, :energy, flow(elec_edge))
@@ -628,6 +632,11 @@ end
 Add terms to the reserved `:storage` balance on a storage component. This macro
 is a convenience wrapper around `@add_to_balance` that defaults the balance ID
 to `:storage`.
+
+Modelers should write the `expression` in ordinary algebraic form, and generally 
+as a positive term. For `flow(...)` terms, MacroEnergy applies the edge-direction 
+handling under the hood so that outgoing flows will have their signs flipped
+when compiling the final storage balance.
 
 # Example
 ```julia
