@@ -530,60 +530,20 @@ balance reproduces the algebraic equation the user wrote.
 """
 macro add_balance(component, balance_id, equation)
     add_balance_fn = GlobalRef(@__MODULE__, :add_balance)
-    balance_macro_coeff_fn = GlobalRef(@__MODULE__, :balance_macro_coeff)
-    balance_data_type = GlobalRef(@__MODULE__, :BalanceData)
-    balance_term_type = GlobalRef(@__MODULE__, :BalanceTerm)
-
-    # Step 1: Parse the equation and identify the operator
-    if !isa(equation, Expr) || equation.head != :call
-        error("Expected an equation expression, got: $equation")
-    end
-    
-    operator = equation.args[1]
-    left_side = equation.args[2]
-    right_side = equation.args[3]
-    
-    # Check if operator is supported
-    supported_ops = [:(==), :(=), :(<=), :(<), :(>=), :(>)]
-    if operator ∉ supported_ops
-        error(
-            "Your balance constraint has an unsupported operator: $operator. Supported operators: $supported_ops",
-        )
-    end
-    
-    # Step 2: Normalize the operator to an internal sense symbol.
-    if operator == :(>=) || operator == :(>)
-        operator = :ge
-    elseif operator == :(<=) || operator == :(<)
-        operator = :le
-    else
-        operator = :eq
-    end
-    
-    # Step 3: Move everything to left side (LHS - RHS)
-    normalized_expr = :($left_side - $right_side)
-
-    terms = parse_balance_eq(normalized_expr)
-    validate_add_balance_terms(terms)
-    constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
-    terms = [
-        :($balance_term_type(
-            obj = $(t.obj),
-            var = $(QuoteNode(t.var)),
-            coeff = $balance_macro_coeff_fn($component, $(t.obj), $(QuoteNode(t.var)), $(t.coeff)),
-        )) for t in terms if !isnothing(t.obj)
-    ]
+    operator, normalized_expr = parse_balance_equation(equation)
+    data_expr = build_balance_data_expr(
+        normalized_expr,
+        operator,
+        :algebraic;
+        component = component,
+    )
 
     # Embed the computed terms directly into the generated code
     return esc(quote
         $add_balance_fn(
             $component,
             $balance_id,
-            $balance_data_type(
-                sense = $(QuoteNode(operator)),
-                terms = [$(terms...)],
-                constant = $constant,
-            )
+            $data_expr
         )
     end)
 end
@@ -601,27 +561,97 @@ function validate_add_to_balance_expression(expression)
     return nothing
 end
 
+function parse_balance_equation(equation)
+    if !isa(equation, Expr) || equation.head != :call
+        error("Expected an equation expression, got: $equation")
+    end
+
+    operator = equation.args[1]
+    left_side = equation.args[2]
+    right_side = equation.args[3]
+
+    supported_ops = [:(==), :(=), :(<=), :(<), :(>=), :(>)]
+    if operator ∉ supported_ops
+        error(
+            "Your balance constraint has an unsupported operator: $operator. Supported operators: $supported_ops",
+        )
+    end
+
+    sense =
+        if operator == :(>=) || operator == :(>)
+            :ge
+        elseif operator == :(<=) || operator == :(<)
+            :le
+        else
+            :eq
+        end
+
+    normalized_expr = :($left_side - $right_side)
+    return sense, normalized_expr
+end
+
+function build_balance_data_expr(
+    expression,
+    sense::Symbol,
+    coeff_mode::Symbol;
+    component = nothing,
+)
+    balance_macro_coeff_fn = GlobalRef(@__MODULE__, :balance_macro_coeff)
+    balance_data_type = GlobalRef(@__MODULE__, :BalanceData)
+    balance_term_type = GlobalRef(@__MODULE__, :BalanceTerm)
+
+    terms = parse_balance_eq(expression)
+    validate_add_balance_terms(terms)
+    constant = combine_constants!(filter(t -> isnothing(t.obj), terms))
+    term_exprs = [
+        :($balance_term_type(
+            obj = $(t.obj),
+            var = $(QuoteNode(t.var)),
+            coeff = $(
+                if coeff_mode == :raw
+                    t.coeff
+                elseif coeff_mode == :algebraic
+                    isnothing(component) &&
+                        error("component is required when coeff_mode == :algebraic")
+                    :($balance_macro_coeff_fn($component, $(t.obj), $(QuoteNode(t.var)), $(t.coeff)))
+                else
+                    error("Unsupported coeff_mode $coeff_mode")
+                end
+            ),
+        )) for t in terms if !isnothing(t.obj)
+    ]
+
+    return :($balance_data_type(
+        sense = $(QuoteNode(sense)),
+        terms = [$(term_exprs...)],
+        constant = $constant,
+    ))
+end
+
 """
     @add_to_balance(component, balance_id, expression)
 
 Add one or more terms to an existing named balance without writing an explicit
-constraint sense. This is a thin wrapper around `@add_balance` that treats the
-provided `expression` as an additive contribution to `balance_id`.
+constraint sense. This stores the provided `expression` as a raw additive
+contribution to `balance_id`.
 
-Modelers should write the `expression` in ordinary algebraic form, and generally 
-as a positive term. For `flow(...)` terms, MacroEnergy applies the edge-direction 
-handling under the hood so that outgoing flows will have their signs flipped.
+Modelers should usually write positive coefficients for both incoming and
+outgoing `flow(...)` terms. MacroEnergy applies edge-direction handling later
+when compiling the balance, so outgoing flows contribute with a negative sign in
+the common case.
 
 # Example
 ```julia
-@add_to_balance(transform, :energy, flow(elec_edge))
-@add_to_balance(transform, :energy, -0.5 * flow(h2_edge))
+@add_to_balance(transform, :energy, flow(fuel_edge))
+@add_to_balance(transform, :energy, 0.5 * flow(elec_edge))
 ```
 """
 macro add_to_balance(component, balance_id, expression)
     validate_add_to_balance_expression(expression)
+    add_balance_fn = GlobalRef(@__MODULE__, :add_balance)
+    data_expr = build_balance_data_expr(expression, :eq, :raw)
     return esc(quote
-        @add_balance($component, $balance_id, $expression == 0.0)
+        $add_balance_fn($component, $balance_id, $data_expr)
     end)
 end
 
@@ -633,10 +663,10 @@ Add terms to the reserved `:storage` balance on a storage component. This macro
 is a convenience wrapper around `@add_to_balance` that defaults the balance ID
 to `:storage`.
 
-Modelers should write the `expression` in ordinary algebraic form, and generally 
-as a positive term. For `flow(...)` terms, MacroEnergy applies the edge-direction 
-handling under the hood so that outgoing flows will have their signs flipped
-when compiling the final storage balance.
+Modelers should usually write positive coefficients for both inflow and outflow
+terms. MacroEnergy applies edge-direction handling later when compiling the
+final storage balance, so outgoing storage flows reduce storage in the common
+case.
 
 # Example
 ```julia
