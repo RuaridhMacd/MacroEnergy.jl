@@ -305,7 +305,7 @@ end
         h2_edge = parts.h2_edge
 
         @add_to_balance(transform, :energy, flow(elec_edge) + 1.25)
-        @add_to_balance(transform, :energy, -0.5 * flow(h2_edge) - 0.25)
+        @add_to_balance(transform, :energy, 0.5 * flow(h2_edge) - 0.25)
 
         data = balance_data(transform, :energy)
 
@@ -557,10 +557,10 @@ end
         @test balance_data(charge_edge, storage, :storage, 2) == charge_eff[2]
         @test balance_data(charge_edge, storage, :storage, 3) == charge_eff[3]
 
-        @test balance_data(discharge_edge, storage, :storage) == -discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 1) == -discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 2) == -discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 3) == -discharge_eff
+        @test balance_data(discharge_edge, storage, :storage) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 1) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 2) == discharge_eff
+        @test balance_data(discharge_edge, storage, :storage, 3) == discharge_eff
     end
 
     @testset "@add_to_storage_balance Rejects Invalid Usage" begin
