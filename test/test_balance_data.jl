@@ -11,6 +11,7 @@ import MacroEnergy:
     @add_balance,
     @add_to_balance,
     @add_to_storage_balance,
+    @inspect_stoichiometric_balance,
     @add_stoichiometric_balance,
     BalanceConstraint,
     BalanceData,
@@ -162,6 +163,18 @@ function make_test_transformation_with_four_edges(num_steps::Int = 1)
     )
 
     return (; input_node_1, input_node_2, output_node_1, output_node_2, transform, elec_edge, water_edge, h2_edge, co2_edge)
+end
+
+function make_test_thermalammonia_transformation(num_steps::Int = 1)
+    parts = make_test_transformation_with_four_edges(num_steps)
+    return (
+        ;
+        transform = parts.transform,
+        elec_edge = parts.elec_edge,
+        fuel_edge = parts.water_edge,
+        nh3_edge = parts.h2_edge,
+        co2_edge = parts.co2_edge,
+    )
 end
 
 function make_test_storage_with_edges(num_steps::Int = 1)
@@ -386,106 +399,208 @@ end
         end
     end
 
-    @testset "@add_stoichiometric_balance Expands Multiple Inputs To Pairwise Balances" begin
+    @testset "@inspect_stoichiometric_balance Returns Pairwise Algebraic Equations" begin
         parts = make_test_transformation_with_four_edges()
-        transform = parts.transform
-        elec_edge = parts.elec_edge
-        water_edge = parts.water_edge
-        h2_edge = parts.h2_edge
 
-        efficiency_rate = 0.8
-        water_consumption = 0.3
-
-        @add_stoichiometric_balance(
-            transform,
-            :energy,
-            efficiency_rate * flow(elec_edge) + water_consumption * flow(water_edge) --> flow(h2_edge),
-            flow(h2_edge),
-        )
-
-        @add_balance(
-            transform,
-            :expected_1,
-            efficiency_rate * flow(elec_edge) - flow(h2_edge) == 0.0,
-        )
-        @add_balance(
-            transform,
-            :expected_2,
-            water_consumption * flow(water_edge) - flow(h2_edge) == 0.0,
-        )
-
-        @test balance_signature(balance_data(transform, :energy_1)) ==
-              balance_signature(balance_data(transform, :expected_1))
-        @test balance_signature(balance_data(transform, :energy_2)) ==
-              balance_signature(balance_data(transform, :expected_2))
-    end
-
-    @testset "@add_stoichiometric_balance Expands Mixed-Side Outputs Around Base Term" begin
-        parts = make_test_transformation_with_four_edges()
-        transform = parts.transform
-        elec_edge = parts.elec_edge
-        h2_edge = parts.h2_edge
-        co2_edge = parts.co2_edge
-
-        fuel_consumption = 1.7
-        emission_rate = 0.2
-
-        @add_stoichiometric_balance(
-            transform,
+        equations = @inspect_stoichiometric_balance(
+            parts.transform,
             :conversion,
-            fuel_consumption * flow(elec_edge) --> flow(h2_edge) + emission_rate * flow(co2_edge),
-            flow(h2_edge),
+            1.7 * flow(parts.elec_edge) --> flow(parts.h2_edge) + 0.2 * flow(parts.co2_edge),
+            flow(parts.h2_edge),
         )
 
-        @add_balance(
-            transform,
-            :expected_1,
-            fuel_consumption * flow(elec_edge) - flow(h2_edge) == 0.0,
-        )
-        @add_balance(
-            transform,
-            :expected_2,
-            emission_rate * flow(h2_edge) - flow(co2_edge) == 0.0,
-        )
-
-        @test balance_signature(balance_data(transform, :conversion_1)) ==
-              balance_signature(balance_data(transform, :expected_1))
-        @test balance_signature(balance_data(transform, :conversion_2)) ==
-              balance_signature(balance_data(transform, :expected_2))
+        @test equations == [
+            :conversion_1 => :(1.7 * flow(parts.elec_edge) - 1.0 * flow(parts.h2_edge) == 0),
+            :conversion_2 => :(0.2 * flow(parts.h2_edge) - 1.0 * flow(parts.co2_edge) == 0),
+        ]
     end
 
-    @testset "@add_stoichiometric_balance Handles Input-Side Base Term With Outputs" begin
+    @testset "@inspect_stoichiometric_balance Reuses Orientation Validation" begin
         parts = make_test_transformation_with_four_edges()
-        transform = parts.transform
-        elec_edge = parts.elec_edge
-        h2_edge = parts.h2_edge
-        co2_edge = parts.co2_edge
 
-        hydrogen_production = 1.7
+        @test_throws ErrorException begin
+            @inspect_stoichiometric_balance(
+                parts.transform,
+                :wrong_side,
+                flow(parts.h2_edge) --> flow(parts.elec_edge),
+                flow(parts.h2_edge),
+                verify_edge_directions = true,
+            )
+        end
+    end
+
+    @testset "@inspect_stoichiometric_balance Skips Orientation Validation By Default" begin
+        equations = @inspect_stoichiometric_balance(
+            missing_component,
+            :conversion,
+            1.7 * flow(missing_elec_edge) --> flow(missing_h2_edge) + 0.2 * flow(missing_co2_edge),
+            flow(missing_h2_edge),
+        )
+
+        @test equations == [
+            :conversion_1 => :(1.7 * flow(missing_elec_edge) - 1.0 * flow(missing_h2_edge) == 0),
+            :conversion_2 => :(0.2 * flow(missing_h2_edge) - 1.0 * flow(missing_co2_edge) == 0),
+        ]
+    end
+
+    @testset "ThermalAmmonia Balance Representations" begin
+        fuel_consumption = 1.3095
+        electricity_consumption = 0.03787
         emission_rate = 0.2
+        emission_per_nh3 = fuel_consumption * emission_rate
+        nh3_per_fuel = 1 / fuel_consumption
+        electricity_per_fuel = electricity_consumption / fuel_consumption
 
+        function assert_eq_balance_coeffs(transform, balance_id, expected_coeffs)
+            @test balance_sense(transform, balance_id) == :eq
+            @test balance_data(transform, balance_id).constant == 0.0
+            for (edge, coeff) in expected_coeffs
+                @test balance_data(edge, transform, balance_id) == coeff
+            end
+        end
+
+        add_balance_parts = make_test_thermalammonia_transformation()
+        @add_balance(
+            add_balance_parts.transform,
+            :fuel,
+            flow(add_balance_parts.fuel_edge) == fuel_consumption * flow(add_balance_parts.nh3_edge),
+        )
+        @add_balance(
+            add_balance_parts.transform,
+            :electricity,
+            flow(add_balance_parts.elec_edge) == electricity_consumption * flow(add_balance_parts.nh3_edge),
+        )
+        @add_balance(
+            add_balance_parts.transform,
+            :emissions,
+            emission_rate * flow(add_balance_parts.fuel_edge) == flow(add_balance_parts.co2_edge),
+        )
+        assert_eq_balance_coeffs(
+            add_balance_parts.transform,
+            :fuel,
+            [
+                add_balance_parts.fuel_edge => 1.0,
+                add_balance_parts.nh3_edge => fuel_consumption,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            add_balance_parts.transform,
+            :electricity,
+            [
+                add_balance_parts.elec_edge => 1.0,
+                add_balance_parts.nh3_edge => electricity_consumption,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            add_balance_parts.transform,
+            :emissions,
+            [
+                add_balance_parts.fuel_edge => emission_rate,
+                add_balance_parts.co2_edge => 1.0,
+            ],
+        )
+
+        dict_parts = make_test_thermalammonia_transformation()
+        dict_parts.transform.balance_data = Dict(
+            :fuel => Dict(
+                dict_parts.nh3_edge.id => fuel_consumption,
+                dict_parts.fuel_edge.id => 1.0,
+            ),
+            :electricity => Dict(
+                dict_parts.nh3_edge.id => electricity_consumption,
+                dict_parts.elec_edge.id => 1.0,
+            ),
+            :emissions => Dict(
+                dict_parts.fuel_edge.id => emission_rate,
+                dict_parts.co2_edge.id => 1.0,
+            ),
+        )
+        assert_eq_balance_coeffs(
+            dict_parts.transform,
+            :fuel,
+            [
+                dict_parts.fuel_edge => 1.0,
+                dict_parts.nh3_edge => fuel_consumption,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            dict_parts.transform,
+            :electricity,
+            [
+                dict_parts.elec_edge => 1.0,
+                dict_parts.nh3_edge => electricity_consumption,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            dict_parts.transform,
+            :emissions,
+            [
+                dict_parts.fuel_edge => emission_rate,
+                dict_parts.co2_edge => 1.0,
+            ],
+        )
+
+        rhs_base_parts = make_test_thermalammonia_transformation()
         @add_stoichiometric_balance(
-            transform,
-            :beccs_style,
-            flow(elec_edge) --> hydrogen_production * flow(h2_edge) + emission_rate * flow(co2_edge),
-            flow(elec_edge),
+            rhs_base_parts.transform,
+            :ammonia_production,
+            electricity_consumption * flow(rhs_base_parts.elec_edge)
+            + fuel_consumption * flow(rhs_base_parts.fuel_edge)
+            -->
+            flow(rhs_base_parts.nh3_edge)
+            + emission_per_nh3 * flow(rhs_base_parts.co2_edge),
+            flow(rhs_base_parts.nh3_edge),
         )
 
-        @add_balance(
-            transform,
-            :expected_1,
-            hydrogen_production * flow(elec_edge) - flow(h2_edge) == 0.0,
-        )
-        @add_balance(
-            transform,
-            :expected_2,
-            emission_rate * flow(elec_edge) - flow(co2_edge) == 0.0,
+        @test_broken balance_data(rhs_base_parts.elec_edge, rhs_base_parts.transform, :ammonia_production_1) == 1.0
+        @test_broken balance_data(rhs_base_parts.nh3_edge, rhs_base_parts.transform, :ammonia_production_1) == electricity_consumption
+        @test_broken balance_data(rhs_base_parts.fuel_edge, rhs_base_parts.transform, :ammonia_production_2) == 1.0
+        @test_broken balance_data(rhs_base_parts.nh3_edge, rhs_base_parts.transform, :ammonia_production_2) == fuel_consumption
+        assert_eq_balance_coeffs(
+            rhs_base_parts.transform,
+            :ammonia_production_3,
+            [
+                rhs_base_parts.nh3_edge => -emission_per_nh3,
+                rhs_base_parts.co2_edge => 1.0,
+            ],
         )
 
-        @test balance_signature(balance_data(transform, :beccs_style_1)) ==
-              balance_signature(balance_data(transform, :expected_1))
-        @test balance_signature(balance_data(transform, :beccs_style_2)) ==
-              balance_signature(balance_data(transform, :expected_2))
+        lhs_base_parts = make_test_thermalammonia_transformation()
+        @add_stoichiometric_balance(
+            lhs_base_parts.transform,
+            :ammonia_from_fuel,
+            flow(lhs_base_parts.fuel_edge)
+            + electricity_per_fuel * flow(lhs_base_parts.elec_edge)
+            -->
+            nh3_per_fuel * flow(lhs_base_parts.nh3_edge)
+            + emission_rate * flow(lhs_base_parts.co2_edge),
+            flow(lhs_base_parts.fuel_edge),
+        )
+
+        assert_eq_balance_coeffs(
+            lhs_base_parts.transform,
+            :ammonia_from_fuel_1,
+            [
+                lhs_base_parts.fuel_edge => electricity_per_fuel,
+                lhs_base_parts.elec_edge => -1.0,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            lhs_base_parts.transform,
+            :ammonia_from_fuel_2,
+            [
+                lhs_base_parts.fuel_edge => nh3_per_fuel,
+                lhs_base_parts.nh3_edge => 1.0,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            lhs_base_parts.transform,
+            :ammonia_from_fuel_3,
+            [
+                lhs_base_parts.fuel_edge => emission_rate,
+                lhs_base_parts.co2_edge => 1.0,
+            ],
+        )
     end
 
     @testset "@add_stoichiometric_balance Rejects Negative Terms And Constants" begin
