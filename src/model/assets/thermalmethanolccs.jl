@@ -279,7 +279,7 @@ function make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,An
     capture_per_ch3oh = get(transform_data, :capture_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
 
     @add_stoichiometric_balance(
-        thermalmethanol_transform,
+        thermalmethanolccs_transform,
         :ch3oh_production,
         get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge)
         + get(transform_data, :electricity_consumption, 1.0) * flow(elec_edge)

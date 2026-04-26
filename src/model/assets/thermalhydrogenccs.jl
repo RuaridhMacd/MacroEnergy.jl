@@ -335,7 +335,7 @@ function make(asset_type::Type{ThermalHydrogenCCS}, data::AbstractDict{Symbol,An
     capture_per_h2 = get(transform_data, :capture_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
 
     @add_stoichiometric_balance(
-        thermalhydrogen_transform,
+        thermalhydrogenccs_transform,
         :h2_production,
         get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge) 
         + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)

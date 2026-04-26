@@ -166,10 +166,10 @@ function make(asset_type::Type{ElectricDAC}, data::AbstractDict{Symbol,Any}, sys
     @add_stoichiometric_balance(
         electricdac_transform,
         :electric_dac,
-        flow(co2_captured_edge) 
+        flow(co2_edge) 
         + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-         -->
-        flow(co2_edge),
+        -->
+        flow(co2_captured_edge),
         flow(co2_captured_edge)
     )
 

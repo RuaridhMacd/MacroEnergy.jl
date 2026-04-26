@@ -215,12 +215,16 @@ function make(asset_type::Type{ThermalHeating}, data::AbstractDict{Symbol,Any}, 
         co2_end_node,
     )
 
+    # Calculate the heat output per unit of fuel
+    # so it can be used in the stoichiometric balance with the fuel_edge base term
+    heat_per_fuel = 1.0 / get(transform_data, :fuel_consumption, 1.0)
+
     @add_stoichiometric_balance(
         heating_transform,
         :energy,
-        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge) 
+        flow(fuel_edge) 
         --> 
-        flow(heat_edge)
+        heat_per_fuel * flow(heat_edge)
         + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
         flow(fuel_edge)
     )

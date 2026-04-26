@@ -244,7 +244,7 @@ function make(asset_type::Type{ThermalMethanol}, data::AbstractDict{Symbol,Any},
     # Calculate emissions per unit of methanol produced 
     # so it can be used in the stoichiometric balance with the ch3oh_edge
     emissions_per_ch3oh = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
-
+    
     @add_stoichiometric_balance(
         thermalmethanol_transform,
         :ch3oh_production,

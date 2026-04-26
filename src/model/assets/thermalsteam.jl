@@ -249,12 +249,16 @@ function make(asset_type::Type{ThermalSteam}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
+    # Calculate the electricity output per unit of fuel
+    # so it can be used in the stoichiometric balance with the fuel_edge base term
+    steam_per_fuel = 1.0 / get(transform_data, :fuel_consumption, 1.0)
+
     @add_stoichiometric_balance(
         steam_transform,
         :thermal_steam,
-        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge)
+        flow(fuel_edge)
         -->
-        flow(steam_edge)
+        steam_per_fuel * flow(steam_edge)
         + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
         + get(transform_data, :elec_cogen_rate, 0.0) * flow(elec_edge),
         flow(fuel_edge)
