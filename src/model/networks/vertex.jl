@@ -793,6 +793,94 @@ function find_term_coeff(terms::Vector{Tuple{EXPR_COEFF, Expr}}, target_term::Ex
     return nothing
 end
 
+function simplify_stoichiometric_coeff(coeff::EXPR_COEFF)
+    if coeff isa Expr && coeff.head == :call && coeff.args[1] == :* && length(coeff.args) == 3
+        if coeff.args[2] == 1.0
+            return coeff.args[3]
+        elseif coeff.args[3] == 1.0
+            return coeff.args[2]
+        end
+    end
+    return coeff
+end
+
+function build_stoichiometric_balance_equations(
+    balance_id_value::Symbol,
+    equation::Expr,
+    base_term::Expr,
+)
+    if equation.head != :-->
+        error("@add_stoichiometric_balance expected a balance equation with --> operator, got: $equation")
+    end
+
+    input_equation = equation.args[1]
+    output_equation = equation.args[2]
+
+    input_terms = find_expr_terms(input_equation)
+    output_terms = find_expr_terms(output_equation)
+
+    found_in_input = inexpr(input_equation, base_term)
+    base_coeff = found_in_input ? find_term_coeff(input_terms, base_term) : find_term_coeff(output_terms, base_term)
+    if isnothing(base_coeff)
+        error("Base term $base_term was not found in balance equation $equation")
+    end
+    base_coeff = simplify_stoichiometric_coeff(base_coeff)
+
+    equations = Tuple{Symbol, Expr}[]
+
+    for (term_coeff, term_variable) in input_terms
+        if term_variable == base_term
+            continue
+        end
+        term_coeff = simplify_stoichiometric_coeff(term_coeff)
+        if found_in_input
+            balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
+        else
+            balance_equation = :($term_coeff * $term_variable - $base_coeff * $base_term == 0)
+        end
+        new_balance_id = Symbol(balance_id_value, "_", length(equations) + 1)
+        push!(equations, (new_balance_id, balance_equation))
+    end
+
+    for (term_coeff, term_variable) in output_terms
+        if term_variable == base_term
+            continue
+        end
+        term_coeff = simplify_stoichiometric_coeff(term_coeff)
+        balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
+        new_balance_id = Symbol(balance_id_value, "_", length(equations) + 1)
+        push!(equations, (new_balance_id, balance_equation))
+    end
+
+    return equations, input_terms, output_terms
+end
+
+function build_stoichiometric_validation_calls(
+    component::Any,
+    input_terms::Vector{Tuple{EXPR_COEFF, Expr}},
+    output_terms::Vector{Tuple{EXPR_COEFF, Expr}},
+)
+    validate_orientation_fn = GlobalRef(@__MODULE__, :validate_stoichiometric_edge_orientation)
+    validation_calls = Expr[]
+
+    # The --> syntax is directional: left-hand terms are interpreted as
+    # incoming recipe terms and right-hand terms as outgoing recipe terms.
+    for (_, term_variable) in input_terms
+        edge_expr = stoichiometric_flow_edge(term_variable)
+        if !isnothing(edge_expr)
+            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, 1.0, :left)))
+        end
+    end
+    for (_, term_variable) in output_terms
+        edge_expr = stoichiometric_flow_edge(term_variable)
+        if !isnothing(edge_expr)
+            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, -1.0, :right)))
+        end
+    end
+
+    return validation_calls
+end
+
 """
     @add_stoichiometric_balance(component, balance_id, equation, base_term)
 
@@ -826,82 +914,18 @@ construction to `@add_balance`.
 """
 macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
-    validate_orientation_fn = GlobalRef(@__MODULE__, :validate_stoichiometric_edge_orientation)
 
-    # Check that the head of equation is :-->
-    if !isa(equation, Expr) || equation.head != :-->
+    if !isa(equation, Expr)
         error("@add_stoichiometric_balance expected a balance equation with --> operator, got: $equation")
     end
 
-    # Choose a term to base the balances on
-    # For now, we'll use the first LHS term, or the first RHS term if no LHS terms
-    input_equation = equation.args[1] 
-    output_equation = equation.args[2]
-
-    input_terms = find_expr_terms(input_equation)
-    output_terms = find_expr_terms(output_equation)
-
-    # Check if the base_term is in the input_equation or output_equation
-    found_in_input = inexpr(input_equation, base_term)
-
-    # Find the coefficient of the base_term
-    if found_in_input
-        base_coeff = find_term_coeff(input_terms, base_term)
-    else
-        base_coeff = find_term_coeff(output_terms, base_term)
-    end
-    if isnothing(base_coeff)
-        error("Base term $base_term was not found in balance equation $equation")
-    end
-
-    # Now, we work through each other term, creating balance data entries
-    balance_calls = Expr[]
-    validation_calls = Expr[]
-
-    # The --> syntax is directional: left-hand terms are interpreted as
-    # incoming recipe terms and right-hand terms as outgoing recipe terms.
-    for (_, term_variable) in input_terms
-        edge_expr = stoichiometric_flow_edge(term_variable)
-        if !isnothing(edge_expr)
-            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, 1.0, :left)))
-        end
-    end
-    for (_, term_variable) in output_terms
-        edge_expr = stoichiometric_flow_edge(term_variable)
-        if !isnothing(edge_expr)
-            push!(validation_calls, :($validate_orientation_fn($component, $edge_expr, -1.0, :right)))
-        end
-    end
-
-    if !isempty(input_terms)
-        for input_term in input_terms
-            (term_coeff, term_variable) = input_term
-            if term_variable == base_term
-                continue
-            end
-            if found_in_input
-                balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
-            else
-                balance_equation = :($term_coeff * $term_variable - $base_coeff * $base_term == 0)
-            end
-            new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
-            balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-            push!(balance_calls, balance_call)
-        end
-    end
-
-    if !isempty(output_terms)
-        for output_term in output_terms
-            (term_coeff, term_variable) = output_term
-            if term_variable == base_term
-                continue
-            end
-            balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
-            new_balance_id = Symbol(balance_id_value, "_", length(balance_calls)+1)
-            balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-            push!(balance_calls, balance_call)
-        end
-    end
+    equations, input_terms, output_terms =
+        build_stoichiometric_balance_equations(balance_id_value, equation, base_term)
+    validation_calls = build_stoichiometric_validation_calls(component, input_terms, output_terms)
+    balance_calls = [
+        :(@add_balance($component, $(QuoteNode(generated_balance_id)), $balance_equation)) for
+        (generated_balance_id, balance_equation) in equations
+    ]
 
     # if length(input_terms.args) == 2 && !(input_terms == base_term || (isa(input_terms, Expr) && base_term in input_terms.args))
     #     term_coeff, term_variable = get_coeff_and_variable(input_terms)
@@ -979,5 +1003,65 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     return esc(quote
         $(validation_calls...)
         $(balance_calls...)
+    end)
+end
+
+"""
+    @inspect_stoichiometric_balance(component, balance_id, equation, base_term)
+    @inspect_stoichiometric_balance(component, balance_id, equation, base_term, verify_edge_directions = true)
+
+Return the pairwise algebraic balance equations that
+`@add_stoichiometric_balance` would generate.
+
+This is a debugging helper for understanding the recipe expansion without
+reading the lower-level `BalanceTerm` machinery. The macro returns a vector of
+`Pair{Symbol, Expr}` values mapping each generated balance ID to the plain
+algebraic equation that would be passed to `@add_balance`.
+
+By default the macro skips orientation validation so the algebraic expansion can
+be inspected without requiring live component and edge objects. Pass
+`verify_edge_directions = true` to reuse the same orientation validation as
+`@add_stoichiometric_balance`.
+"""
+macro inspect_stoichiometric_balance(component, balance_id, equation, base_term)
+    return esc(:(
+        @inspect_stoichiometric_balance(
+            $component,
+            $balance_id,
+            $equation,
+            $base_term,
+            verify_edge_directions = false,
+        )
+    ))
+end
+
+macro inspect_stoichiometric_balance(component, balance_id, equation, base_term, option)
+    balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
+    if !isa(equation, Expr)
+        error("@inspect_stoichiometric_balance expected a balance equation with --> operator, got: $equation")
+    end
+    verify_edge_directions_expr =
+        if option isa Expr && option.head == :(=)
+            if option.args[1] != :verify_edge_directions
+                error("@inspect_stoichiometric_balance only supports the option verify_edge_directions = true/false")
+            end
+            option.args[2]
+        else
+            option
+        end
+
+    equations, input_terms, output_terms =
+        build_stoichiometric_balance_equations(balance_id_value, equation, base_term)
+    validation_calls = build_stoichiometric_validation_calls(component, input_terms, output_terms)
+    pair_exprs = [
+        :($(QuoteNode(generated_balance_id)) => $(Meta.quot(balance_equation))) for
+        (generated_balance_id, balance_equation) in equations
+    ]
+
+    return esc(quote
+        if $verify_edge_directions_expr
+            $(validation_calls...)
+        end
+        [$(pair_exprs...)]
     end)
 end
