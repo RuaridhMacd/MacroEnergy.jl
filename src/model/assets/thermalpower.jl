@@ -217,28 +217,18 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         co2_end_node,
     )
 
-    # # Calculate the electricity output per unit of fuel
-    # # so it can be used in the stoichiometric balance with the fuel_edge base term
-    # elec_per_fuel = 1.0 / get(transform_data, :fuel_consumption, 1.0)
+    # Calculate the electricity output per unit of fuel
+    # so it can be used in the stoichiometric balance with the fuel_edge base term
+    elec_per_fuel = 1.0 / get(transform_data, :fuel_consumption, 1.0)
 
-    # @add_stoichiometric_balance(
-    #     thermal_transform,
-    #     :thermal_power,
-    #     flow(fuel_edge)
-    #     -->
-    #     elec_per_fuel * flow(elec_edge)
-    #     + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
-    #     flow(fuel_edge)
-    # )
-    @add_balance(
+    @add_stoichiometric_balance(
         thermal_transform,
-        :energy,
-        get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) == flow(fuel_edge)
-    )
-    @add_balance(
-        thermal_transform,
-        :emissions,
-        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
+        :thermal_power,
+        flow(fuel_edge)
+        -->
+        elec_per_fuel * flow(elec_edge)
+        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
+        flow(fuel_edge)
     )
 
     return ThermalPower(id, thermal_transform, elec_edge, fuel_edge, co2_edge)
