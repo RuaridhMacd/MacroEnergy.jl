@@ -819,35 +819,28 @@ function build_stoichiometric_balance_equations(
     input_terms = find_expr_terms(input_equation)
     output_terms = find_expr_terms(output_equation)
 
-    found_in_input = inexpr(input_equation, base_term)
-    base_coeff = found_in_input ? find_term_coeff(input_terms, base_term) : find_term_coeff(output_terms, base_term)
+    base_coeff =
+        if inexpr(input_equation, base_term)
+            find_term_coeff(input_terms, base_term)
+        else
+            find_term_coeff(output_terms, base_term)
+        end
     if isnothing(base_coeff)
         error("Base term $base_term was not found in balance equation $equation")
     end
     base_coeff = simplify_stoichiometric_coeff(base_coeff)
 
     equations = Tuple{Symbol, Expr}[]
+    all_terms = vcat(input_terms, output_terms)
 
-    for (term_coeff, term_variable) in input_terms
+    for (term_coeff, term_variable) in all_terms
         if term_variable == base_term
             continue
         end
         term_coeff = simplify_stoichiometric_coeff(term_coeff)
-        if found_in_input
-            balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
-        else
-            balance_equation = :($term_coeff * $term_variable - $base_coeff * $base_term == 0)
-        end
-        new_balance_id = Symbol(balance_id_value, "_", length(equations) + 1)
-        push!(equations, (new_balance_id, balance_equation))
-    end
-
-    for (term_coeff, term_variable) in output_terms
-        if term_variable == base_term
-            continue
-        end
-        term_coeff = simplify_stoichiometric_coeff(term_coeff)
-        balance_equation = :($term_coeff * $base_term - $base_coeff * $term_variable == 0)
+        # Express every pairwise relation against the same recipe basis:
+        # flow(term) / term_coeff == flow(base_term) / base_coeff
+        balance_equation = :($base_coeff * $term_variable - $term_coeff * $base_term == 0)
         new_balance_id = Symbol(balance_id_value, "_", length(equations) + 1)
         push!(equations, (new_balance_id, balance_equation))
     end
@@ -909,8 +902,9 @@ The macro parses the left and right sides of `-->` into weighted `flow(...)`
 terms, validates that left-hand terms are incoming and right-hand terms are
 outgoing relative to the host component, identifies the coefficient on
 `base_term`, and generates one pairwise `@add_balance` call for each remaining
-term. This keeps the recipe syntax compact while delegating final balance
-construction to `@add_balance`.
+term using the proportional rule `base_coeff * flow(term) - term_coeff *
+flow(base_term) == 0`. This keeps the recipe syntax compact while delegating
+final balance construction to `@add_balance`.
 """
 macro add_stoichiometric_balance(component, balance_id, equation, base_term)
     balance_id_value = balance_id isa QuoteNode ? balance_id.value : balance_id
@@ -927,79 +921,6 @@ macro add_stoichiometric_balance(component, balance_id, equation, base_term)
         (generated_balance_id, balance_equation) in equations
     ]
 
-    # if length(input_terms.args) == 2 && !(input_terms == base_term || (isa(input_terms, Expr) && base_term in input_terms.args))
-    #     term_coeff, term_variable = get_coeff_and_variable(input_terms)
-    #     sign = found_in_input ? -1 : 1
-
-    #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-    #     # Otherwise, create a @add_balance entry
-    #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-    #     println("Creating balance data, $new_balance_id: $balance_equation")
-    #     balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-    #     push!(balance_calls, balance_call)
-    # else
-    #     for term in input_terms.args
-    #         if !isa(term, Expr)
-    #             continue
-    #         end
-
-    #         # For each term, if it contains the base_term, skip it
-    #         if term == base_term || (isa(term, Expr) && base_term in term.args)
-    #             continue
-    #         end
-
-    #         term_coeff, term_variable = get_coeff_and_variable(term)
-
-    #         sign = found_in_input ? -1 : 1
-
-    #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-    #         # Otherwise, create a @add_balance entry
-    #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-    #         println("Creating balance data, $new_balance_id: $balance_equation")
-    #         balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-    #         push!(balance_calls, balance_call)
-    #     end
-    # end
-
-    # if length(output_terms.args) == 2 && !(output_terms == base_term || (isa(output_terms, Expr) && base_term in output_terms.args))
-    #     term_coeff, term_variable = get_coeff_and_variable(output_terms)
-    #     sign = found_in_input ? 1 : -1
-
-    #     balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-    #     # Otherwise, create a @add_balance entry
-    #     new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-    #     println("Creating input balance data, $new_balance_id: $balance_equation")
-    #     balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-    #     push!(balance_calls, balance_call)
-    # else
-    #     for term in output_terms.args
-    #         if !isa(term, Expr)
-    #             continue
-    #         end
-
-    #         # For each term, if it contains the base_term, skip it
-    #         if term == base_term || (isa(term, Expr) && base_term in term.args)
-    #             continue
-    #         end
-
-    #         term_coeff, term_variable = get_coeff_and_variable(term)
-
-    #         sign = found_in_input ? 1 : -1
-
-    #         balance_equation = :($term_coeff * $base_term + $sign * $base_coeff * $term_variable == 0)
-
-    #         # Otherwise, create a @add_balance entry
-    #         new_balance_id = Symbol(balance_id, "_", length(balance_calls)+1)
-    #         println("Creating output balance data, $new_balance_id: $balance_equation")
-    #         balance_call = :(@add_balance($component, $(QuoteNode(new_balance_id)), $balance_equation))
-    #         push!(balance_calls, balance_call)
-    #     end
-    # end
-
-    # Return all the balance calls as a block expression
     return esc(quote
         $(validation_calls...)
         $(balance_calls...)
