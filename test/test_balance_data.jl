@@ -410,8 +410,8 @@ end
         )
 
         @test equations == [
-            :conversion_1 => :(1.7 * flow(parts.elec_edge) - 1.0 * flow(parts.h2_edge) == 0),
-            :conversion_2 => :(0.2 * flow(parts.h2_edge) - 1.0 * flow(parts.co2_edge) == 0),
+            :conversion_1 => :(1.0 * flow(parts.elec_edge) - 1.7 * flow(parts.h2_edge) == 0),
+            :conversion_2 => :(1.0 * flow(parts.co2_edge) - 0.2 * flow(parts.h2_edge) == 0),
         ]
     end
 
@@ -438,8 +438,8 @@ end
         )
 
         @test equations == [
-            :conversion_1 => :(1.7 * flow(missing_elec_edge) - 1.0 * flow(missing_h2_edge) == 0),
-            :conversion_2 => :(0.2 * flow(missing_h2_edge) - 1.0 * flow(missing_co2_edge) == 0),
+            :conversion_1 => :(1.0 * flow(missing_elec_edge) - 1.7 * flow(missing_h2_edge) == 0),
+            :conversion_2 => :(1.0 * flow(missing_co2_edge) - 0.2 * flow(missing_h2_edge) == 0),
         ]
     end
 
@@ -552,16 +552,28 @@ end
             flow(rhs_base_parts.nh3_edge),
         )
 
-        @test_broken balance_data(rhs_base_parts.elec_edge, rhs_base_parts.transform, :ammonia_production_1) == 1.0
-        @test_broken balance_data(rhs_base_parts.nh3_edge, rhs_base_parts.transform, :ammonia_production_1) == electricity_consumption
-        @test_broken balance_data(rhs_base_parts.fuel_edge, rhs_base_parts.transform, :ammonia_production_2) == 1.0
-        @test_broken balance_data(rhs_base_parts.nh3_edge, rhs_base_parts.transform, :ammonia_production_2) == fuel_consumption
+        assert_eq_balance_coeffs(
+            rhs_base_parts.transform,
+            :ammonia_production_1,
+            [
+                rhs_base_parts.elec_edge => 1.0,
+                rhs_base_parts.nh3_edge => electricity_consumption,
+            ],
+        )
+        assert_eq_balance_coeffs(
+            rhs_base_parts.transform,
+            :ammonia_production_2,
+            [
+                rhs_base_parts.fuel_edge => 1.0,
+                rhs_base_parts.nh3_edge => fuel_consumption,
+            ],
+        )
         assert_eq_balance_coeffs(
             rhs_base_parts.transform,
             :ammonia_production_3,
             [
-                rhs_base_parts.nh3_edge => -emission_per_nh3,
-                rhs_base_parts.co2_edge => 1.0,
+                rhs_base_parts.nh3_edge => emission_per_nh3,
+                rhs_base_parts.co2_edge => -1.0,
             ],
         )
 
@@ -581,24 +593,24 @@ end
             lhs_base_parts.transform,
             :ammonia_from_fuel_1,
             [
-                lhs_base_parts.fuel_edge => electricity_per_fuel,
-                lhs_base_parts.elec_edge => -1.0,
+                lhs_base_parts.fuel_edge => -electricity_per_fuel,
+                lhs_base_parts.elec_edge => 1.0,
             ],
         )
         assert_eq_balance_coeffs(
             lhs_base_parts.transform,
             :ammonia_from_fuel_2,
             [
-                lhs_base_parts.fuel_edge => nh3_per_fuel,
-                lhs_base_parts.nh3_edge => 1.0,
+                lhs_base_parts.fuel_edge => -nh3_per_fuel,
+                lhs_base_parts.nh3_edge => -1.0,
             ],
         )
         assert_eq_balance_coeffs(
             lhs_base_parts.transform,
             :ammonia_from_fuel_3,
             [
-                lhs_base_parts.fuel_edge => emission_rate,
-                lhs_base_parts.co2_edge => 1.0,
+                lhs_base_parts.fuel_edge => -emission_rate,
+                lhs_base_parts.co2_edge => -1.0,
             ],
         )
     end
