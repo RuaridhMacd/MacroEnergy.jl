@@ -29,7 +29,8 @@ function full_default_data(::Type{DirectReductionElectricArcFurnaceCCS}, id=miss
             :ironore_consumption => 0.0,
             :electricity_consumption => 0.0,
             :reductant_consumption => 0.0,
-            :emission_rate => 0.0
+            :emission_rate => 0.0,
+            :capture_rate => 0.0,
         ),
         :edges => Dict{Symbol,Any}(
             :crudesteel_edge => @edge_data(
@@ -71,7 +72,8 @@ function simple_default_data(::Type{DirectReductionElectricArcFurnaceCCS}, id=mi
         :ironore_consumption => 0.0,
         :electricity_consumption => 0.0,
         :reductant_consumption => 0.0,
-        :emission_rate => 0.0
+        :emission_rate => 0.0,
+        :capture_rate => 0.0,
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
         :variable_om_cost => 0.0,
@@ -150,7 +152,7 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
             (data, Symbol("elec_", key)),
         ]
     )
-    @end_vertex(
+    @start_vertex(
         elec_start_node,
         elec_edge_data,
         Electricity,
@@ -286,12 +288,11 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
     )
 
     @add_stoichiometric_balance(
-        dreaf_transform,
+        dreafccs_transform,
         :steel_production,
         get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
         + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
         + get(transform_data, :reductant_consumption, 0.0) * flow(reductant_edge)
-        + get(transform_data, :carbonsource_consumption, 0.0) * flow(carbonsource_edge)
         -->
         flow(crudesteel_edge)
         + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)

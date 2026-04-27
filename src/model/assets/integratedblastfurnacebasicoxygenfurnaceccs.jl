@@ -391,16 +391,16 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnaceCCS}, data::Abstrac
     
     # stochiometry
     @add_stoichiometric_balance(
-        bfbof_transform,
+        bfbofccs_transform,
         :steel_production,
         get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
         + get(transform_data, :steelscrap_consumption, 0.0) * flow(steelscrap_edge)
         + get(transform_data, :metcoal_consumption, 0.0) * flow(metcoal_edge)
         + get(transform_data, :thermalcoal_consumption, 0.0) * flow(thermalcoal_edge)
         + get(transform_data, :natgas_consumption, 0.0) * flow(natgas_edge)
+        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
         --> 
         flow(crudesteel_edge)
-        + get(transform_data, :electricity_production, 0.0) * flow(elec_edge)
         + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
         + get(transform_data, :capture_rate, 0.0) * flow(co2_captured_edge),
         flow(crudesteel_edge)
