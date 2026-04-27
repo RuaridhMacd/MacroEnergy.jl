@@ -206,34 +206,28 @@ make(asset_type::Type{AluminumSmelting}, data::AbstractDict{Symbol,Any}, system:
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data
+### Stoichiometric balance data
 
 ```julia
-aluminumsmelting_transform.balance_data = Dict(
-    :elec_to_aluminum => Dict(
-        elec_edge.id => 1.0,
-        alumina_edge.id => 0.0,
-        graphite_edge.id => 0.0,
-        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 0.0)
-        ),
-        :alumina_to_aluminum => Dict(
-            elec_edge.id => 0.0,
-            alumina_edge.id => 1.0,
-            graphite_edge.id => 0.0,
-            aluminum_edge.id => get(transform_data, :alumina_aluminum_rate, 0.0)
-        ),
-        :graphite_to_aluminum => Dict(
-            elec_edge.id => 0.0,
-            alumina_edge.id => 0.0,
-            graphite_edge.id => 1.0,
-            aluminum_edge.id => get(transform_data, :graphite_aluminum_rate, 0.0)
-        ),
-        :emissions => Dict(
-            graphite_edge.id => get(transform_data, :graphite_emissions_rate, 0.0),
-        co2_edge.id => 1.0
-    )
+graphite_per_aluminum = get(transform_data, :graphite_aluminum_rate, 0.0)
+emission_per_graphite = get(transform_data, :graphite_emissions_rate, 0.0)
+emissions_per_aluminum = graphite_per_aluminum * emission_per_graphite
+
+@add_stoichiometric_balance(
+    aluminumsmelting_transform,
+    :aluminum_production,
+    get(transform_data, :elec_aluminum_rate, 0.0) * flow(elec_edge)
+    + get(transform_data, :alumina_aluminum_rate, 0.0) * flow(alumina_edge)
+    + graphite_per_aluminum * flow(graphite_edge)
+    -->
+    flow(aluminum_edge)
+    + emissions_per_aluminum * flow(co2_edge),
+    flow(aluminum_edge),
 )
 ```
+
+!!! note "Common basis conversion"
+    `graphite_emissions_rate` is specified per unit of graphite input, so it is converted to an aluminum basis before it is used in the stoichiometric balance.
 
 !!! warning "Dictionary keys must match"
     In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:elec_aluminum_rate` or `:graphite_emissions_rate`.
@@ -341,4 +335,3 @@ The following related assets are also available in Macro, though they are typica
 - [Commodities](@ref) - Types of resources stored by Commodities
 - [Time Data](@ref) - Temporal modeling framework
 - [Constraints](@ref) - Additional constraints for Storage and other components
-

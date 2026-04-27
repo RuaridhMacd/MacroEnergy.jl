@@ -12,19 +12,24 @@ The main user-facing list of available constraints is the [Macro Constraint Libr
 
 A balance may:
 
-- include variables other than `flow(...)`
+- include `flow(...)` terms with algebraic coefficients
 - use `==`, `<=`, or `>=`
 - use scalar or time-varying coefficients
 
 In practice, this means a modeler can define balances such as:
 
 ```julia
-@add_balance(transform, :energy, flow(elec_edge) == eff * flow(h2_edge))
-@add_balance(storage, :upper, storage_level(storage) <= capacity(storage))
+@add_balance(transform, :energy, flow(fuel_edge) == heat_rate * flow(elec_edge))
 @add_balance(
     transform,
     :energy_lb,
-    flow(elec_edge) >= eff * flow(h2_edge) - area * capacity(h2_edge),
+    flow(fuel_edge) >= min_heat_rate * flow(elec_edge),
+)
+@add_stoichiometric_balance(
+    transform,
+    :conversion,
+    fuel_rate * flow(fuel_edge) --> flow(elec_edge) + emission_rate * flow(co2_edge),
+    flow(fuel_edge),
 )
 ```
 

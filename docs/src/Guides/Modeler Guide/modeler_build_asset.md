@@ -593,10 +593,11 @@ h2_edge = Edge(
 #### 2.3.4 Balance Data
 This step defines the relationships enforced by [`BalanceConstraint`](@ref balance_constraint_ref). In new asset code, the recommended interface is to use balance macros rather than manually constructing `balance_data` dictionaries.
 
-!!! tip "Preferred API"
-    Use `@add_balance` for general balances and `@add_stoichiometric_balance` for chemical-style `-->` shorthand.
+For most assets, the best workflow is:
 
-- **Transformations**
+1. Use `@add_balance` for ordinary algebraic equations and inequalities.
+2. Use `@add_to_storage_balance` when appending terms to a storage law of motion.
+3. Use `@add_stoichiometric_balance` only when the balance is naturally a recipe-style conversion.
 
 For the `Electrolyzer`, the main conversion relationship can be written as:
 
@@ -604,11 +605,11 @@ For the `Electrolyzer`, the main conversion relationship can be written as:
 @add_balance(
     electrolyzer_transform,
     :energy,
-    get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge) + flow(h2_edge) == 0.0,
+    flow(h2_edge) == get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge),
 )
 ```
 
-This enforces the same relationship as:
+This enforces the relationship:
 
 ```math
 \phi_{h2} = \phi_{elec} \cdot \epsilon_{efficiency}
@@ -616,53 +617,17 @@ This enforces the same relationship as:
 
 where $\phi_{h2}$ is the hydrogen flow, $\phi_{elec}$ is the electricity flow, and $\epsilon_{efficiency}$ is the electrolyzer efficiency.
 
-More general balances are also supported. For example, if an asset requires a lower bound involving both flow and capacity, you can write:
+Storage balances are usually extended with `@add_to_storage_balance`:
 
 ```julia
-@add_balance(
-    electrolyzer_transform,
-    :energy_lb,
-    flow(elec_edge) >=
-    get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge) -
-    get(transform_data, :area_coeff, 1.0) * capacity(h2_edge),
-)
-```
-
-- **Storage units**
-
-Storage balances can also be written explicitly:
-
-```julia
-@add_balance(
+@add_to_storage_balance(
     battery_storage,
-    :storage,
     (1 / discharge_efficiency) * flow(battery_discharge) +
-    charge_efficiency * flow(battery_charge) == 0.0,
+    charge_efficiency * flow(battery_charge),
 )
 ```
 
-This is also useful for envelope-style constraints such as:
-
-```julia
-@add_balance(
-    battery_storage,
-    :storage_upper,
-    storage_level(battery_storage) <= capacity(battery_storage),
-)
-```
-
-!!! note "Supported Terms"
-    `@add_balance` can include `flow(...)`, `capacity(...)`, `existing_capacity(...)`, `new_capacity(...)`, `retired_capacity(...)`, and `storage_level(...)`.
-
-!!! note "Coefficient Profiles"
-    Coefficients may be a scalar, a length-1 vector, or a vector with one coefficient per time step of the host vertex.
-
-!!! warning "Balance IDs"
-    You can define as many balances as needed. The only requirement is that the balance IDs (for example `:energy`, `:emissions`, `:storage`) are unique for each vertex.
-
-- **Stoichiometric shorthand**
-
-When the balance is easiest to think of as a recipe or chemical conversion, `@add_stoichiometric_balance` provides a compact shorthand:
+When a conversion is easiest to express as a recipe, `@add_stoichiometric_balance` provides a compact shorthand:
 
 ```julia
 @add_stoichiometric_balance(
@@ -673,9 +638,43 @@ When the balance is easiest to think of as a recipe or chemical conversion, `@ad
 )
 ```
 
-This macro expands into one or more ordinary balances and is best reserved for stoichiometric relationships. For most custom asset balances, `@add_balance` is the clearer default.
+!!! tip "Write ordinary algebra"
+    For `@add_balance`, write the equation you mean algebraically. MacroEnergy handles edge-direction signs internally, so incoming and outgoing `flow(...)` terms do not need manually flipped coefficients.
 
-#### 2.3.5 Asset creation
+!!! warning "Stoichiometric coefficients must share a basis"
+    In one `@add_stoichiometric_balance` expression, all coefficients must be written on a common recipe basis. If some inputs are naturally specified in different units, convert them before writing the balance.
+
+!!! note "Supported Terms"
+    Balance macros support `flow(...)` terms together with ordinary `+`, `-`, and constants. Use other constraints, rather than balances, for capacity, storage-level, or commitment limits.
+
+!!! note "Coefficient Profiles"
+    Coefficients may be a scalar, a length-1 vector, or a vector with one coefficient per time step of the host vertex.
+
+!!! warning "Balance IDs"
+    You can define as many balances as needed. The only requirement is that the balance IDs (for example `:energy`, `:emissions`, `:storage`) are unique for each vertex.
+
+For a fuller discussion of balance semantics, stoichiometric bases, and debugging tools such as `@inspect_stoichiometric_balance`, see the [Balances manual page](../../Manual/Balances.md).
+
+#### 2.3.5 Single-Asset Test
+Every new asset should include a small solve-based regression test in `test/asset_tests`.
+
+These tests should use a tiny system, typically with one asset, the required source and sink nodes, and three time steps. Use simple, hand-checkable numbers so that the expected flows, storage levels, emissions, and objective value can be computed analytically.
+
+When possible:
+
+1. Test the asset constructor's default balance implementation.
+2. Compare it to a manual `@add_balance` rewrite of the same relationships.
+3. Assert the expected primal solution explicitly rather than only checking that the model solves.
+
+This testing pattern is especially important for:
+
+- stoichiometric assets, where coefficient-basis mistakes can be subtle
+- storage assets, where charge and discharge efficiencies affect the law of motion
+- assets with multiple commodities or emissions flows
+
+For examples, see the existing files in `test/asset_tests`, such as the `Electrolyzer`, `Battery`, `ThermalPower`, and `SyntheticAmmonia` tests.
+
+#### 2.3.6 Asset creation
 This is the final step of the `make` function. It integrates all components to construct and return the final asset. 
 
 ```julia
@@ -857,7 +856,7 @@ function make(asset_type::Type{MyNewAsset}, data::AbstractDict{Symbol,Any}, syst
     @add_balance(
         transform,
         :energy,
-        efficiency * flow(input_edge) + flow(output_edge) == 0.0,
+        flow(output_edge) == efficiency * flow(input_edge),
     )
     
     return MyNewAsset(id, transform, input_edge, output_edge)

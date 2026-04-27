@@ -679,36 +679,34 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
     gas_storage.discharge_edge = gas_storage_discharge
     gas_storage.charge_edge = gas_storage_charge
     
-    # Set the gas balance across the gas storage, including any losses.
-    @add_balance(
+    # Add charge and discharge terms to the built-in storage balance.
+    @add_to_storage_balance(
         gas_storage,
-        :storage,
-        (1 / get(discharge_edge_data, :efficiency, 1.0)) * flow(gas_storage_discharge) +
-        get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge) == 0.0,
+        (1 / get(discharge_edge_data, :efficiency, 1.0)) * flow(gas_storage_discharge),
+    )
+    @add_to_storage_balance(
+        gas_storage,
+        get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge),
     )
 
-    # Set the charging and discharging balances on the pump transformation.
-    @add_balance(
+    # Set the charging and discharging recipes on the pump transformation.
+    @add_stoichiometric_balance(
         pump_transform,
-        :charge_electricity_consumption,
-        -flow(charge_elec_edge) +
-        get(transform_data, :charge_electricity_consumption, 0.0) * flow(external_charge_edge) == 0.0,
+        :gasstorage_charging,
+        flow(external_charge_edge) +
+        get(transform_data, :charge_electricity_consumption, 0.0) * flow(charge_elec_edge)
+        -->
+        flow(gas_storage_charge),
+        flow(external_charge_edge),
     )
-    @add_balance(
+    @add_stoichiometric_balance(
         pump_transform,
-        :discharge_electricity_consumption,
-        flow(discharge_elec_edge) +
-        get(transform_data, :discharge_electricity_consumption, 0.0) * flow(external_discharge_edge) == 0.0,
-    )
-    @add_balance(
-        pump_transform,
-        :external_charge_balance,
-        flow(external_charge_edge) + flow(gas_storage_charge) == 0.0,
-    )
-    @add_balance(
-        pump_transform,
-        :external_discharge_balance,
-        flow(external_discharge_edge) + flow(gas_storage_discharge) == 0.0,
+        :gasstorage_discharging,
+        flow(gas_storage_discharge) +
+        get(transform_data, :discharge_electricity_consumption, 0.0) * flow(discharge_elec_edge)
+        -->
+        flow(external_discharge_edge),
+        flow(external_discharge_edge),
     )
 
     # Create the GasStorage Asset using the constructed components

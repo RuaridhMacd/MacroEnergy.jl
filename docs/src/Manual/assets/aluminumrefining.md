@@ -186,20 +186,17 @@ make(asset_type::Type{AluminumRefining}, data::AbstractDict{Symbol,Any}, system:
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data
+### Stoichiometric balance data
 
 ```julia
-aluminumrefining_transform.balance_data = Dict(
-    :elec_to_aluminum => Dict(
-        elec_edge.id => 1.0,
-        aluminumscrap_edge.id => 0.0,
-        aluminum_edge.id => get(transform_data, :elec_aluminum_rate, 0.0)
-        ),
-        :aluminumscrap_to_aluminum => Dict(
-            elec_edge.id => 0.0,
-            aluminumscrap_edge.id => 1.0,
-            aluminum_edge.id => get(transform_data, :aluminumscrap_aluminum_rate, 0.0)
-    )
+@add_stoichiometric_balance(
+    aluminumrefining_transform,
+    :aluminum_production,
+    get(transform_data, :aluminumscrap_aluminum_rate, 1.0) * flow(aluminumscrap_edge)
+    + get(transform_data, :elec_aluminum_rate, 0.0) * flow(elec_edge)
+    -->
+    flow(aluminum_edge),
+    flow(aluminum_edge),
 )
 ```
 
@@ -283,4 +280,3 @@ This example illustrates a basic Aluminum Refining configuration in JSON format:
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Aluminum Smelting](@ref aluminumsmelting_overview) - Primary energy-intensive aluminum production process
 - [Alumina Plant](@ref aluminaplant_overview) - Alumina production from bauxite
-

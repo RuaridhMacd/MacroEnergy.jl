@@ -295,12 +295,12 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
     @add_balance(
         thermal_transform,
         :energy,
-        get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge) + flow(fuel_edge) == 0.0,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge),
     )
     @add_balance(
         thermal_transform,
         :emissions,
-        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) + flow(co2_edge) == 0.0,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge),
     )
 
     # For recipe-style conversions, the stoichiometric shorthand is also available.
@@ -309,7 +309,7 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         :conversion,
         get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge) -->
         flow(elec_edge) + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
-        flow(elec_edge),
+        flow(fuel_edge),
     )
 
     # Finally, we create and return the ThermalPower Asset

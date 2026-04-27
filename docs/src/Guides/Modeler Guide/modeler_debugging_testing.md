@@ -678,6 +678,47 @@ And data, a 2×24 Matrix{JuMP.ConstraintRef{Model, MathOptInterface.ConstraintIn
  -2.132092034 vFLOW_SE_natural_gas_fired_combined_cycle_1_elec_edge_period1[24] - 295.53638384084 vSTART_SE_natural_gas_fired_combined_cycle_1_elec_edge_period1[24] + vFLOW_SE_natural_gas_fired_combined_cycle_1_fuel_edge_period1[24] = 0)
 ```
 
+### Debugging an asset balance
+
+When a new asset is not behaving as expected, a good balance-debugging workflow is:
+
+1. Inspect the asset structure with [`print_struct_info`](@ref) so you know the names of the transformation, storage, and edge components.
+2. Retrieve the relevant component with [`get_component_by_fieldname`](@ref).
+3. Use [`balance_ids`](@ref), [`balance_data`](@ref), and [`get_balance`](@ref) to inspect the stored balances and the resulting algebraic expressions.
+4. If the asset uses `@add_stoichiometric_balance`, inspect the generated pairwise balances with `@inspect_stoichiometric_balance(...)`.
+5. Create or update a small single-asset solve test in `test/asset_tests`.
+
+For example, if a stoichiometric balance seems to be using the wrong basis, the following macro can be helpful:
+
+```julia
+@inspect_stoichiometric_balance(
+    transform,
+    :production,
+    coeff_a * flow(a_edge) + coeff_b * flow(b_edge) --> flow(c_edge),
+    flow(c_edge),
+)
+```
+
+By default, this prints the generated pairwise algebraic balances without verifying live edge directions. To also verify that left-hand terms are incoming and right-hand terms are outgoing, pass:
+
+```julia
+@inspect_stoichiometric_balance(
+    transform,
+    :production,
+    coeff_a * flow(a_edge) + coeff_b * flow(b_edge) --> flow(c_edge),
+    flow(c_edge),
+    verify_edge_directions = true,
+)
+```
+
+In practice, most balance bugs fall into one of three categories:
+
+- the wrong edge was placed on the left or right of a stoichiometric balance
+- coefficients were written on different unit bases
+- a multi-term balance was underconstrained
+
+Checking the expanded equations early usually catches these issues much faster than debugging them from large-system results alone.
+
 ## Working with Storages
 
 !!! tip "Storage Interface"
