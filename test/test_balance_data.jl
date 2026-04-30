@@ -277,6 +277,19 @@ end
         end
     end
 
+    @testset "@add_balance Rejects Nonlinear Flow Terms" begin
+        invalid_expressions = [
+            :(@add_balance(x, :bad_rhs_coeff, flow(edge) * 2 == flow(other_edge))),
+            :(@add_balance(x, :bad_divided_flow, flow(edge) / 2 == flow(other_edge))),
+            :(@add_balance(x, :bad_flow_product, flow(edge) * flow(other_edge) == 0)),
+            :(@add_balance(x, :bad_flow_denominator, coeff / flow(edge) == 0)),
+        ]
+
+        for expr in invalid_expressions
+            @test_throws ErrorException macroexpand(@__MODULE__, expr)
+        end
+    end
+
     @testset "@add_balance Normalizes Scalar And Vector Coefficients" begin
         parts = make_test_transformation_with_edges(3)
         transform = parts.transform

@@ -389,6 +389,21 @@ function build_balance_expressions!(v::AbstractVertex, model::Model)
     return nothing
 end
 
+balance_variable_functions() = (:flow,)
+
+function is_balance_variable_call(ex)
+    return ex isa Expr && ex.head == :call && ex.args[1] in balance_variable_functions()
+end
+
+function contains_balance_variable_call(ex)
+    if is_balance_variable_call(ex)
+        return true
+    elseif ex isa Expr
+        return any(contains_balance_variable_call, ex.args)
+    end
+    return false
+end
+
 function parse_balance_eq(ex)
     if isa(ex, Number)
         return [(obj = nothing, var = :constant, coeff = Float64(ex))]
@@ -439,6 +454,11 @@ function parse_balance_eq(ex)
                         term1 = Expr(:call, f, ex.args[2:end-1]...)
                     end 
                     term2 = ex.args[end]
+                    if contains_balance_variable_call(term1) || (f == :/ && contains_balance_variable_call(term2))
+                        error(
+                            "@add_balance expects linear terms with coefficients before balance variables, e.g. coeff * flow(edge). Products or divisions involving balance variables are not supported.",
+                        )
+                    end
                     if isa(term1, Number) || isa(term2, Number)
                         if isa(ex.args[2], Number)
                             coeff = Float64(ex.args[2])
