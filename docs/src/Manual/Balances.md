@@ -48,6 +48,15 @@ Macro supports three coefficient forms:
 2. A vector of length `1`, which is treated like a scalar.
 3. A vector with one entry per time step of the host vertex, used as a time-varying coefficient profile.
 
+Write coefficients before the flow term:
+
+```julia
+@add_balance(transform, :energy, heat_rate * flow(output_edge) == flow(input_edge))
+```
+
+For compound coefficients, group the coefficient expression before `flow(...)`,
+for example `(heat_rate * availability_factor) * flow(edge)`.
+
 ## Equality And Inequality Balances
 
 Balances may be written as equalities or inequalities.

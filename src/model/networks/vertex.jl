@@ -515,6 +515,9 @@ Coefficients may be:
 - a length-1 vector
 - a vector with one coefficient per time step of the host vertex
 
+Coefficients should be written before `flow(edge)`, for example
+`heat_rate * flow(edge)`.
+
 # Examples
 ```julia
 @add_balance(transform, :energy, flow(elec_edge) == 0.5 * flow(h2_edge))
