@@ -54,17 +54,17 @@ function validate_csv_data(loaded_csv)::Bool
     headers = loaded_csv.names
     # headers must be at least 2 columns
     if length(headers) < 2
-        @debug("CSV file must have at least 2 columns: type and id")
+        @warn("CSV file must have at least 2 columns: Type and id")
         return false
     end
-    # The first column must be "type"
+    # The first column must be "Type"
     if headers[1] != :Type
-        @debug("The first column of the CSV file must be 'Type'")
+        @warn("The first column of the CSV file must be 'Type' (got '$(headers[1])')")
         return false
     end
     # The second column must be "id"
     if headers[2] != :id
-        @debug("The second column of the CSV file must be 'id'")
+        @warn("The second column of the CSV file must be 'id' (got '$(headers[2])')")
         return false
     end
     return true
