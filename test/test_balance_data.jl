@@ -24,6 +24,7 @@ import MacroEnergy:
     add_model_constraint!,
     balance_data,
     balance_sense,
+    balance_term_coefficient,
     flow,
     get_balance,
     operation_model!
@@ -453,9 +454,10 @@ end
 
         function assert_eq_balance_coeffs(transform, balance_id, expected_coeffs)
             @test balance_sense(transform, balance_id) == :eq
-            @test balance_data(transform, balance_id).constant == 0.0
+            data = balance_data(transform, balance_id)
+            @test data.constant == 0.0
             for (edge, coeff) in expected_coeffs
-                @test balance_data(edge, transform, balance_id) == coeff
+                @test balance_term_coefficient(data, edge, transform, 1) == coeff
             end
         end
 
@@ -666,7 +668,7 @@ end
         end
     end
 
-    @testset "Edge balance_data Supports Time-Varying Coefficients" begin
+    @testset "BalanceTerm Coefficient Helper Supports Time-Varying Coefficients" begin
         parts = make_test_storage_with_edges(3)
         storage = parts.storage
         charge_edge = parts.charge_edge
@@ -678,16 +680,15 @@ end
         @add_to_storage_balance(storage, discharge_eff * flow(discharge_edge))
         @add_to_storage_balance(storage, :storage, charge_eff * flow(charge_edge))
 
-        @test_throws ErrorException balance_data(charge_edge, storage, :storage)
+        data = balance_data(storage, :storage)
 
-        @test balance_data(charge_edge, storage, :storage, 1) == charge_eff[1]
-        @test balance_data(charge_edge, storage, :storage, 2) == charge_eff[2]
-        @test balance_data(charge_edge, storage, :storage, 3) == charge_eff[3]
+        @test balance_term_coefficient(data, charge_edge, storage, 1) == charge_eff[1]
+        @test balance_term_coefficient(data, charge_edge, storage, 2) == charge_eff[2]
+        @test balance_term_coefficient(data, charge_edge, storage, 3) == charge_eff[3]
 
-        @test balance_data(discharge_edge, storage, :storage) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 1) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 2) == discharge_eff
-        @test balance_data(discharge_edge, storage, :storage, 3) == discharge_eff
+        @test balance_term_coefficient(data, discharge_edge, storage, 1) == discharge_eff
+        @test balance_term_coefficient(data, discharge_edge, storage, 2) == discharge_eff
+        @test balance_term_coefficient(data, discharge_edge, storage, 3) == discharge_eff
     end
 
     @testset "@add_to_storage_balance Rejects Invalid Usage" begin
