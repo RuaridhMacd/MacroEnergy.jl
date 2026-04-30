@@ -57,6 +57,10 @@ Write coefficients before the flow term:
 For compound coefficients, group the coefficient expression before `flow(...)`,
 for example `(heat_rate * availability_factor) * flow(edge)`.
 
+`@add_balance` expects linear terms. Expressions such as `c / flow(edge)` are
+nonlinear because they divide by a decision variable. Write every flow term as a
+coefficient multiplied by a flow, such as `(1 / efficiency) * flow(edge)`.
+
 ## Equality And Inequality Balances
 
 Balances may be written as equalities or inequalities.
@@ -209,6 +213,7 @@ Common balance-modeling mistakes include:
 - using `@add_stoichiometric_balance` for a genuinely multi-term algebraic equation such as `A + B == C`
 - assuming a balance like `A + B == C` also fixes the ratio between `A` and `B`
 - writing manual sign flips for incoming and outgoing edges in `@add_balance`
+- writing nonlinear terms such as `c / flow(edge)`; write variable terms as `coeff * flow(edge)`
 - forgetting to add a small single-asset regression test when introducing or refactoring an asset balance
 
 When a balance looks mathematically reasonable but produces surprising system results, these are the first issues to check.

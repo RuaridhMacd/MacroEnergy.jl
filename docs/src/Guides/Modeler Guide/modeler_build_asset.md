@@ -641,6 +641,9 @@ When a conversion is easiest to express as a recipe, `@add_stoichiometric_balanc
 !!! tip "Write ordinary algebra"
     For `@add_balance`, write the equation you mean algebraically. MacroEnergy handles edge-direction signs internally, so incoming and outgoing `flow(...)` terms do not need manually flipped coefficients.
 
+!!! note "Balance terms must be linear"
+    Write each variable as a coefficient multiplied by `flow(...)`, for example `(1 / efficiency) * flow(edge)`. Expressions such as `c / flow(edge)` are nonlinear because they divide by a decision variable.
+
 !!! warning "Stoichiometric coefficients must share a basis"
     In one `@add_stoichiometric_balance` expression, all coefficients must be written on a common recipe basis. If some inputs are naturally specified in different units, convert them before writing the balance.
 

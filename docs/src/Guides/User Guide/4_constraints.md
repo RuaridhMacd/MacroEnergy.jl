@@ -11,6 +11,10 @@ Balances are usually created in asset code with `@add_balance` or `@add_stoichio
 - use `==`, `<=`, or `>=`
 - use scalar or time-varying coefficients
 
+`@add_balance` expects linear terms: write each variable as a coefficient
+multiplied by `flow(...)`. For example, use `(1 / efficiency) * flow(edge)`;
+`c / flow(edge)` is nonlinear because it divides by a decision variable.
+
 For example, a modeler can define:
 
 ```julia

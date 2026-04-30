@@ -538,6 +538,10 @@ Coefficients may be:
 Coefficients should be written before `flow(edge)`, for example
 `heat_rate * flow(edge)`.
 
+`@add_balance` expects linear terms. Expressions such as `c / flow(edge)` are
+nonlinear because they divide by a decision variable. Write every flow term as a
+coefficient multiplied by a flow, such as `(1 / efficiency) * flow(edge)`.
+
 # Examples
 ```julia
 @add_balance(transform, :energy, flow(elec_edge) == 0.5 * flow(h2_edge))
