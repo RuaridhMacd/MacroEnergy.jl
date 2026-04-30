@@ -8,6 +8,61 @@ mutable struct System <: AbstractSystem
     input_data::Vector{Dict{Symbol,Any}}
 end
 
+Base.@kwdef struct StaticSystem <: AbstractSystem
+    data_dirpath::String = ""
+    settings::NamedTuple = NamedTuple()
+    commodities::Dict{Symbol,DataType} = Dict{Symbol,DataType}()
+    time_data::Dict{Symbol,TimeData} = Dict{Symbol,TimeData}()
+    nodes::Vector{Node} = Node[]
+    unidirectional_edges::Vector{UnidirectionalEdge} = UnidirectionalEdge[]
+    bidirectional_edges::Vector{BidirectionalEdge} = BidirectionalEdge[]
+    unit_commitment_edges::Vector{EdgeWithUC} = EdgeWithUC[]
+    transformations::Vector{Transformation} = Transformation[]
+    storages::Vector{Storage} = Storage[]
+    long_duration_storages::Vector{LongDurationStorage} = LongDurationStorage[]
+    assets::Vector{AbstractAsset} = AbstractAsset[]
+    locations::Vector{Union{Node, Location}} = Union{Node, Location}[]
+end
+
+function StaticSystem(system::System)
+    nodes = get_nodes(system)
+    edges = get_edges(system)
+    transformations = get_transformations(system)
+    storages_all = get_storages(system)
+
+    unidirectional_edges = UnidirectionalEdge[
+        edge for edge in edges if edge isa UnidirectionalEdge
+    ]
+    bidirectional_edges = BidirectionalEdge[
+        edge for edge in edges if edge isa BidirectionalEdge
+    ]
+    unit_commitment_edges = EdgeWithUC[
+        edge for edge in edges if edge isa EdgeWithUC
+    ]
+    storages = Storage[
+        storage for storage in storages_all if storage isa Storage
+    ]
+    long_duration_storages = LongDurationStorage[
+        storage for storage in storages_all if storage isa LongDurationStorage
+    ]
+
+    return StaticSystem(
+        data_dirpath = system.data_dirpath,
+        settings = system.settings,
+        commodities = copy(system.commodities),
+        time_data = copy(system.time_data),
+        nodes = nodes,
+        unidirectional_edges = unidirectional_edges,
+        bidirectional_edges = bidirectional_edges,
+        unit_commitment_edges = unit_commitment_edges,
+        transformations = transformations,
+        storages = storages,
+        long_duration_storages = long_duration_storages,
+        assets = copy(system.assets),
+        locations = copy(system.locations),
+    )
+end
+
 """
     asset_ids(system::System; source::String="assets")
 
@@ -47,6 +102,21 @@ function asset_ids(system::System; source::String="assets")
     end
 end
 
+function asset_ids(system::StaticSystem; source::String="assets")
+    if source == "assets"
+        if isempty(system.assets)
+            @warn("StaticSystem does not have any assets.")
+            return Set{AssetId}()
+        end
+        return map(x -> x.id, system.assets)
+    elseif source == "inputs"
+        error("StaticSystem does not store input files; use source=\"assets\".")
+    else
+        @error("Invalid source $source. Must be 'assets' or 'inputs'")
+        return Set{AssetId}()
+    end
+end
+
 """
     location_ids(system::System)
 
@@ -64,8 +134,10 @@ ids = location_ids(system)
 ```
 """
 location_ids(system::System) = map(x -> x.id, system.locations)
+location_ids(system::StaticSystem) = map(x -> x.id, system.locations)
 
 period_index(system::System) = first(values(system.time_data)).period_index;
+period_index(system::StaticSystem) = first(values(system.time_data)).period_index;
 
 """
     get_asset_types(system::System)
@@ -85,6 +157,7 @@ unique(asset_types)  # Get unique asset types in the system
 ```
 """
 get_asset_types(system::System) = map(x -> typeof(x), system.assets)
+get_asset_types(system::StaticSystem) = map(x -> typeof(x), system.assets)
 
 function set_data_dirpath!(system::System, data_dirpath::String)
     system.data_dirpath = data_dirpath
@@ -270,6 +343,8 @@ thermal_plants = get_assets_sametype(system, ThermalPower{NaturalGas})
 ```
 """
 get_assets_sametype(system::System, asset_type::T) where T<:Type{<:AbstractAsset} = get_assets_sametype(system.assets, asset_type)
+get_assets_sametype(system::StaticSystem, asset_type::T) where T<:Type{<:AbstractAsset} =
+    get_assets_sametype(system.assets, asset_type)
 
 # Function to extract all the nodes, edges, storages, and transformations from a system
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.
@@ -278,6 +353,45 @@ get_nodes(system::System) = Node[node for node in system.locations if isa(node, 
 get_edges(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractEdge) : get_macro_objs(system, AbstractEdge)
 get_storages(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, AbstractStorage) : get_macro_objs(system, AbstractStorage)
 get_transformations(system::System; return_ids_map::Bool=false) = return_ids_map ? get_macro_objs_with_map(system, Transformation) : get_macro_objs(system, Transformation)
+
+get_locations(system::StaticSystem) = system.locations
+get_nodes(system::StaticSystem) = system.nodes
+
+function get_edges(system::StaticSystem; return_ids_map::Bool=false)
+    edges = AbstractEdge[
+        system.unidirectional_edges...,
+        system.bidirectional_edges...,
+        system.unit_commitment_edges...,
+    ]
+    return return_ids_map ? (edges, get_edge_asset_map(system)) : edges
+end
+
+function get_storages(system::StaticSystem; return_ids_map::Bool=false)
+    storages = AbstractStorage[
+        system.storages...,
+        system.long_duration_storages...,
+    ]
+    return return_ids_map ? (storages, get_storage_asset_map(system)) : storages
+end
+
+function get_transformations(system::StaticSystem; return_ids_map::Bool=false)
+    return return_ids_map ? (system.transformations, get_transformation_asset_map(system)) : system.transformations
+end
+
+function get_edge_asset_map(system::StaticSystem)
+    _, edge_asset_map = get_macro_objs_with_map(system.assets, AbstractEdge)
+    return edge_asset_map
+end
+
+function get_storage_asset_map(system::StaticSystem)
+    _, storage_asset_map = get_macro_objs_with_map(system.assets, AbstractStorage)
+    return storage_asset_map
+end
+
+function get_transformation_asset_map(system::StaticSystem)
+    _, transformation_asset_map = get_macro_objs_with_map(system.assets, Transformation)
+    return transformation_asset_map
+end
 
 # Function to extract the edges with capacity variables from a system.
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.  
@@ -292,6 +406,17 @@ function edges_with_capacity_variables(system::System; return_ids_map::Bool=fals
     end
 end
 
+function edges_with_capacity_variables(system::StaticSystem; return_ids_map::Bool=false)
+    if return_ids_map
+        edges, edge_asset_map = get_edges(system, return_ids_map=true)
+        edges_with_capacity = edges_with_capacity_variables(edges)
+        edges_with_capacity_asset_map = filter(edge -> edge[1] in id.(edges_with_capacity), edge_asset_map)
+        return edges_with_capacity, edges_with_capacity_asset_map
+    else
+        return edges_with_capacity_variables(get_edges(system))
+    end
+end
+
 # Function to extract the storages with capacity variables from a system.
 # If return_ids_map=True, a `Dict` is also returned mapping edge ids to the corresponding asset objects.  
 function storages_with_capacity_variables(system::System; return_ids_map::Bool=false)
@@ -301,6 +426,14 @@ function storages_with_capacity_variables(system::System; return_ids_map::Bool=f
         return storages_with_capacity, storages_with_capacity_asset_map
     else
         return storages_with_capacity_variables(system.assets)
+    end
+end
+
+function storages_with_capacity_variables(system::StaticSystem; return_ids_map::Bool=false)
+    if return_ids_map
+        return get_storages(system, return_ids_map=true)
+    else
+        return storages_with_capacity_variables(get_storages(system))
     end
 end
 

@@ -175,6 +175,9 @@ include("model/networks/edge.jl")
 include("model/networks/asset.jl")
 include("model/system.jl")
 include("model/case.jl")
+include("model/problems/problemspec.jl")
+include("model/problems/problemrefs.jl")
+include("model/problems/problem.jl")
 include("model/networks/macroobject.jl")
 include("model/optimizer.jl")
 include("model/generate_model.jl")
@@ -274,6 +277,8 @@ export AbstractAsset,
     DirectReductionElectricArcFurnace,
     DirectReductionElectricArcFurnaceCCS,
     Edge,
+    EdgeRefs,
+    EdgeWithUCRefs,
     UnidirectionalEdge,
     BidirectionalEdge,
     EdgeWithUC,
@@ -334,12 +339,17 @@ export AbstractAsset,
     PlanningConstraint,
     PolicyConstraint,
     postprocess!,
+    Problem,
+    ProblemRefs,
+    ProblemSpec,
+    problem_spec,
     RampingLimitConstraint,
     run_case,
     solve_case,
     Steam,
     SteelScrap,
     Storage,
+    StaticSystem,
     StorageCapacityConstraint,
     StorageChargeDischargeRatioConstraint,
     StorageMaxDurationConstraint,
@@ -349,6 +359,7 @@ export AbstractAsset,
     StorageChargeLimitConstraint,
     SyntheticNaturalGas,
     SyntheticLiquidFuels,
+    NodeRefs,
     ThermalHydrogen,
     ThermalPower,
     ThermalHydrogenCCS,
@@ -356,6 +367,8 @@ export AbstractAsset,
     TransmissionLink,
     OneWayTransmissionLink,
     Transformation,
+    TransformationRefs,
+    StorageRefs,
     Uranium,
     VRE,
     write_capacity,
