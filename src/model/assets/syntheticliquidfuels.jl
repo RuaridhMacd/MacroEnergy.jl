@@ -2,6 +2,7 @@ struct SyntheticLiquidFuels <: AbstractAsset
     id::AssetId
     synthetic_liquid_fuels_transform::Transformation
     co2_captured_edge::Edge{<:CO2Captured}
+    co2_captured_return_edge::Edge{<:CO2Captured}
     gasoline_edge::Edge{<:LiquidFuels}
     jetfuel_edge::Edge{<:LiquidFuels}
     diesel_edge::Edge{<:LiquidFuels}
@@ -29,6 +30,7 @@ function full_default_data(::Type{SyntheticLiquidFuels}, id=missing)
             :electricity_consumption => 0.0,
             :h2_consumption => 0.0,
             :emission_rate => 1.0,
+            :capture_rate => 0.0,
             :constraints => Dict{Symbol, Bool}(
                 :BalanceConstraint => true,
             ),
@@ -42,6 +44,12 @@ function full_default_data(::Type{SyntheticLiquidFuels}, id=missing)
                 :constraints => Dict{Symbol, Bool}(
                     :CapacityConstraint => true
                 ),
+            ),
+            :co2_captured_return_edge => @edge_data(
+                :commodity => "CO2Captured",
+                :has_capacity => false,
+                :can_expand => false,
+                :can_retire => false,
             ),
             :gasoline_edge => @edge_data(
                 :commodity => "LiquidFuels",
@@ -83,6 +91,7 @@ function simple_default_data(::Type{SyntheticLiquidFuels}, id=missing)
         :electricity_consumption => 0.0,
         :h2_consumption => 0.0,
         :emission_rate => 1.0,
+        :capture_rate => 0.0,
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
         :variable_om_cost => 0.0,
@@ -142,6 +151,32 @@ function make(asset_type::Type{SyntheticLiquidFuels}, data::AbstractDict{Symbol,
         CO2Captured,
         co2_captured_start_node,
         co2_captured_end_node,
+    )
+
+    co2_captured_return_edge_key = :co2_captured_return_edge
+    @process_data(
+        co2_captured_return_edge_data,
+        data[:edges][co2_captured_return_edge_key],
+        [
+            (data[:edges][co2_captured_return_edge_key], key),
+            (data[:edges][co2_captured_return_edge_key], Symbol("co2_captured_return_", key)),
+            (data, Symbol("co2_captured_return_", key)),
+        ]
+    )
+    co2_captured_return_start_node = synthetic_liquid_fuels_transform
+    @end_vertex(
+        co2_captured_return_end_node,
+        co2_captured_return_edge_data,
+        CO2Captured,
+        [(co2_captured_return_edge_data, :end_vertex), (data, :location)],
+    )
+    co2_captured_return_edge = Edge(
+        Symbol(id, "_", co2_captured_return_edge_key),
+        co2_captured_return_edge_data,
+        system.time_data[:CO2Captured],
+        CO2Captured,
+        co2_captured_return_start_node,
+        co2_captured_return_end_node,
     )
 
     gasoline_edge_key = :gasoline_edge
@@ -330,8 +365,12 @@ function make(asset_type::Type{SyntheticLiquidFuels}, data::AbstractDict{Symbol,
         :emissions => Dict(
             co2_captured_edge.id => get(transform_data, :emission_rate, 1.0),
             co2_emission_edge.id => 1.0
-        )
+        ),
+        :co2_capture => Dict(
+            co2_captured_edge.id => get(transform_data, :capture_rate, 0.0),
+            co2_captured_return_edge.id => 1.0
+        ),
     )
 
-    return SyntheticLiquidFuels(id, synthetic_liquid_fuels_transform, co2_captured_edge,gasoline_edge,jetfuel_edge,diesel_edge,elec_edge,h2_edge,co2_emission_edge) 
+    return SyntheticLiquidFuels(id, synthetic_liquid_fuels_transform, co2_captured_edge, co2_captured_return_edge, gasoline_edge, jetfuel_edge, diesel_edge, elec_edge, h2_edge, co2_emission_edge)
 end
