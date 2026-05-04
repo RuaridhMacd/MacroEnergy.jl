@@ -76,10 +76,10 @@ function template_run_file(filepath::AbstractString)
             io,
             """
             using MacroEnergy
-            # using HiGHS
+            using HiGHS
 
             (case, model) = run_case(@__DIR__);
-            # (case, model) = run_case(@__DIR__; optimizer=Gurobi.Optimizer);
+            # (case, model) = run_case(@__DIR__; optimizer=HiGHS.Optimizer);
             """
         )
     end
