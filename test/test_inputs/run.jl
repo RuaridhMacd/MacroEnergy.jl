@@ -1,6 +1,12 @@
 using MacroEnergy
-using Gurobi
+using HiGHS
+using Pkg
+try Pkg.add("Gurobi"); using Gurobi; catch e end
+optim = is_gurobi_available() ? Gurobi.Optimizer : HiGHS.Optimizer
+println()
 
-(system, model) = run_case(@__DIR__; 
-                    optimizer=Gurobi.Optimizer,
-                    optimizer_attributes=("Method" => 2, "Crossover" => -1, "BarConvTol" => 1e-6));
+system = MacroEnergy.load_system(@__DIR__)
+optimizer = MacroEnergy.create_optimizer(optim)
+model = MacroEnergy.generate_model(system, optimizer)
+MacroEnergy.optimize!(model)
+macro_objval = MacroEnergy.objective_value(model)
