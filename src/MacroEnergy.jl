@@ -4,6 +4,7 @@ using CSV, JSON3, GZip, Parquet2
 using Dates
 using DuckDB
 using DataFrames
+using JSONTables
 using OrderedCollections
 using JuMP
 using HiGHS
