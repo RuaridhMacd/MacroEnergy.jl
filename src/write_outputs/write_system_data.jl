@@ -132,7 +132,12 @@ end
 function prepare_to_json(constraints::Vector{AbstractTypeConstraint})
     dict = Dict{Symbol,Any}()
     for constraint in constraints
-        dual_value = dual.(constraint_ref(constraint))
+        con_ref = constraint_ref(constraint)
+        if ismissing(con_ref)
+            dict[Symbol(typeof(constraint))] = true
+            continue
+        end            
+        dual_value = dual.(con_ref)
         if ismissing(dual_value)
             dict[Symbol(typeof(constraint))] = true
         else
