@@ -12,6 +12,9 @@ end
 
 function write_json(file_path::AbstractString, data::AbstractDict, compress::Bool=false)::Nothing
     if compress || endswith(file_path, ".gz")
+        if !endswith(file_path, ".gz")
+            file_path *= ".gz"
+        end
         io = GZip.open(file_path, "w")
     else
         io = open(file_path, "w")
