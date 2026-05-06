@@ -51,7 +51,7 @@ function load_csv_inputs(file_path::AbstractString; rel_path::AbstractString=dir
 end
 
 function validate_csv_data(loaded_csv)::Bool
-    headers = loaded_csv.names
+    headers = propertynames(loaded_csv)
     # headers must be at least 2 columns
     if length(headers) < 2
         @warn("CSV file must have at least 2 columns: Type and id")
@@ -86,13 +86,19 @@ function insert_data(dict::Dict{Symbol, Any}, keys::Vector{Symbol}, data::Any)
 end
 
 function csv_to_json(file_path::AbstractString, nesting_str::AbstractString="--")::Vector{Dict{Symbol,Any}}
-    data = duckdb_read(file_path)
+    data = DataFrame(duckdb_read(file_path))
+    # Rearrange Type and id to be the first two columns if they exist
+    col_names = propertynames(data)
+    if :Type in col_names && :id in col_names
+        other_cols = [n for n in col_names if n ∉ (:Type, :id)]
+        select!(data, [:Type, :id, other_cols...])
+    end
     if !validate_csv_data(data)
         return Vector{Dict{Symbol,Any}}()
     end
 
     column_map = Dict{Symbol, Any}()
-    for header in data.names
+    for header in propertynames(data)
         props = Symbol.(split(string(header), nesting_str))
         column_map[header] = [:instance_data, props...]
     end
@@ -101,7 +107,7 @@ function csv_to_json(file_path::AbstractString, nesting_str::AbstractString="--"
     column_map[:Type] = [:type]
     
     all_json_data = Vector{Dict{Symbol, Any}}()
-    for row in data
+    for row in eachrow(data)
         json_data = Dict{Symbol, Any}()
         for (col_name, dict_address) in column_map
             insert_data(json_data, dict_address, row[col_name])
