@@ -184,11 +184,17 @@ function _run_case_impl(
 
     postprocess!(case, solution)
 
-    if !isa(solution_algorithm(case), Myopic)
-        if length(case.systems) ≥ 1
-            case_path = create_output_path(case.systems[1], case_path)
+    if isa(solution, MyopicResults)
+            # Outputs already written per-period during iteration; just retrieve the output path for log file copying
+            output_path = solution.output_path
+        else
+            output_path = length(case.systems) ≥ 1 ? create_output_path(case.systems[1], case_path) : case_path
+            write_outputs(output_path, case, solution)
         end
-        write_outputs(case_path, case, solution)
+
+        if log_to_file && isfile(log_file_path)
+            cp(log_file_path, joinpath(output_path, basename(log_file_path)); force=true)
+        end
     end
 
     if isa(solution_algorithm(case), Benders)

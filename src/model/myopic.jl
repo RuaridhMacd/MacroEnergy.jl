@@ -1,5 +1,6 @@
 struct MyopicResults
     models::Union{Vector{Model}, Nothing}
+    output_path::String
 end
 
 function run_myopic_iteration!(case::Case, opt::Optimizer)
@@ -138,7 +139,7 @@ function run_myopic_iteration!(case::Case, opt::Optimizer)
     @info("Writing settings file")
     write_settings(case, joinpath(output_path, "settings.json"))
 
-    return return_models ? MyopicResults(models) : MyopicResults(nothing)
+    return MyopicResults(return_models ? models : nothing, output_path)
 end
 
 function load_previous_capacity_results(path::AbstractString)
