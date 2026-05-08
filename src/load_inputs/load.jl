@@ -22,11 +22,9 @@ end
 # Load a single instance of an asset, location, etc. into a System
 function load!(system::System, data::AbstractDict{Symbol,Any})::Nothing
     if data_is_system_data(data)
-        # println("Loading system data")
         load_system_data!(system, data)
 
     elseif data_has_global_data(data)
-        # println("Expanding global data")
         load!(system, merge_global_data(data))
 
     # Check that data has only :type and :instance_data fields
@@ -57,12 +55,10 @@ function load!(system::System, data::AbstractDict{Symbol,Any})::Nothing
         end
 
     elseif data_is_filepath(data)
-        # println("Loading data from file")
         load!(system, data[:path])
 
     else
         for (key, value) in data
-            # println("Loading $key")
             load!(system, value)
         end
 
