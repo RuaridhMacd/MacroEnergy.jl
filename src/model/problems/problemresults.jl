@@ -95,12 +95,21 @@ end
 function populate_common_edge_results!(edge::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs})
     assign_result!(value -> edge.capacity = value, refs.capacity)
     assign_result!(value -> edge.new_units = value, refs.new_units)
-    assign_result!(value -> edge.new_capacity = value, refs.new_capacity)
+    assign_result!(value -> begin
+        edge.new_capacity = value
+        edge.new_capacity_track[period_index(edge)] = value
+    end, refs.new_capacity)
     assign_result!(value -> edge.retired_units = value, refs.retired_units)
-    assign_result!(value -> edge.retired_capacity = value, refs.retired_capacity)
+    assign_result!(value -> begin
+        edge.retired_capacity = value
+        edge.retired_capacity_track[period_index(edge)] = value
+    end, refs.retired_capacity)
     assign_result!(value -> edge.retrofitted_units = value, refs.retrofitted_units)
-    assign_result!(value -> edge.retrofitted_capacity = value, refs.retrofitted_capacity)
-    assign_result!(value -> edge.flow = value, refs.flow)
+    assign_result!(value -> begin
+        edge.retrofitted_capacity = value
+        edge.retrofitted_capacity_track[period_index(edge)] = value
+    end, refs.retrofitted_capacity)
+    assign_vector_result!(value -> edge.flow = value, refs.flow)
     return nothing
 end
 
@@ -135,9 +144,9 @@ end
 
 function populate_results!(edge::EdgeWithUC, refs::EdgeWithUCRefs)
     populate_common_edge_results!(edge, refs)
-    assign_result!(value -> edge.ucommit = value, refs.ucommit)
-    assign_result!(value -> edge.ustart = value, refs.ustart)
-    assign_result!(value -> edge.ushut = value, refs.ushut)
+    assign_vector_result!(value -> edge.ucommit = value, refs.ucommit)
+    assign_vector_result!(value -> edge.ustart = value, refs.ustart)
+    assign_vector_result!(value -> edge.ushut = value, refs.ushut)
     return nothing
 end
 

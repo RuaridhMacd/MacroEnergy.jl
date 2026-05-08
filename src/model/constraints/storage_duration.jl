@@ -33,6 +33,27 @@ function add_model_constraint!(ct::StorageMaxDurationConstraint, g::AbstractStor
     return nothing
 end
 
+function add_model_constraint!(
+    ct::StorageMaxDurationConstraint,
+    g::AbstractStorage,
+    refs::StorageRefs,
+    problem::AbstractProblem,
+)
+    e = discharge_edge(g)
+
+    if !has_capacity(e)
+        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring max duration constraint."
+    end
+
+    if max_duration(g) > 0 && has_capacity(e)
+        discharge_refs = discharge_edge_refs(refs, problem.refs)
+        ct.constraint_ref =
+            @constraint(model(problem), capacity(refs) <= max_duration(g) * capacity(discharge_refs))
+    end
+
+    return nothing
+end
+
 
 Base.@kwdef mutable struct StorageMinDurationConstraint <: PlanningConstraint
     value::Union{Missing,Vector{Float64}} = missing
@@ -64,6 +85,27 @@ function add_model_constraint!(ct::StorageMinDurationConstraint, g::AbstractStor
     if min_duration(g) > 0 && has_capacity(e)
         ct.constraint_ref =
             @constraint(model, capacity(g) >= min_duration(g) * capacity(e))
+    end
+
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::StorageMinDurationConstraint,
+    g::AbstractStorage,
+    refs::StorageRefs,
+    problem::AbstractProblem,
+)
+    e = discharge_edge(g)
+
+    if !has_capacity(e)
+        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring min duration constraint."
+    end
+
+    if min_duration(g) > 0 && has_capacity(e)
+        discharge_refs = discharge_edge_refs(refs, problem.refs)
+        ct.constraint_ref =
+            @constraint(model(problem), capacity(refs) >= min_duration(g) * capacity(discharge_refs))
     end
 
     return nothing

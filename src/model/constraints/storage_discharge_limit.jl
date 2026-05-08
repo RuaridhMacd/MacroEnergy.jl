@@ -37,7 +37,37 @@ function add_model_constraint!(ct::StorageDischargeLimitConstraint, e::AbstractE
     return nothing
 end
 
+function add_model_constraint!(
+    ct::StorageDischargeLimitConstraint,
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    problem::AbstractProblem,
+)
+    if isa(start_vertex(e), Storage)
+        storage_refs = get_component_refs(problem.refs, start_vertex_ref(refs))
+        jump_model = model(problem)
+        ct.constraint_ref = @constraint(
+            jump_model,
+            [t in time_interval(e)],
+            balance_data(e, start_vertex(e), :storage) * flow(refs, t) <=
+            storage_level(storage_refs, timestepbefore(t, 1, subperiods(e)))
+        )
+    end
+
+    return nothing
+end
+
 function add_model_constraint!(ct::StorageDischargeLimitConstraint, e::BidirectionalEdge, model::Model)
+    @warn "Storage discharge limit constraint is not applicable to bidirectional edges. No constraint added."
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::StorageDischargeLimitConstraint,
+    e::BidirectionalEdge,
+    refs::EdgeRefs,
+    problem::AbstractProblem,
+)
     @warn "Storage discharge limit constraint is not applicable to bidirectional edges. No constraint added."
     return nothing
 end

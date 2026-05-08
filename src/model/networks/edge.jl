@@ -10,14 +10,14 @@ macro AbstractEdgeBaseAttributes()
         can_expand::Bool = $edge_defaults[:can_expand]
         can_retire::Bool = $edge_defaults[:can_retire]
         can_retrofit::Bool = $edge_defaults[:can_retrofit]
-        capacity::Union{JuMPVariable,AffExpr,Float64} = AffExpr(0.0)
+        capacity::Float64 = 0.0
         capacity_size::Float64 = $edge_defaults[:capacity_size]
         capital_recovery_period::Int64 = $edge_defaults[:capital_recovery_period]
         constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
         distance::Float64 = $edge_defaults[:distance]
-        existing_capacity::Union{JuMPVariable,AffExpr,Float64,Int64} = $edge_defaults[:existing_capacity]
+        existing_capacity::Float64 = $edge_defaults[:existing_capacity]
         fixed_om_cost::Float64 = $edge_defaults[:fixed_om_cost]
-        flow::JuMPVariable = Vector{VariableRef}()
+        flow::Vector{Float64} = Float64[]
         has_capacity::Bool = $edge_defaults[:has_capacity]
         integer_decisions::Bool = $edge_defaults[:integer_decisions]
         investment_cost::Float64 = $edge_defaults[:investment_cost]
@@ -30,19 +30,19 @@ macro AbstractEdgeBaseAttributes()
         min_retired_capacity::Float64 = $edge_defaults[:min_retired_capacity]
         min_retired_capacity_track::Float64 = 0.0
         min_flow_fraction::Float64 = $edge_defaults[:min_flow_fraction]
-        new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
-        new_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        new_units::Union{JuMPVariable,Float64} = 0.0
+        new_capacity::Float64 = 0.0
+        new_capacity_track::Dict{Int64,Float64} = Dict(1 => 0.0)
+        new_units::Float64 = 0.0
         ramp_down_fraction::Float64 = $edge_defaults[:ramp_down_fraction]
         ramp_up_fraction::Float64 = $edge_defaults[:ramp_up_fraction]
-        retired_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
-        retired_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        retired_units::Union{JuMPVariable,Float64} = 0.0
+        retired_capacity::Float64 = 0.0
+        retired_capacity_track::Dict{Int64,Float64} = Dict(1 => 0.0)
+        retired_units::Float64 = 0.0
         retrofit_efficiency::Union{Missing,Float64} = $edge_defaults[:retrofit_efficiency]
         retrofit_id::Union{Missing, Vector{Symbol}} = $edge_defaults[:retrofit_id]
-        retrofitted_capacity::AffExpr = AffExpr(0.0)
-        retrofitted_capacity_track::Dict{Int64,AffExpr} = Dict(1 => AffExpr(0.0))
-        retrofitted_units::Union{JuMPVariable,Float64} = 0.0
+        retrofitted_capacity::Float64 = 0.0
+        retrofitted_capacity_track::Dict{Int64,Float64} = Dict(1 => 0.0)
+        retrofitted_units::Float64 = 0.0
         variable_om_cost::Float64 = $edge_defaults[:variable_om_cost]
         min_down_time::Int64 = $edge_defaults[:min_down_time]
         min_up_time::Int64 = $edge_defaults[:min_up_time]
@@ -76,13 +76,13 @@ abstract type EdgeWithoutUC{T} <: AbstractEdge{T} end
     - availability::Vector{Float64}: Time series of availability factors
     - can_expand::Bool: Whether edge capacity can be expanded
     - can_retire::Bool: Whether edge capacity can be retired
-    - capacity::Union{AffExpr,Float64}: Total available capacity
+    - capacity::Float64: Total available capacity
     - capacity_size::Float64: Size factor for resource cluster
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the edge
     - distance::Float64: Physical distance of the edge
     - existing_capacity::Float64: Initial installed capacity
     - fixed_om_cost::Float64: Fixed operation and maintenance costs
-    - flow::Union{JuMPVariable,Vector{Float64}}: Flow of commodity `T` through the edge at each timestep
+    - flow::Vector{Float64}: Flow of commodity `T` through the edge at each timestep
     - has_capacity::Bool: Whether the edge has capacity variables
     - integer_decisions::Bool: Whether capacity decisions must be integer
     - investment_cost::Float64: CAPEX per unit of new capacity
@@ -91,10 +91,10 @@ abstract type EdgeWithoutUC{T} <: AbstractEdge{T} end
     - min_capacity::Float64: Minimum required capacity
     - min_retired_capacity::Float64: Minimum capacity that must be retired in this period
     - min_flow_fraction::Float64: Minimum flow as fraction of capacity
-    - new_capacity::Union{JuMPVariable,Float64}: JuMP variable representing new capacity built
+    - new_capacity::Float64: New capacity built
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
-    - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
+    - retired_capacity::Float64: Capacity to be retired
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     Edges represent connections between vertices that allow commodities to flow between them. 
@@ -118,13 +118,13 @@ end
     - availability::Vector{Float64}: Time series of availability factors
     - can_expand::Bool: Whether edge capacity can be expanded
     - can_retire::Bool: Whether edge capacity can be retired
-    - capacity::Union{AffExpr,Float64}: Total available capacity
+    - capacity::Float64: Total available capacity
     - capacity_size::Float64: Size factor for resource cluster
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the edge
     - distance::Float64: Physical distance of the edge
     - existing_capacity::Float64: Initial installed capacity
     - fixed_om_cost::Float64: Fixed operation and maintenance costs
-    - flow::Union{JuMPVariable,Vector{Float64}}: Flow of commodity `T` through the edge at each timestep
+    - flow::Vector{Float64}: Flow of commodity `T` through the edge at each timestep
     - has_capacity::Bool: Whether the edge has capacity variables
     - integer_decisions::Bool: Whether capacity decisions must be integer
     - investment_cost::Float64: CAPEX per unit of new capacity
@@ -133,10 +133,10 @@ end
     - min_capacity::Float64: Minimum required capacity
     - min_retired_capacity::Float64: Minimum capacity that must be retired in this period
     - min_flow_fraction::Float64: Minimum flow as fraction of capacity
-    - new_capacity::Union{JuMPVariable,Float64}: JuMP variable representing new capacity built
+    - new_capacity::Float64: New capacity built
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
-    - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
+    - retired_capacity::Float64: Capacity to be retired
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     Edges represent connections between vertices that allow commodities to flow between them. 
@@ -367,37 +367,6 @@ pv_period_variable_om_cost(e::AbstractEdge) = e.pv_period_variable_om_cost;
 
 ##### End of Edge interface #####
 
-function _mirror_common_edge_refs!(e::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs})
-    if !isnothing(refs.capacity)
-        e.capacity = refs.capacity
-    end
-    if !isnothing(refs.new_units)
-        e.new_units = refs.new_units
-    end
-    if !isnothing(refs.new_capacity)
-        e.new_capacity = refs.new_capacity
-    end
-    if !isnothing(refs.retired_units)
-        e.retired_units = refs.retired_units
-    end
-    if !isnothing(refs.retired_capacity)
-        e.retired_capacity = refs.retired_capacity
-    end
-    if !isnothing(refs.retrofitted_units)
-        e.retrofitted_units = refs.retrofitted_units
-    end
-    if !isnothing(refs.retrofitted_capacity)
-        e.retrofitted_capacity = refs.retrofitted_capacity
-    end
-    if !isnothing(refs.flow)
-        e.flow = refs.flow
-    end
-    return nothing
-end
-
-mirror_edge_refs!(e::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs}) =
-    _mirror_common_edge_refs!(e, refs)
-
 function add_linking_variables!(e::AbstractEdge, model::Model)
 
     if has_capacity(e)
@@ -416,7 +385,6 @@ function add_linking_variables!(
 
     if has_capacity(e)
         refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(e))_period$(period_index(e))")
-        e.capacity = refs.capacity
     else
         refs.capacity = capacity(e)
     end
@@ -489,21 +457,11 @@ function define_available_capacity!(
 
         refs.retired_capacity = @expression(model, capacity_size(e) * refs.retired_units)
 
-        e.new_capacity_track[period_index(e)] = refs.new_capacity
-
-        e.retired_capacity_track[period_index(e)] = refs.retired_capacity
-
-        mirror_edge_refs!(e, refs)
-
         if can_retrofit(e)
 
             refs.retrofitted_units = @variable(model, lower_bound = 0.0, base_name = "vRETROFITUNIT_$(id(e))_period$(period_index(e))")
 
             refs.retrofitted_capacity = @expression(model, capacity_size(e) * refs.retrofitted_units)
-
-            e.retrofitted_capacity_track[period_index(e)] = refs.retrofitted_capacity
-
-            mirror_edge_refs!(e, refs)
 
             refs.constraints[:available_capacity] = @constraint(
                 model,
@@ -573,8 +531,6 @@ function planning_model!(
     model::Model,
 )
 
-    mirror_edge_refs!(e, refs)
-
     if has_capacity(e)
 
         if !can_expand(e)
@@ -610,7 +566,7 @@ function planning_model!(
 
     end
 
-    compute_fixed_costs!(e, model)
+    compute_fixed_costs!(e, refs, model)
 
     return nothing
 
@@ -636,6 +592,22 @@ function compute_investment_costs!(e::AbstractEdge, model::Model, cost_type::Fun
     end
 end
 
+function compute_investment_costs!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+    cost_type::Function=pv_period_investment_cost,
+)
+    if has_capacity(e) && can_expand(e)
+        add_to_expression!(
+            model[:eInvestmentFixedCost],
+            cost_type(e),
+            new_capacity(refs),
+        )
+    end
+    return nothing
+end
+
 function compute_om_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Function=pv_period_fixed_om_cost)
     if has_capacity(e)
         if fixed_om_cost(e) > 0
@@ -646,6 +618,22 @@ function compute_om_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Funct
             )
         end
     end
+end
+
+function compute_om_fixed_costs!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+    cost_type::Function=pv_period_fixed_om_cost,
+)
+    if has_capacity(e) && fixed_om_cost(e) > 0
+        add_to_expression!(
+            model[:eOMFixedCost],
+            cost_type(e),
+            capacity(refs),
+        )
+    end
+    return nothing
 end
 
 function compute_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Symbol=:PV)
@@ -665,18 +653,26 @@ function compute_fixed_costs!(e::AbstractEdge, model::Model, cost_type::Symbol=:
     compute_om_fixed_costs!(e, model, fom_cost_function[cost_type])
 end
 
-function add_operation_model_varcosts!(e::EdgeWithoutUC, model::Model)
-    for t in time_interval(e)
-        w = current_subperiod(e,t)
-        vom_cost = variable_om_cost(e)
-        if vom_cost > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * vom_cost,
-                flow(e, t),
-            )
-        end
+function compute_fixed_costs!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+    cost_type::Symbol=:PV,
+)
+    allowed_cost_types = [:PV, :CF]
+    if !(cost_type in allowed_cost_types)
+        error("Invalid cost type: $cost_type. Allowed types are: $(allowed_cost_types)")
     end
+    invesment_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_investment_cost,
+        :CF => cf_period_investment_cost
+    )
+    fom_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_fixed_om_cost,
+        :CF => cf_period_fixed_om_cost
+    )
+    compute_investment_costs!(e, refs, model, invesment_cost_function[cost_type])
+    compute_om_fixed_costs!(e, refs, model, fom_cost_function[cost_type])
 end
 
 function add_operation_model_varcosts!(
@@ -725,7 +721,6 @@ function operation_model!(
     m = model(problem)
     edge = edge_refs(refs)
     add_flow_variable!(e, edge, m)
-    mirror_edge_refs!(e, edge)
     update_balances!(problem, e, refs, m)
     add_operation_model_varcosts!(e, refs, m)
     return nothing
@@ -744,13 +739,13 @@ end
     - availability::Vector{Float64}: Time series of availability factors
     - can_expand::Bool: Whether edge capacity can be expanded
     - can_retire::Bool: Whether edge capacity can be retired
-    - capacity::Union{AffExpr,Float64}: Total available capacity
+    - capacity::Float64: Total available capacity
     - capacity_size::Float64: Size factor for resource cluster
     - constraints::Vector{AbstractTypeConstraint}: List of constraints applied to the edge
     - distance::Float64: Physical distance of the edge
     - existing_capacity::Float64: Initial installed capacity
     - fixed_om_cost::Float64: Fixed operation and maintenance costs
-    - flow::Union{JuMPVariable,Vector{Float64}}: Flow of commodity through the edge at each timestep
+    - flow::Vector{Float64}: Flow of commodity through the edge at each timestep
     - has_capacity::Bool: Whether the edge has capacity variables
     - integer_decisions::Bool: Whether capacity decisions must be integer
     - investment_cost::Float64: CAPEX per unit of new capacity
@@ -758,10 +753,10 @@ end
     - max_capacity::Float64: Maximum allowed capacity
     - min_capacity::Float64: Minimum required capacity
     - min_flow_fraction::Float64: Minimum flow as fraction of capacity
-    - new_capacity::Union{JuMPVariable,Float64}: JuMP variable representing new capacity built
+    - new_capacity::Float64: New capacity built
     - ramp_down_fraction::Float64: Maximum ramp-down rate as fraction of capacity
     - ramp_up_fraction::Float64: Maximum ramp-up rate as fraction of capacity
-    - ret_capacity::Union{JuMPVariable,Float64}: JuMP variable representing capacity to be retired
+    - retired_capacity::Float64: Capacity to be retired
     - variable_om_cost::Float64: Variable operation and maintenance costs per unit flow
 
     # Fields specific to EdgeWithUC
@@ -770,18 +765,18 @@ end
     - startup_cost::Float64: Cost incurred when starting up the unit
     - startup_fuel::Float64: Amount of fuel consumed during startup
     - startup_fuel_balance_id::Symbol: Identifier for the balance constraint tracking startup fuel
-    - ucommit::Union{JuMPVariable,Vector{Float64}}: Binary commitment state variables
-    - ushut::Union{JuMPVariable,Vector{Float64}}: Binary shutdown decision variables
-    - ustart::Union{JuMPVariable,Vector{Float64}}: Binary startup decision variables
+    - ucommit::Vector{Float64}: Binary commitment state values
+    - ushut::Vector{Float64}: Binary shutdown decision values
+    - ustart::Vector{Float64}: Binary startup decision values
 
     EdgeWithUC extends Edge to model units that have operational constraints related to their on/off status. It includes variables and parameters
     for tracking unit commitment decisions and associated costs/constraints.
 """
 Base.@kwdef mutable struct EdgeWithUC{T} <: AbstractEdge{T}
     @AbstractEdgeBaseAttributes()
-    ucommit::JuMPVariable = Vector{VariableRef}()
-    ushut::JuMPVariable = Vector{VariableRef}()
-    ustart::JuMPVariable = Vector{VariableRef}()
+    ucommit::Vector{Float64} = Float64[]
+    ushut::Vector{Float64} = Float64[]
+    ustart::Vector{Float64} = Float64[]
 end
 
 commodity_type(::Type{EdgeWithUC{T}}) where {T} = T
@@ -846,44 +841,6 @@ ushut(e::EdgeWithUC, t::Int64) = ushut(e)[t];
 ustart(e::EdgeWithUC) = e.ustart;
 ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 ##### End of EdgeWithUC interface #####
-
-function mirror_edge_refs!(e::EdgeWithUC, refs::EdgeWithUCRefs)
-    _mirror_common_edge_refs!(e, refs)
-    if !isnothing(refs.ucommit)
-        e.ucommit = refs.ucommit
-    end
-    if !isnothing(refs.ustart)
-        e.ustart = refs.ustart
-    end
-    if !isnothing(refs.ushut)
-        e.ushut = refs.ushut
-    end
-    return nothing
-end
-
-function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
-    for t in time_interval(e)
-
-        w = current_subperiod(e,t)
-        vom_cost = variable_om_cost(e)
-        if vom_cost > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * vom_cost,
-                flow(e, t),
-            )
-        end
-
-        if startup_cost(e) > 0
-            add_to_expression!(
-                model[:eVariableCost],
-                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
-                ustart(e, t),
-            )
-        end
-
-    end
-end
 
 function add_operation_model_varcosts!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
     for t in time_interval(e)
@@ -984,7 +941,6 @@ function operation_model!(
 )
     m = model(problem)
     add_operation_variables!(e, refs, m)
-    mirror_edge_refs!(e, refs)
     update_balances!(problem, e, refs, m)
     update_startup_fuel_balance!(problem, e, refs)
     add_operation_model_varcosts!(e, refs, m)

@@ -30,6 +30,26 @@ function add_model_constraint!(ct::CapacityConstraint, e::UnidirectionalEdge, mo
     return nothing
 end
 
+function add_model_constraint!(
+    ct::CapacityConstraint,
+    e::UnidirectionalEdge,
+    problem::AbstractProblem,
+)
+    refs = constraint_refs(get_component_refs(problem.refs, e))
+    jump_model = model(problem)
+
+    if has_capacity(e)
+        ct.constraint_ref = @constraint(
+            jump_model,
+            [t in time_interval(e)],
+            flow(refs, t) <= availability(e, t) * capacity(refs)
+        )
+    else
+       @warn "Trying to add CapacityConstraint to edge $(e.id) which has has_capacity=false. No constraint added."
+    end
+    return nothing
+end
+
 @doc raw"""
     add_model_constraint!(ct::CapacityConstraint, e::BidirectionalEdge, model::Model)
 
@@ -49,6 +69,26 @@ function add_model_constraint!(ct::CapacityConstraint, e::BidirectionalEdge, mod
             model,
             [i in [-1, 1], t in time_interval(e)],
             i * flow(e, t) <= availability(e, t) * capacity(e)
+        )
+    else
+       @warn "Trying to add CapacityConstraint to edge $(e.id) which has has_capacity=false. No constraint added."
+    end
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::CapacityConstraint,
+    e::BidirectionalEdge,
+    problem::AbstractProblem,
+)
+    refs = constraint_refs(get_component_refs(problem.refs, e))
+    jump_model = model(problem)
+
+    if has_capacity(e)
+        ct.constraint_ref = @constraint(
+            jump_model,
+            [i in [-1, 1], t in time_interval(e)],
+            i * flow(refs, t) <= availability(e, t) * capacity(refs)
         )
     else
        @warn "Trying to add CapacityConstraint to edge $(e.id) which has has_capacity=false. No constraint added."
@@ -86,4 +126,21 @@ function add_model_constraint!(ct::CapacityConstraint, e::EdgeWithUC, model::Mod
 
     return nothing
 
+end
+
+function add_model_constraint!(
+    ct::CapacityConstraint,
+    e::EdgeWithUC,
+    problem::AbstractProblem,
+)
+    refs = constraint_refs(get_component_refs(problem.refs, e))
+    jump_model = model(problem)
+
+    ct.constraint_ref = @constraint(
+        jump_model,
+        [t in time_interval(e)],
+        flow(refs, t) <= availability(e, t) * capacity_size(e) * ucommit(refs, t)
+    )
+
+    return nothing
 end

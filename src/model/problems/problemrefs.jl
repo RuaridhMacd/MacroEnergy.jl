@@ -67,6 +67,9 @@ end
 
 Base.@kwdef mutable struct StorageRefs
     component_index::Int
+    charge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
+    discharge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
+    spillage_edge_ref::Union{Nothing,ComponentRefKey} = nothing
     capacity::Any = nothing
     new_units::Any = nothing
     new_capacity::Any = nothing
@@ -87,6 +90,7 @@ Base.@kwdef mutable struct ProblemRefs
     transformations::Dict{Int,TransformationRefs} = Dict{Int,TransformationRefs}()
     storages::Dict{Int,StorageRefs} = Dict{Int,StorageRefs}()
     long_duration_storages::Dict{Int,StorageRefs} = Dict{Int,StorageRefs}()
+    component_keys::Dict{Tuple{Symbol,Symbol},ComponentRefKey} = Dict{Tuple{Symbol,Symbol},ComponentRefKey}()
 end
 
 function ProblemRefs(spec)
@@ -111,7 +115,15 @@ function ProblemRefs(spec)
 end
 
 function component_ref_key(system, component)
-    for field in (:nodes, :transformations, :storages, :long_duration_storages)
+    for field in (
+        :nodes,
+        :transformations,
+        :storages,
+        :long_duration_storages,
+        :unidirectional_edges,
+        :bidirectional_edges,
+        :unit_commitment_edges,
+    )
         components = getproperty(system, field)
         idx = findfirst(candidate -> candidate === component, components)
         if !isnothing(idx)
@@ -122,8 +134,30 @@ function component_ref_key(system, component)
     error("Component $(id(component)) is not present in the StaticSystem")
 end
 
+component_id_key(component) = (component_ref_field(component), id(component))
+
+function set_component_ref_key!(refs::ProblemRefs, component, key::ComponentRefKey)
+    refs.component_keys[component_id_key(component)] = key
+    return nothing
+end
+
+function component_ref_key(refs::ProblemRefs, component)
+    key = get(refs.component_keys, component_id_key(component), nothing)
+    isnothing(key) && error("Component $(id(component)) is not included in this Problem")
+    return key
+end
+
+function maybe_component_ref_key(system, component)
+    isnothing(component) && return nothing
+    return component_ref_key(system, component)
+end
+
 function get_component_refs(refs::ProblemRefs, key::ComponentRefKey)
     return getproperty(refs, key.field)[key.index]
+end
+
+function get_component_refs(refs::ProblemRefs, component)
+    return get_component_refs(refs, component_ref_key(refs, component))
 end
 
 function has_component_ref(refs::ProblemRefs, key::ComponentRefKey)
@@ -144,8 +178,48 @@ function validate_edge_endpoint_refs!(refs::Union{EdgeRefs,EdgeWithUCRefs}, prob
     return nothing
 end
 
+function set_storage_edge_refs!(refs::StorageRefs, system, storage)
+    refs.charge_edge_ref = maybe_component_ref_key(system, charge_edge(storage))
+    refs.discharge_edge_ref = maybe_component_ref_key(system, discharge_edge(storage))
+    refs.spillage_edge_ref = maybe_component_ref_key(system, spillage_edge(storage))
+    return nothing
+end
+
+function validate_storage_edge_ref!(problem_refs::ProblemRefs, key, storage, edge_role::Symbol)
+    isnothing(key) && return nothing
+    has_component_ref(problem_refs, key) ||
+        error("$(edge_role) edge for storage $(id(storage)) is not included in this Problem")
+    return nothing
+end
+
+function validate_storage_edge_refs!(refs::StorageRefs, problem_refs::ProblemRefs, storage)
+    validate_storage_edge_ref!(problem_refs, refs.charge_edge_ref, storage, :charge)
+    validate_storage_edge_ref!(problem_refs, refs.discharge_edge_ref, storage, :discharge)
+    validate_storage_edge_ref!(problem_refs, refs.spillage_edge_ref, storage, :spillage)
+    return nothing
+end
+
 function ProblemRefs(system, spec)
     refs = ProblemRefs(spec)
+
+    for (component_field, spec_field) in (
+        (:nodes, :node_indices),
+        (:transformations, :transformation_indices),
+        (:storages, :storage_indices),
+        (:long_duration_storages, :long_duration_storage_indices),
+        (:unidirectional_edges, :unidirectional_edge_indices),
+        (:bidirectional_edges, :bidirectional_edge_indices),
+        (:unit_commitment_edges, :unit_commitment_edge_indices),
+    )
+        components = getproperty(system, component_field)
+        for idx in getproperty(spec, spec_field)
+            set_component_ref_key!(
+                refs,
+                components[idx],
+                ComponentRefKey(field = component_field, index = idx),
+            )
+        end
+    end
 
     for (component_field, spec_field) in (
         (:unidirectional_edges, :unidirectional_edge_indices),
@@ -163,6 +237,21 @@ function ProblemRefs(system, spec)
         end
     end
 
+    for (component_field, spec_field) in (
+        (:storages, :storage_indices),
+        (:long_duration_storages, :long_duration_storage_indices),
+    )
+        storages = getproperty(system, component_field)
+        refs_by_idx = getproperty(refs, component_field)
+
+        for idx in getproperty(spec, spec_field)
+            storage = storages[idx]
+            storage_refs = refs_by_idx[idx]
+            set_storage_edge_refs!(storage_refs, system, storage)
+            validate_storage_edge_refs!(storage_refs, refs, storage)
+        end
+    end
+
     return refs
 end
 
@@ -172,9 +261,11 @@ edge_refs(refs::EdgeWithUCRefs) = refs
 
 start_vertex_ref(refs::UnidirectionalEdgeRefs) = refs.edge.start_vertex_ref
 start_vertex_ref(refs::BidirectionalEdgeRefs) = refs.edge.start_vertex_ref
+start_vertex_ref(refs::EdgeRefs) = refs.start_vertex_ref
 start_vertex_ref(refs::EdgeWithUCRefs) = refs.start_vertex_ref
 end_vertex_ref(refs::UnidirectionalEdgeRefs) = refs.edge.end_vertex_ref
 end_vertex_ref(refs::BidirectionalEdgeRefs) = refs.edge.end_vertex_ref
+end_vertex_ref(refs::EdgeRefs) = refs.end_vertex_ref
 end_vertex_ref(refs::EdgeWithUCRefs) = refs.end_vertex_ref
 
 capacity(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.capacity
@@ -204,6 +295,13 @@ storage_initial(refs::StorageRefs) = refs.storage_initial
 storage_initial(refs::StorageRefs, r::Int64) = refs.storage_initial[r]
 storage_change(refs::StorageRefs) = refs.storage_change
 storage_change(refs::StorageRefs, w::Int64) = refs.storage_change[w]
+
+charge_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
+    edge_refs(get_component_refs(problem_refs, refs.charge_edge_ref))
+discharge_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
+    edge_refs(get_component_refs(problem_refs, refs.discharge_edge_ref))
+spillage_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
+    edge_refs(get_component_refs(problem_refs, refs.spillage_edge_ref))
 
 get_balance(refs::Union{NodeRefs,TransformationRefs,StorageRefs}, i::Symbol) =
     refs.expressions[i]

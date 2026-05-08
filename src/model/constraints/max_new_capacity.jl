@@ -12,3 +12,13 @@ function add_model_constraint!(ct::MaxNewCapacityConstraint, y::Union{AbstractEd
     return nothing
 
 end
+
+function add_model_constraint!(
+    ct::MaxNewCapacityConstraint,
+    y::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+)
+    ct.constraint_ref = @constraint(model, new_capacity(refs) <= max_new_capacity(y))
+    return nothing
+end

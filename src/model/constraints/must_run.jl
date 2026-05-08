@@ -31,8 +31,41 @@ function add_model_constraint!(ct::MustRunConstraint, e::AbstractEdge, model::Mo
     end
 end
 
+function add_model_constraint!(
+    ct::MustRunConstraint,
+    e::UnidirectionalEdge,
+    refs::EdgeRefs,
+    model::Model,
+)
+    if has_capacity(e)
+        ct.constraint_ref = @constraint(
+            model,
+            [t in time_interval(e)],
+            flow(refs, t) == availability(e, t) * capacity(refs)
+        )
+    else
+        @warn "MustRunConstraint required for an edge that is not unidirectional or does not have capacity, so Macro will not create this constraint"
+    end
+end
+
+function add_model_constraint!(
+    ct::MustRunConstraint,
+    e::EdgeWithUC,
+    refs::EdgeWithUCRefs,
+    model::Model,
+)
+    if has_capacity(e)
+        ct.constraint_ref = @constraint(
+            model,
+            [t in time_interval(e)],
+            flow(refs, t) == availability(e, t) * capacity_size(e) * ucommit(refs, t)
+        )
+    else
+        @warn "MustRunConstraint required for an edge that is not unidirectional or does not have capacity, so Macro will not create this constraint"
+    end
+end
+
 function add_model_constraint!(ct::MustRunConstraint, e::BidirectionalEdge, model::Model)
     error("MustRunConstraint is not supported for bidirectional edges. Please use unidirectional edges for this constraint.")
     return nothing
 end
-

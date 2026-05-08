@@ -330,6 +330,14 @@ constraint_refs(refs) = refs
 constraint_refs(refs::UnidirectionalEdgeRefs) = refs.edge
 constraint_refs(refs::BidirectionalEdgeRefs) = refs.edge
 
+component_ref_field(::Node) = :nodes
+component_ref_field(::Transformation) = :transformations
+component_ref_field(::Storage) = :storages
+component_ref_field(::LongDurationStorage) = :long_duration_storages
+component_ref_field(::UnidirectionalEdge) = :unidirectional_edges
+component_ref_field(::BidirectionalEdge) = :bidirectional_edges
+component_ref_field(::EdgeWithUC) = :unit_commitment_edges
+
 function planning_model!(system::StaticSystem, problem::Problem)
     model = problem.model
 
@@ -391,10 +399,8 @@ function add_constraints_by_type!(
     problem::Problem,
     constraint_type::DataType,
 )
-    model = problem.model
-
     foreach_problem_component!(system, problem) do component, refs
-        add_constraints_by_type!(component, constraint_refs(refs), model, constraint_type)
+        add_constraints_by_type!(component, problem, constraint_type)
     end
 
     return nothing
@@ -402,15 +408,41 @@ end
 
 function add_constraints_by_type!(
     y::Union{AbstractEdge,AbstractVertex},
-    refs,
-    model::Model,
+    problem::AbstractProblem,
     constraint_type::DataType,
 )
+    refs = constraint_refs(get_component_refs(problem.refs, y))
+
     for c in all_constraints(y)
         if isa(c, constraint_type)
-            Base.invokelatest(add_model_constraint!, c, y, refs, model)
+            Base.invokelatest(add_model_constraint!, c, y, problem)
+            ref = constraint_ref(c)
+            if !ismissing(ref)
+                refs.constraints[typeof(c)] = ref
+            end
         end
     end
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::AbstractTypeConstraint,
+    y::Union{AbstractEdge,AbstractVertex},
+    problem::AbstractProblem,
+)
+    refs = constraint_refs(get_component_refs(problem.refs, y))
+    Base.invokelatest(add_model_constraint!, ct, y, refs, problem)
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::AbstractTypeConstraint,
+    y::Union{AbstractEdge,AbstractVertex},
+    refs,
+    problem::AbstractProblem,
+)
+    jump_model = model(problem)
+    Base.invokelatest(add_model_constraint!, ct, y, refs, jump_model)
     return nothing
 end
 

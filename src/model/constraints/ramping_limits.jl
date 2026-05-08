@@ -62,6 +62,47 @@ function add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithoutUC, mod
     return nothing
 end
 
+function add_model_constraint!(
+    ct::RampingLimitConstraint,
+    e::EdgeWithoutUC,
+    refs::EdgeRefs,
+    model::Model,
+)
+    if !has_capacity(e)
+        @warn "Edge $(id(e)) does not have capacity. Ignoring ramping limit constraint."
+        return nothing
+    end
+
+    reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+    regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+
+    eRampUp = @expression(
+        model,
+        [t in time_interval(e)],
+        flow(refs, t) - flow(refs, timestepbefore(t, 1, subperiods(e))) +
+        regulation_term[t] +
+        reserves_term[t] - ramp_up_fraction(e) * capacity(refs)
+    )
+
+    eRampDown = @expression(
+        model,
+        [t in time_interval(e)],
+        flow(refs, timestepbefore(t, 1, subperiods(e))) - flow(refs, t) - regulation_term[t] +
+        reserves_term[timestepbefore(t, 1, subperiods(e))] -
+        ramp_down_fraction(e) * capacity(refs)
+    )
+
+    ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
+
+    ct.constraint_ref = @constraint(
+        model,
+        [s in [:RampUp, :RampDown], t in time_interval(e)],
+        ramp_expr_dict[s][t] <= 0
+    )
+
+    return nothing
+end
+
 @doc raw"""
     add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithUC, model::Model)
 
@@ -112,6 +153,51 @@ function add_model_constraint!(ct::RampingLimitConstraint, e::EdgeWithUC, model:
             min(availability(e, t), max(min_flow_fraction(e), ramp_down_fraction(e))) *
             capacity_size(e) *
             ushut(e, t)
+        )
+    )
+
+    ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
+
+    ct.constraint_ref = @constraint(
+        model,
+        [s in [:RampUp, :RampDown], t in time_interval(e)],
+        ramp_expr_dict[s][t] <= 0
+    )
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::RampingLimitConstraint,
+    e::EdgeWithUC,
+    refs::EdgeWithUCRefs,
+    model::Model,
+)
+    reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+    regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
+
+    eRampUp = @expression(
+        model,
+        [t in time_interval(e)],
+        flow(refs, t) - flow(refs, timestepbefore(t, 1, subperiods(e))) +
+        regulation_term[t] +
+        reserves_term[t] - (
+            ramp_up_fraction(e) * capacity_size(e) * (ucommit(refs, t) - ustart(refs, t)) +
+            min(availability(e, t), max(min_flow_fraction(e), ramp_up_fraction(e))) *
+            capacity_size(e) *
+            ustart(refs, t) - min_flow_fraction(e) * capacity_size(e) * ushut(refs, t)
+        )
+    )
+
+    eRampDown = @expression(
+        model,
+        [t in time_interval(e)],
+        flow(refs, timestepbefore(t, 1, subperiods(e))) - flow(refs, t) - regulation_term[t] +
+        reserves_term[timestepbefore(t, 1, subperiods(e))] - (
+            ramp_down_fraction(e) * capacity_size(e) * (ucommit(refs, t) - ustart(refs, t)) -
+            min_flow_fraction(e) * capacity_size(e) * ustart(refs, t) +
+            min(availability(e, t), max(min_flow_fraction(e), ramp_down_fraction(e))) *
+            capacity_size(e) *
+            ushut(refs, t)
         )
     )
 

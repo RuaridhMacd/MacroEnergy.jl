@@ -43,3 +43,28 @@ function add_model_constraint!(
 
     return nothing
 end
+
+function add_model_constraint!(
+    ct::StorageSymmetricCapacityConstraint,
+    g::AbstractStorage,
+    refs::StorageRefs,
+    problem::AbstractProblem,
+)
+    e_discharge = g.discharge_edge
+
+    if !has_capacity(e_discharge)
+        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring symmetric capacity constraint."
+        return nothing
+    end
+
+    discharge_refs = discharge_edge_refs(refs, problem.refs)
+    charge_refs = charge_edge_refs(refs, problem.refs)
+    jump_model = model(problem)
+    ct.constraint_ref = @constraint(
+        jump_model,
+        [t in time_interval(g)],
+        flow(discharge_refs, t) + flow(charge_refs, t) <= capacity(discharge_refs)
+    )
+
+    return nothing
+end

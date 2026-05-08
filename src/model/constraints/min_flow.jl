@@ -30,6 +30,23 @@ function add_model_constraint!(ct::MinFlowConstraint, e::UnidirectionalEdge, mod
     end
 end
 
+function add_model_constraint!(
+    ct::MinFlowConstraint,
+    e::UnidirectionalEdge,
+    refs::EdgeRefs,
+    model::Model,
+)
+    if has_capacity(e)
+        ct.constraint_ref = @constraint(
+            model,
+            [t in time_interval(e)],
+            flow(refs, t) >= min_flow_fraction(e) * capacity(refs)
+        )
+    else
+        warning("Min flow constraints are available only for unidirectional edges with capacity")
+    end
+end
+
 function add_model_constraint!(ct::MinFlowConstraint, e::BidirectionalEdge, model::Model)
     error("MinFlowConstraint is not supported for bidirectional edges. Please use unidirectional edges for this constraint.")
     return nothing
@@ -54,6 +71,20 @@ function add_model_constraint!(ct::MinFlowConstraint, e::EdgeWithUC, model::Mode
         model,
         [t in time_interval(e)],
         flow(e, t) >= min_flow_fraction(e) * capacity_size(e) * ucommit(e, t)
+    )
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::MinFlowConstraint,
+    e::EdgeWithUC,
+    refs::EdgeWithUCRefs,
+    model::Model,
+)
+    ct.constraint_ref = @constraint(
+        model,
+        [t in time_interval(e)],
+        flow(refs, t) >= min_flow_fraction(e) * capacity_size(e) * ucommit(refs, t)
     )
     return nothing
 end
