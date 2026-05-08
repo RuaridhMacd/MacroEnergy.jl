@@ -209,6 +209,38 @@ function add_linking_variables!(g::Storage, model::Model)
     end
 end
 
+function mirror_storage_refs!(g::AbstractStorage, refs::StorageRefs)
+    if !isnothing(refs.capacity)
+        g.capacity = refs.capacity
+    end
+    if !isnothing(refs.new_units)
+        g.new_units = refs.new_units
+    end
+    if !isnothing(refs.new_capacity)
+        g.new_capacity = refs.new_capacity
+    end
+    if !isnothing(refs.retired_units)
+        g.retired_units = refs.retired_units
+    end
+    if !isnothing(refs.retired_capacity)
+        g.retired_capacity = refs.retired_capacity
+    end
+    if !isnothing(refs.storage_level)
+        g.storage_level = refs.storage_level
+    end
+    return nothing
+end
+
+function add_linking_variables!(g::Storage, refs::StorageRefs, model::Model)
+    if has_capacity(g)
+        refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
+        g.capacity = refs.capacity
+    else
+        refs.capacity = capacity(g)
+    end
+    return nothing
+end
+
 function define_available_capacity!(g::AbstractStorage, model::Model)
 
     if has_capacity(g)
@@ -233,6 +265,31 @@ function define_available_capacity!(g::AbstractStorage, model::Model)
     end
 end
 
+function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model::Model)
+
+    if has_capacity(g)
+        refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))")
+
+        refs.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(g))_period$(period_index(g))")
+
+        refs.new_capacity = @expression(model, capacity_size(g) * refs.new_units)
+
+        refs.retired_capacity = @expression(model, capacity_size(g) * refs.retired_units)
+
+        g.new_capacity_track[period_index(g)] = refs.new_capacity
+
+        g.retired_capacity_track[period_index(g)] = refs.retired_capacity
+
+        mirror_storage_refs!(g, refs)
+
+        refs.constraints[:available_capacity] = @constraint(
+            model,
+            capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(g)
+        )
+    end
+    return nothing
+end
+
 function planning_model!(g::Storage, model::Model)
 
     if !g.can_expand
@@ -247,6 +304,25 @@ function planning_model!(g::Storage, model::Model)
 
     @constraint(model, retired_capacity(g) <= existing_capacity(g))
 
+end
+
+function planning_model!(g::Storage, refs::StorageRefs, model::Model)
+
+    mirror_storage_refs!(g, refs)
+
+    if !g.can_expand
+        fix(new_units(refs), 0.0; force = true)
+    end
+
+    if !g.can_retire
+        fix(retired_units(refs), 0.0; force = true)
+    end
+
+    compute_fixed_costs!(g, model)
+
+    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
+
+    return nothing
 end
 
 function operation_model!(g::Storage, model::Model)
@@ -278,6 +354,41 @@ function operation_model!(g::Storage, model::Model)
         error("A storage vertex requires to have a balance named :storage")
     end
 
+end
+
+function operation_model!(g::Storage, refs::StorageRefs, model::Model)
+
+    g.operation_expr = refs.expressions
+
+    refs.storage_level = @variable(
+        model,
+        [t in time_interval(g)],
+        lower_bound = 0.0,
+        base_name = "vSTOR_$(g.id)_period$(period_index(g))"
+    )
+    g.storage_level = refs.storage_level
+
+    if :storage ∈ balance_ids(g)
+
+        for i in balance_ids(g)
+            if i == :storage
+                refs.expressions[:storage] = @expression(
+                    model,
+                    [t in time_interval(g)],
+                    -storage_level(refs, t) +
+                    (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
+                    storage_level(refs, timestepbefore(t, 1, subperiods(g)))
+                )
+            else
+                refs.expressions[i] =
+                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
+            end
+        end
+    else
+        error("A storage vertex requires to have a balance named :storage")
+    end
+
+    return nothing
 end
 
 Base.@kwdef mutable struct LongDurationStorage{T} <: AbstractStorage{T}
@@ -334,6 +445,31 @@ function add_linking_variables!(g::LongDurationStorage, model::Model)
 
 end
 
+function mirror_storage_refs!(g::LongDurationStorage, refs::StorageRefs)
+    invoke(mirror_storage_refs!, Tuple{AbstractStorage,StorageRefs}, g, refs)
+    if !isnothing(refs.storage_initial)
+        g.storage_initial = refs.storage_initial
+    end
+    if !isnothing(refs.storage_change)
+        g.storage_change = refs.storage_change
+    end
+    return nothing
+end
+
+function add_linking_variables!(g::LongDurationStorage, refs::StorageRefs, model::Model)
+
+    refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
+
+    refs.storage_initial =
+    @variable(model, [r in modeled_subperiods(g)], lower_bound = 0.0, base_name = "vSTOR_INIT_$(g.id)_period$(period_index(g))")
+
+    refs.storage_change =
+    @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))")
+
+    mirror_storage_refs!(g, refs)
+
+    return nothing
+end
 
 function planning_model!(g::LongDurationStorage, model::Model)
 
@@ -362,6 +498,35 @@ function planning_model!(g::LongDurationStorage, model::Model)
 
 end
 
+function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model)
+
+    mirror_storage_refs!(g, refs)
+
+    if !g.can_expand
+        fix(new_units(refs), 0.0; force = true)
+    end
+
+    if !g.can_retire
+        fix(retired_units(refs), 0.0; force = true)
+    end
+
+    compute_fixed_costs!(g, model)
+
+    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
+
+    MODELED_SUBPERIODS = modeled_subperiods(g)
+    NPeriods = length(MODELED_SUBPERIODS);
+
+    refs.constraints[:storage_initial_capacity] = @constraint(model,[r in MODELED_SUBPERIODS],
+        storage_initial(refs, r) <= capacity(refs)
+    )
+
+    refs.constraints[:storage_initial_transition] = @constraint(model, [r in MODELED_SUBPERIODS],
+        storage_initial(refs, mod1(r + 1, NPeriods)) == storage_initial(refs, r) + storage_change(refs, subperiod_map(g,r))
+    )
+
+    return nothing
+end
 
 function operation_model!(g::LongDurationStorage, model::Model)
 
@@ -410,6 +575,53 @@ function operation_model!(g::LongDurationStorage, model::Model)
     #     storage_initial(g, w) ==  storage_level(g,subperiod_end[w]) - storage_change(g, w)
     # )
 
+end
+
+function operation_model!(g::LongDurationStorage, refs::StorageRefs, model::Model)
+
+    g.operation_expr = refs.expressions
+
+    refs.storage_level = @variable(
+        model,
+        [t in time_interval(g)],
+        lower_bound = 0.0,
+        base_name = "vSTOR_$(g.id)_period$(period_index(g))"
+    )
+    mirror_storage_refs!(g, refs)
+
+    if :storage ∈ balance_ids(g)
+
+        for i in balance_ids(g)
+            if i == :storage
+                STARTS = [first(sp) for sp in subperiods(g)];
+                refs.expressions[:storage] = @expression(
+                    model,
+                    [t in time_interval(g)],
+                    if t ∈ STARTS
+                        -storage_level(refs, t) +
+                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
+                        (storage_level(refs, timestepbefore(t, 1, subperiods(g))) - storage_change(refs, current_subperiod(g,t)))
+                    else
+                        -storage_level(refs, t) +
+                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
+                        storage_level(refs, timestepbefore(t, 1, subperiods(g)))
+                    end
+                )
+            else
+                refs.expressions[i] =
+                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
+            end
+        end
+    else
+        error("A storage vertex requires to have a balance named :storage")
+    end
+
+    newcon = LongDurationStorageChangeConstraint();
+    add_model_constraint!(newcon, g, model)
+    refs.constraints[LongDurationStorageChangeConstraint] = constraint_ref(newcon)
+    push!(g.constraints, newcon)
+
+    return nothing
 end
 
 function compute_investment_costs!(g::AbstractStorage, model::Model, cost_type::Function=pv_period_investment_cost)

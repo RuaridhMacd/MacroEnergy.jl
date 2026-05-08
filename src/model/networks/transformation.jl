@@ -23,12 +23,24 @@ function add_linking_variables!(g::Transformation, model::Model)
     return nothing
 end
 
+function add_linking_variables!(::Transformation, ::TransformationRefs, ::Model)
+    return nothing
+end
+
 function planning_model!(g::Transformation, model::Model)
 
     return nothing
 end
 
+function planning_model!(::Transformation, ::TransformationRefs, ::Model)
+    return nothing
+end
+
 function define_available_capacity!(g::Transformation, model::Model)
+    return nothing
+end
+
+function define_available_capacity!(::Transformation, ::TransformationRefs, ::Model)
     return nothing
 end
 
@@ -40,4 +52,9 @@ function operation_model!(g::Transformation, model::Model)
         end
     end
     return nothing
+end
+
+function operation_model!(g::Transformation, refs::TransformationRefs, model::Model)
+    g.operation_expr = refs.expressions
+    return operation_model!(g, model)
 end

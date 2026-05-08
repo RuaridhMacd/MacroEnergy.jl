@@ -256,6 +256,43 @@ function planning_model!(system::System, model::Model)
 
 end
 
+const PROBLEM_COMPONENT_FIELD_PAIRS = (
+    (:nodes, :node_indices),
+    (:transformations, :transformation_indices),
+    (:storages, :storage_indices),
+    (:long_duration_storages, :long_duration_storage_indices),
+    (:unidirectional_edges, :unidirectional_edge_indices),
+    (:bidirectional_edges, :bidirectional_edge_indices),
+    (:unit_commitment_edges, :unit_commitment_edge_indices),
+)
+
+function foreach_problem_component!(f::F, problem::Problem, system::StaticSystem) where {F}
+    for (component_field, spec_field) in PROBLEM_COMPONENT_FIELD_PAIRS
+        components = getproperty(system, component_field)
+        refs_by_idx = getproperty(problem.refs, component_field)
+
+        for idx in getproperty(problem.spec, spec_field)
+            f(components[idx], refs_by_idx[idx])
+        end
+    end
+    return nothing
+end
+
+constraint_refs(refs) = refs
+constraint_refs(refs::UnidirectionalEdgeRefs) = refs.edge
+constraint_refs(refs::BidirectionalEdgeRefs) = refs.edge
+
+function planning_model!(problem::Problem, system::StaticSystem)
+    model = problem.model
+
+    foreach_problem_component!(problem, system) do component, refs
+        planning_model!(component, refs, model)
+    end
+
+    add_constraints_by_type!(problem, system, PlanningConstraint)
+    return nothing
+end
+
 
 function operation_model!(system::System, model::Model)
 
@@ -265,6 +302,17 @@ function operation_model!(system::System, model::Model)
 
     add_constraints_by_type!(system, model, OperationConstraint)
 
+end
+
+function operation_model!(problem::Problem, system::StaticSystem)
+    model = problem.model
+
+    foreach_problem_component!(problem, system) do component, refs
+        operation_model!(component, refs, model)
+    end
+
+    add_constraints_by_type!(problem, system, OperationConstraint)
+    return nothing
 end
 
 function planning_model!(a::AbstractAsset, model::Model)
@@ -287,6 +335,55 @@ function add_linking_variables!(system::System, model::Model)
 
     add_linking_variables!.(system.assets, model)
 
+end
+
+function add_linking_variables!(problem::Problem, system::StaticSystem)
+    model = problem.model
+
+    foreach_problem_component!(problem, system) do component, refs
+        add_linking_variables!(component, refs, model)
+    end
+
+    return nothing
+end
+
+function define_available_capacity!(problem::Problem, system::StaticSystem)
+    model = problem.model
+
+    foreach_problem_component!(problem, system) do component, refs
+        define_available_capacity!(component, refs, model)
+    end
+
+    return nothing
+end
+
+function add_constraints_by_type!(
+    problem::Problem,
+    system::StaticSystem,
+    constraint_type::DataType,
+)
+    model = problem.model
+
+    foreach_problem_component!(problem, system) do component, refs
+        add_constraints_by_type!(component, constraint_refs(refs), model, constraint_type)
+    end
+
+    return nothing
+end
+
+function add_constraints_by_type!(
+    y::Union{AbstractEdge,AbstractVertex},
+    refs,
+    model::Model,
+    constraint_type::DataType,
+)
+    for c in all_constraints(y)
+        if isa(c, constraint_type)
+            Base.invokelatest(add_model_constraint!, c, y, model)
+            refs.constraints[typeof(c)] = constraint_ref(c)
+        end
+    end
+    return nothing
 end
 
 function add_linking_variables!(a::AbstractAsset, model::Model)

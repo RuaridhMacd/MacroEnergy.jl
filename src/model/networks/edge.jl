@@ -367,6 +367,37 @@ pv_period_variable_om_cost(e::AbstractEdge) = e.pv_period_variable_om_cost;
 
 ##### End of Edge interface #####
 
+function _mirror_common_edge_refs!(e::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs})
+    if !isnothing(refs.capacity)
+        e.capacity = refs.capacity
+    end
+    if !isnothing(refs.new_units)
+        e.new_units = refs.new_units
+    end
+    if !isnothing(refs.new_capacity)
+        e.new_capacity = refs.new_capacity
+    end
+    if !isnothing(refs.retired_units)
+        e.retired_units = refs.retired_units
+    end
+    if !isnothing(refs.retired_capacity)
+        e.retired_capacity = refs.retired_capacity
+    end
+    if !isnothing(refs.retrofitted_units)
+        e.retrofitted_units = refs.retrofitted_units
+    end
+    if !isnothing(refs.retrofitted_capacity)
+        e.retrofitted_capacity = refs.retrofitted_capacity
+    end
+    if !isnothing(refs.flow)
+        e.flow = refs.flow
+    end
+    return nothing
+end
+
+mirror_edge_refs!(e::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs}) =
+    _mirror_common_edge_refs!(e, refs)
+
 function add_linking_variables!(e::AbstractEdge, model::Model)
 
     if has_capacity(e)
@@ -375,6 +406,31 @@ function add_linking_variables!(e::AbstractEdge, model::Model)
 
     return nothing
 
+end
+
+function add_linking_variables!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+)
+
+    if has_capacity(e)
+        refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(e))_period$(period_index(e))")
+        e.capacity = refs.capacity
+    else
+        refs.capacity = capacity(e)
+    end
+
+    return nothing
+
+end
+
+function add_linking_variables!(e::UnidirectionalEdge, refs::UnidirectionalEdgeRefs, model::Model)
+    return add_linking_variables!(e, refs.edge, model)
+end
+
+function add_linking_variables!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    return add_linking_variables!(e, refs.edge, model)
 end
 
 function define_available_capacity!(e::AbstractEdge, model::Model)
@@ -417,6 +473,63 @@ function define_available_capacity!(e::AbstractEdge, model::Model)
 
 end
 
+function define_available_capacity!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+)
+
+    if has_capacity(e)
+
+        refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(e))_period$(period_index(e))")
+
+        refs.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(e))_period$(period_index(e))")
+
+        refs.new_capacity = @expression(model, capacity_size(e) * refs.new_units)
+
+        refs.retired_capacity = @expression(model, capacity_size(e) * refs.retired_units)
+
+        e.new_capacity_track[period_index(e)] = refs.new_capacity
+
+        e.retired_capacity_track[period_index(e)] = refs.retired_capacity
+
+        mirror_edge_refs!(e, refs)
+
+        if can_retrofit(e)
+
+            refs.retrofitted_units = @variable(model, lower_bound = 0.0, base_name = "vRETROFITUNIT_$(id(e))_period$(period_index(e))")
+
+            refs.retrofitted_capacity = @expression(model, capacity_size(e) * refs.retrofitted_units)
+
+            e.retrofitted_capacity_track[period_index(e)] = refs.retrofitted_capacity
+
+            mirror_edge_refs!(e, refs)
+
+            refs.constraints[:available_capacity] = @constraint(
+                model,
+                capacity(refs) == new_capacity(refs) - retired_capacity(refs) - retrofitted_capacity(refs) + existing_capacity(e)
+            )
+
+        else
+            refs.constraints[:available_capacity] = @constraint(
+                model,
+                capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(e)
+            )
+        end
+    end
+
+    return nothing
+
+end
+
+function define_available_capacity!(e::UnidirectionalEdge, refs::UnidirectionalEdgeRefs, model::Model)
+    return define_available_capacity!(e, refs.edge, model)
+end
+
+function define_available_capacity!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    return define_available_capacity!(e, refs.edge, model)
+end
+
 function planning_model!(e::AbstractEdge, model::Model)
 
     if has_capacity(e)
@@ -452,6 +565,63 @@ function planning_model!(e::AbstractEdge, model::Model)
 
     return nothing
 
+end
+
+function planning_model!(
+    e::AbstractEdge,
+    refs::Union{EdgeRefs,EdgeWithUCRefs},
+    model::Model,
+)
+
+    mirror_edge_refs!(e, refs)
+
+    if has_capacity(e)
+
+        if !can_expand(e)
+            fix(new_units(refs), 0.0; force = true)
+        else
+            if integer_decisions(e)
+                set_integer(new_units(refs))
+            end
+        end
+
+        if !can_retire(e)
+            fix(retired_units(refs), 0.0; force = true)
+        else
+            if integer_decisions(e)
+                set_integer(retired_units(refs))
+            end
+        end
+
+        if can_retrofit(e)
+            refs.constraints[:retrofit_existing_capacity] = @constraint(
+                model,
+                retrofitted_capacity(refs) + retired_capacity(refs) <= existing_capacity(e)
+            )
+            if integer_decisions(e)
+                set_integer(retrofitted_units(refs))
+            end
+        else
+            refs.constraints[:retired_existing_capacity] = @constraint(
+                model,
+                retired_capacity(refs) <= existing_capacity(e)
+            )
+        end
+
+    end
+
+    compute_fixed_costs!(e, model)
+
+    return nothing
+
+end
+
+function planning_model!(e::UnidirectionalEdge, refs::UnidirectionalEdgeRefs, model::Model)
+    return planning_model!(e, refs.edge, model)
+end
+
+function planning_model!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    return planning_model!(e, refs.edge, model)
 end
 
 function compute_investment_costs!(e::AbstractEdge, model::Model, cost_type::Function=pv_period_investment_cost)
@@ -509,6 +679,25 @@ function add_operation_model_varcosts!(e::EdgeWithoutUC, model::Model)
     end
 end
 
+function add_operation_model_varcosts!(
+    e::EdgeWithoutUC,
+    refs::Union{UnidirectionalEdgeRefs,BidirectionalEdgeRefs},
+    model::Model,
+)
+    edge = refs.edge
+    for t in time_interval(e)
+        w = current_subperiod(e,t)
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * vom_cost,
+                flow(edge, t),
+            )
+        end
+    end
+end
+
 function operation_model!(e::UnidirectionalEdge, model::Model)
     e.flow = @variable(
         model,
@@ -521,10 +710,31 @@ function operation_model!(e::UnidirectionalEdge, model::Model)
     return nothing
 end
 
+function operation_model!(e::UnidirectionalEdge, refs::UnidirectionalEdgeRefs, model::Model)
+    refs.edge.flow = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vFLOW_$(id(e))_period$(period_index(e))"
+    )
+    mirror_edge_refs!(e, refs.edge)
+    update_balances!(e, refs, model)
+    add_operation_model_varcosts!(e, refs, model)
+    return nothing
+end
+
 function operation_model!(e::BidirectionalEdge, model::Model)
     e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
     update_balances!(e, model)
     add_operation_model_varcosts!(e, model)
+    return nothing
+end
+
+function operation_model!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    refs.edge.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
+    mirror_edge_refs!(e, refs.edge)
+    update_balances!(e, refs, model)
+    add_operation_model_varcosts!(e, refs, model)
     return nothing
 end
 
@@ -644,6 +854,20 @@ ustart(e::EdgeWithUC) = e.ustart;
 ustart(e::EdgeWithUC, t::Int64) = ustart(e)[t];
 ##### End of EdgeWithUC interface #####
 
+function mirror_edge_refs!(e::EdgeWithUC, refs::EdgeWithUCRefs)
+    _mirror_common_edge_refs!(e, refs)
+    if !isnothing(refs.ucommit)
+        e.ucommit = refs.ucommit
+    end
+    if !isnothing(refs.ustart)
+        e.ustart = refs.ustart
+    end
+    if !isnothing(refs.ushut)
+        e.ushut = refs.ushut
+    end
+    return nothing
+end
+
 function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
     for t in time_interval(e)
 
@@ -662,6 +886,30 @@ function add_operation_model_varcosts!(e::EdgeWithUC, model::Model)
                 model[:eVariableCost],
                 subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
                 ustart(e, t),
+            )
+        end
+
+    end
+end
+
+function add_operation_model_varcosts!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
+    for t in time_interval(e)
+
+        w = current_subperiod(e,t)
+        vom_cost = variable_om_cost(e)
+        if vom_cost > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * vom_cost,
+                flow(refs, t),
+            )
+        end
+
+        if startup_cost(e) > 0
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(e, w) * startup_cost(e) * capacity_size(e),
+                ustart(refs, t),
             )
         end
 
@@ -729,6 +977,75 @@ function operation_model!(e::EdgeWithUC, model::Model)
     return nothing
 end
 
+function operation_model!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
+    if !has_capacity(e)
+        error(
+            "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
+        )
+        return nothing
+    end
+
+    refs.flow = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vFLOW_$(id(e))_period$(period_index(e))"
+    )
+
+    refs.ucommit = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vCOMMIT_$(id(e))_period$(period_index(e))"
+    )
+
+    refs.ustart = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vSTART_$(id(e))_period$(period_index(e))"
+    )
+
+    refs.ushut = @variable(
+        model,
+        [t in time_interval(e)],
+        lower_bound = 0.0,
+        base_name = "vSHUT_$(id(e))_period$(period_index(e))"
+    )
+
+    mirror_edge_refs!(e, refs)
+    update_balances!(e, refs, model)
+    update_startup_fuel_balance!(e, refs)
+    add_operation_model_varcosts!(e, refs, model)
+
+    refs.constraints[:commit_capacity] = @constraint(
+        model,
+        [t in time_interval(e)],
+        ucommit(refs, t) <= capacity(refs) / capacity_size(e)
+    )
+
+    refs.constraints[:start_capacity] = @constraint(
+        model,
+        [t in time_interval(e)],
+        ustart(refs, t) <= capacity(refs) / capacity_size(e)
+    )
+
+    refs.constraints[:shut_capacity] = @constraint(
+        model,
+        [t in time_interval(e)],
+        ushut(refs, t) <= capacity(refs) / capacity_size(e)
+    )
+
+    refs.constraints[:commit_transition] = @constraint(
+        model,
+        [t in time_interval(e)],
+        ucommit(refs, t) - ucommit(refs, timestepbefore(t, 1, subperiods(e))) ==
+        ustart(refs, t) - ushut(refs, t)
+    )
+
+    return nothing
+end
+
 function edges(assets::Vector{AbstractAsset})
     edges = Vector{AbstractEdge}()
     for a in assets
@@ -772,6 +1089,14 @@ function update_balances!(e::AbstractEdge, model::Model)
 
 end
 
+function update_balances!(e::AbstractEdge, refs, model::Model)
+
+    update_balance_start!(e, refs, model)
+
+    update_balance_end!(e, refs, model)
+
+end
+
 function update_startup_fuel_balance!(e::EdgeWithUC)
 
     # The startup fuel will not contribute to the end vertex balance as it is not consumed there.
@@ -785,6 +1110,24 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
         balance_expr = get_balance(v,i)
         for t in time_interval(e)
             add_to_expression!(balance_expr[t], balance_coeff, ustart(e, t))
+        end
+    end
+
+    return nothing
+
+end
+
+function update_startup_fuel_balance!(e::EdgeWithUC, refs::EdgeWithUCRefs)
+
+    v = start_vertex(e);
+
+    i = startup_fuel_balance_id(e)
+
+    if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
+        balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
+        balance_expr = get_balance(v,i)
+        for t in time_interval(e)
+            add_to_expression!(balance_expr[t], balance_coeff, ustart(refs, t))
         end
     end
 
@@ -810,12 +1153,31 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
     end
 end
 
+function add_flow_to_vertex_balances!(
+    e::AbstractEdge,
+    v::AbstractVertex,
+    effective_flow,
+    outgoing::Bool,
+    refs,
+    label::Symbol,
+)
+    refs.expressions[label] = effective_flow
+    return add_flow_to_vertex_balances!(e, v, effective_flow, outgoing)
+end
+
 function update_balance_start!(e::AbstractEdge, model::Model)
     # This implicitly works for UnidirectionalEdge and EdgeWithUC
     # BidirectionalEdge is handled in a separate method
     v = start_vertex(e)
     effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     add_flow_to_vertex_balances!(e, v, effective_flow, true)
+end
+
+function update_balance_start!(e::AbstractEdge, refs, model::Model)
+    v = start_vertex(e)
+    edge = edge_refs(refs)
+    effective_flow = @expression(model, [t in time_interval(e)], flow(edge, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, true, edge, :start_effective_flow)
 end
 
 function update_balance_start!(e::BidirectionalEdge, model::Model)
@@ -832,10 +1194,50 @@ function update_balance_start!(e::BidirectionalEdge, model::Model)
     add_flow_to_vertex_balances!(e, v, effective_flow, true)
 end
 
+function ensure_lossy_bidirectional_flow_refs!(
+    e::BidirectionalEdge,
+    refs::BidirectionalEdgeRefs,
+    model::Model,
+)
+    if isnothing(refs.flow_pos)
+        refs.flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
+        refs.flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
+        refs.edge.constraints[:lossy_flow_balance] = @constraint(
+            model,
+            [t in time_interval(e)],
+            refs.flow_pos[t] - refs.flow_neg[t] == flow(refs.edge, t)
+        )
+        refs.edge.constraints[:lossy_flow_capacity] = @constraint(
+            model,
+            [t in time_interval(e)],
+            refs.flow_pos[t] + refs.flow_neg[t] <= availability(e, t) * capacity(refs.edge)
+        )
+    end
+    return nothing
+end
+
+function update_balance_start!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    v = start_vertex(e)
+    if lossy_edge(e)
+        ensure_lossy_bidirectional_flow_refs!(e, refs, model)
+        effective_flow = @expression(model, [t in time_interval(e)], refs.flow_pos[t] - (1 - loss_fraction(e,t)) * refs.flow_neg[t])
+    else
+        effective_flow = @expression(model, [t in time_interval(e)], flow(refs.edge, t))
+    end
+    add_flow_to_vertex_balances!(e, v, effective_flow, true, refs.edge, :start_effective_flow)
+end
+
 function update_balance_end!(e::AbstractEdge, model::Model)
     v = end_vertex(e)
     effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
     add_flow_to_vertex_balances!(e, v, effective_flow, false)
+end
+
+function update_balance_end!(e::AbstractEdge, refs, model::Model)
+    v = end_vertex(e)
+    edge = edge_refs(refs)
+    effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(edge, t))
+    add_flow_to_vertex_balances!(e, v, effective_flow, false, edge, :end_effective_flow)
 end
 
 function update_balance_end!(e::BidirectionalEdge, model::Model)
@@ -850,4 +1252,15 @@ function update_balance_end!(e::BidirectionalEdge, model::Model)
         effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
     end
     add_flow_to_vertex_balances!(e, v, effective_flow, false)
+end
+
+function update_balance_end!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+    v = end_vertex(e)
+    if lossy_edge(e)
+        ensure_lossy_bidirectional_flow_refs!(e, refs, model)
+        effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * refs.flow_pos[t] - refs.flow_neg[t])
+    else
+        effective_flow = @expression(model, [t in time_interval(e)], flow(refs.edge, t))
+    end
+    add_flow_to_vertex_balances!(e, v, effective_flow, false, refs.edge, :end_effective_flow)
 end
