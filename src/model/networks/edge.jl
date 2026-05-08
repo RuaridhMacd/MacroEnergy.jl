@@ -698,43 +698,36 @@ function add_operation_model_varcosts!(
     end
 end
 
-function operation_model!(e::UnidirectionalEdge, model::Model)
-    e.flow = @variable(
+function add_flow_variable!(e::UnidirectionalEdge, refs::EdgeRefs, model::Model)
+    refs.flow = @variable(
         model,
         [t in time_interval(e)],
         lower_bound = 0.0,
         base_name = "vFLOW_$(id(e))_period$(period_index(e))"
     )
-    update_balances!(e, model)
-    add_operation_model_varcosts!(e, model)
     return nothing
 end
 
-function operation_model!(e::UnidirectionalEdge, refs::UnidirectionalEdgeRefs, model::Model)
-    refs.edge.flow = @variable(
+function add_flow_variable!(e::BidirectionalEdge, refs::EdgeRefs, model::Model)
+    refs.flow = @variable(
         model,
         [t in time_interval(e)],
-        lower_bound = 0.0,
         base_name = "vFLOW_$(id(e))_period$(period_index(e))"
     )
-    mirror_edge_refs!(e, refs.edge)
-    update_balances!(e, refs, model)
-    add_operation_model_varcosts!(e, refs, model)
     return nothing
 end
 
-function operation_model!(e::BidirectionalEdge, model::Model)
-    e.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
-    update_balances!(e, model)
-    add_operation_model_varcosts!(e, model)
-    return nothing
-end
-
-function operation_model!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
-    refs.edge.flow = @variable(model, [t in time_interval(e)], base_name = "vFLOW_$(id(e))_period$(period_index(e))")
-    mirror_edge_refs!(e, refs.edge)
-    update_balances!(e, refs, model)
-    add_operation_model_varcosts!(e, refs, model)
+function operation_model!(
+    e::EdgeWithoutUC,
+    refs::Union{UnidirectionalEdgeRefs,BidirectionalEdgeRefs},
+    problem::AbstractProblem,
+)
+    m = model(problem)
+    edge = edge_refs(refs)
+    add_flow_variable!(e, edge, m)
+    mirror_edge_refs!(e, edge)
+    update_balances!(problem, e, refs, m)
+    add_operation_model_varcosts!(e, refs, m)
     return nothing
 end
 
@@ -916,68 +909,7 @@ function add_operation_model_varcosts!(e::EdgeWithUC, refs::EdgeWithUCRefs, mode
     end
 end
 
-function operation_model!(e::EdgeWithUC, model::Model)
-    if !has_capacity(e)
-        error(
-            "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
-        )
-        return nothing
-    end
-
-    e.flow = @variable(
-        model,
-        [t in time_interval(e)],
-        lower_bound = 0.0,
-        base_name = "vFLOW_$(id(e))_period$(period_index(e))"
-    )
-
-    e.ucommit = @variable(
-        model,
-        [t in time_interval(e)],
-        lower_bound = 0.0,
-        base_name = "vCOMMIT_$(id(e))_period$(period_index(e))"
-    )
-
-    e.ustart = @variable(
-        model,
-        [t in time_interval(e)],
-        lower_bound = 0.0,
-        base_name = "vSTART_$(id(e))_period$(period_index(e))"
-    )
-
-    e.ushut = @variable(
-        model,
-        [t in time_interval(e)],
-        lower_bound = 0.0,
-        base_name = "vSHUT_$(id(e))_period$(period_index(e))"
-    )
-
-    update_balances!(e, model)
-    update_startup_fuel_balance!(e)
-    add_operation_model_varcosts!(e, model)
-
-    ### DEFAULT CONSTRAINTS ###
-
-    @constraints(
-        model,
-        begin
-            [t in time_interval(e)], ucommit(e, t) <= capacity(e) / capacity_size(e)
-            [t in time_interval(e)], ustart(e, t) <= capacity(e) / capacity_size(e)
-            [t in time_interval(e)], ushut(e, t) <= capacity(e) / capacity_size(e)
-        end
-    )
-
-    @constraint(
-        model,
-        [t in time_interval(e)],
-        ucommit(e, t) - ucommit(e, timestepbefore(t, 1, subperiods(e))) ==
-        ustart(e, t) - ushut(e, t)
-    )
-
-    return nothing
-end
-
-function operation_model!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
+function add_operation_variables!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
     if !has_capacity(e)
         error(
             "UC is available only for edges with capacity, set has_capacity to True for edge $(id(e))",
@@ -1013,11 +945,10 @@ function operation_model!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
         base_name = "vSHUT_$(id(e))_period$(period_index(e))"
     )
 
-    mirror_edge_refs!(e, refs)
-    update_balances!(e, refs, model)
-    update_startup_fuel_balance!(e, refs)
-    add_operation_model_varcosts!(e, refs, model)
+    return nothing
+end
 
+function add_unit_commitment_constraints!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
     refs.constraints[:commit_capacity] = @constraint(
         model,
         [t in time_interval(e)],
@@ -1042,6 +973,22 @@ function operation_model!(e::EdgeWithUC, refs::EdgeWithUCRefs, model::Model)
         ucommit(refs, t) - ucommit(refs, timestepbefore(t, 1, subperiods(e))) ==
         ustart(refs, t) - ushut(refs, t)
     )
+
+    return nothing
+end
+
+function operation_model!(
+    e::EdgeWithUC,
+    refs::EdgeWithUCRefs,
+    problem::AbstractProblem,
+)
+    m = model(problem)
+    add_operation_variables!(e, refs, m)
+    mirror_edge_refs!(e, refs)
+    update_balances!(problem, e, refs, m)
+    update_startup_fuel_balance!(problem, e, refs)
+    add_operation_model_varcosts!(e, refs, m)
+    add_unit_commitment_constraints!(e, refs, m)
 
     return nothing
 end
@@ -1081,25 +1028,19 @@ function lossy_edge(e::AbstractEdge)
     end
 end
 
-function update_balances!(e::AbstractEdge, model::Model)
+function update_balances!(problem::AbstractProblem, e::AbstractEdge, refs, model::Model)
 
-    update_balance_start!(e, model)
+    update_balance_start!(problem, e, refs, model)
 
-    update_balance_end!(e, model)
-
-end
-
-function update_balances!(e::AbstractEdge, refs, model::Model)
-
-    update_balance_start!(e, refs, model)
-
-    update_balance_end!(e, refs, model)
+    update_balance_end!(problem, e, refs, model)
 
 end
 
-function update_startup_fuel_balance!(e::EdgeWithUC)
-
-    # The startup fuel will not contribute to the end vertex balance as it is not consumed there.
+function update_startup_fuel_balance!(
+    problem::AbstractProblem,
+    e::EdgeWithUC,
+    refs::EdgeWithUCRefs,
+)
 
     v = start_vertex(e);
 
@@ -1107,25 +1048,8 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
     if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
         balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
-        balance_expr = get_balance(v,i)
-        for t in time_interval(e)
-            add_to_expression!(balance_expr[t], balance_coeff, ustart(e, t))
-        end
-    end
-
-    return nothing
-
-end
-
-function update_startup_fuel_balance!(e::EdgeWithUC, refs::EdgeWithUCRefs)
-
-    v = start_vertex(e);
-
-    i = startup_fuel_balance_id(e)
-
-    if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
-        balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
-        balance_expr = get_balance(v,i)
+        vertex_refs = get_component_refs(problem.refs, start_vertex_ref(refs))
+        balance_expr = get_balance(vertex_refs, i)
         for t in time_interval(e)
             add_to_expression!(balance_expr[t], balance_coeff, ustart(refs, t))
         end
@@ -1135,8 +1059,16 @@ function update_startup_fuel_balance!(e::EdgeWithUC, refs::EdgeWithUCRefs)
 
 end
 
-function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effective_flow, outgoing::Bool)
-    # effective_flow is <: AbstractVector{AffExpr} or AbstractVector{VariableRef}
+function add_flow_to_vertex_balances!(
+    e::AbstractEdge,
+    v::AbstractVertex,
+    vertex_refs::Union{NodeRefs,TransformationRefs,StorageRefs},
+    effective_flow,
+    outgoing::Bool,
+    edge_refs,
+    label::Symbol,
+)
+    edge_refs.expressions[label] = effective_flow
     if outgoing
         flow_dir = -1.0
     else
@@ -1145,53 +1077,21 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
     for i in balance_ids(v)
         balance_coeff = flow_dir * balance_data(e, v, i)
         if balance_coeff != 0.0
-            balance_expr = get_balance(v,i)
+            balance_expr = get_balance(vertex_refs, i)
             for t in time_interval(e)
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
         end
     end
+    return nothing
 end
 
-function add_flow_to_vertex_balances!(
-    e::AbstractEdge,
-    v::AbstractVertex,
-    effective_flow,
-    outgoing::Bool,
-    refs,
-    label::Symbol,
-)
-    refs.expressions[label] = effective_flow
-    return add_flow_to_vertex_balances!(e, v, effective_flow, outgoing)
-end
-
-function update_balance_start!(e::AbstractEdge, model::Model)
-    # This implicitly works for UnidirectionalEdge and EdgeWithUC
-    # BidirectionalEdge is handled in a separate method
+function update_balance_start!(problem::AbstractProblem, e::AbstractEdge, refs, model::Model)
     v = start_vertex(e)
-    effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
-    add_flow_to_vertex_balances!(e, v, effective_flow, true)
-end
-
-function update_balance_start!(e::AbstractEdge, refs, model::Model)
-    v = start_vertex(e)
+    vertex_refs = get_component_refs(problem.refs, start_vertex_ref(refs))
     edge = edge_refs(refs)
     effective_flow = @expression(model, [t in time_interval(e)], flow(edge, t))
-    add_flow_to_vertex_balances!(e, v, effective_flow, true, edge, :start_effective_flow)
-end
-
-function update_balance_start!(e::BidirectionalEdge, model::Model)
-    v = start_vertex(e)
-    if lossy_edge(e)
-        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
-        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        effective_flow = @expression(model, [t in time_interval(e)], flow_pos[t] - (1 - loss_fraction(e,t)) * flow_neg[t])
-    else
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
-    end
-    add_flow_to_vertex_balances!(e, v, effective_flow, true)
+    add_flow_to_vertex_balances!(e, v, vertex_refs, effective_flow, true, edge, :start_effective_flow)
 end
 
 function ensure_lossy_bidirectional_flow_refs!(
@@ -1216,51 +1116,44 @@ function ensure_lossy_bidirectional_flow_refs!(
     return nothing
 end
 
-function update_balance_start!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
+function update_balance_start!(
+    problem::AbstractProblem,
+    e::BidirectionalEdge,
+    refs::BidirectionalEdgeRefs,
+    model::Model,
+)
     v = start_vertex(e)
+    vertex_refs = get_component_refs(problem.refs, start_vertex_ref(refs))
     if lossy_edge(e)
         ensure_lossy_bidirectional_flow_refs!(e, refs, model)
         effective_flow = @expression(model, [t in time_interval(e)], refs.flow_pos[t] - (1 - loss_fraction(e,t)) * refs.flow_neg[t])
     else
         effective_flow = @expression(model, [t in time_interval(e)], flow(refs.edge, t))
     end
-    add_flow_to_vertex_balances!(e, v, effective_flow, true, refs.edge, :start_effective_flow)
+    add_flow_to_vertex_balances!(e, v, vertex_refs, effective_flow, true, refs.edge, :start_effective_flow)
 end
 
-function update_balance_end!(e::AbstractEdge, model::Model)
+function update_balance_end!(problem::AbstractProblem, e::AbstractEdge, refs, model::Model)
     v = end_vertex(e)
-    effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(e, t))
-    add_flow_to_vertex_balances!(e, v, effective_flow, false)
-end
-
-function update_balance_end!(e::AbstractEdge, refs, model::Model)
-    v = end_vertex(e)
+    vertex_refs = get_component_refs(problem.refs, end_vertex_ref(refs))
     edge = edge_refs(refs)
     effective_flow = @expression(model, [t in time_interval(e)], (1-loss_fraction(e,t)) * flow(edge, t))
-    add_flow_to_vertex_balances!(e, v, effective_flow, false, edge, :end_effective_flow)
+    add_flow_to_vertex_balances!(e, v, vertex_refs, effective_flow, false, edge, :end_effective_flow)
 end
 
-function update_balance_end!(e::BidirectionalEdge, model::Model)
+function update_balance_end!(
+    problem::AbstractProblem,
+    e::BidirectionalEdge,
+    refs::BidirectionalEdgeRefs,
+    model::Model,
+)
     v = end_vertex(e)
-    if lossy_edge(e)
-        flow_pos = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWPOS_$(id(e))_period$(period_index(e))")
-        flow_neg = @variable(model, [t in time_interval(e)], lower_bound = 0.0, base_name = "vFLOWNEG_$(id(e))_period$(period_index(e))")
-        @constraint(model, [t in time_interval(e)], flow_pos[t] - flow_neg[t] == flow(e, t))
-        @constraint(model, [t in time_interval(e)], flow_pos[t] + flow_neg[t] <= availability(e, t) * capacity(e))
-        effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * flow_pos[t] - flow_neg[t])
-    else
-        effective_flow = @expression(model, [t in time_interval(e)], flow(e, t))
-    end
-    add_flow_to_vertex_balances!(e, v, effective_flow, false)
-end
-
-function update_balance_end!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
-    v = end_vertex(e)
+    vertex_refs = get_component_refs(problem.refs, end_vertex_ref(refs))
     if lossy_edge(e)
         ensure_lossy_bidirectional_flow_refs!(e, refs, model)
         effective_flow = @expression(model, [t in time_interval(e)], (1 - loss_fraction(e,t)) * refs.flow_pos[t] - refs.flow_neg[t])
     else
         effective_flow = @expression(model, [t in time_interval(e)], flow(refs.edge, t))
     end
-    add_flow_to_vertex_balances!(e, v, effective_flow, false, refs.edge, :end_effective_flow)
+    add_flow_to_vertex_balances!(e, v, vertex_refs, effective_flow, false, refs.edge, :end_effective_flow)
 end

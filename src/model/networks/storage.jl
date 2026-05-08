@@ -325,43 +325,11 @@ function planning_model!(g::Storage, refs::StorageRefs, model::Model)
     return nothing
 end
 
-function operation_model!(g::Storage, model::Model)
-
-    g.storage_level = @variable(
-        model,
-        [t in time_interval(g)],
-        lower_bound = 0.0,
-        base_name = "vSTOR_$(g.id)_period$(period_index(g))"
-    )
-
-    if :storage ∈ balance_ids(g)
-
-        for i in balance_ids(g)
-            if i == :storage 
-                g.operation_expr[:storage] = @expression(
-                    model,
-                    [t in time_interval(g)],
-                    -storage_level(g, t) +
-                    (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                    storage_level(g, timestepbefore(t, 1, subperiods(g)))
-                )
-            else
-                g.operation_expr[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
-            end
-        end
-    else
-        error("A storage vertex requires to have a balance named :storage")
-    end
-
-end
-
-function operation_model!(g::Storage, refs::StorageRefs, model::Model)
-
-    g.operation_expr = refs.expressions
+function operation_model!(g::Storage, refs::StorageRefs, problem::AbstractProblem)
+    m = model(problem)
 
     refs.storage_level = @variable(
-        model,
+        m,
         [t in time_interval(g)],
         lower_bound = 0.0,
         base_name = "vSTOR_$(g.id)_period$(period_index(g))"
@@ -373,7 +341,7 @@ function operation_model!(g::Storage, refs::StorageRefs, model::Model)
         for i in balance_ids(g)
             if i == :storage
                 refs.expressions[:storage] = @expression(
-                    model,
+                    m,
                     [t in time_interval(g)],
                     -storage_level(refs, t) +
                     (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
@@ -381,7 +349,7 @@ function operation_model!(g::Storage, refs::StorageRefs, model::Model)
                 )
             else
                 refs.expressions[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
+                @expression(m, [t in time_interval(g)], 0 * m[:vREF])
             end
         end
     else
@@ -528,61 +496,11 @@ function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model
     return nothing
 end
 
-function operation_model!(g::LongDurationStorage, model::Model)
-
-    g.storage_level = @variable(
-        model,
-        [t in time_interval(g)],
-        lower_bound = 0.0,
-        base_name = "vSTOR_$(g.id)_period$(period_index(g))"
-    )
-
-    
-    if :storage ∈ balance_ids(g)
-
-        for i in balance_ids(g)
-            if i == :storage 
-                STARTS = [first(sp) for sp in subperiods(g)];
-                g.operation_expr[:storage] = @expression(
-                    model,
-                    [t in time_interval(g)],
-                    if t ∈ STARTS 
-                        -storage_level(g, t) +
-                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                        (storage_level(g, timestepbefore(t, 1, subperiods(g))) - storage_change(g, current_subperiod(g,t)))
-                    else
-                        -storage_level(g, t) +
-                        (1 - loss_fraction(g,timestepbefore(t, 1, subperiods(g)))) *
-                        storage_level(g, timestepbefore(t, 1, subperiods(g)))
-                    end
-                )
-            else
-                g.operation_expr[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
-            end
-        end
-    else
-        error("A storage vertex requires to have a balance named :storage")
-    end
-
-    newcon = LongDurationStorageChangeConstraint();
-    add_model_constraint!(newcon, g, model)
-    push!(g.constraints, newcon)
-
-    # subperiod_end = Dict(w => last(get_subperiod(g, w)) for w in subperiod_indices(g));
-
-    # @constraint(model, [w in subperiod_indices(g)], 
-    #     storage_initial(g, w) ==  storage_level(g,subperiod_end[w]) - storage_change(g, w)
-    # )
-
-end
-
-function operation_model!(g::LongDurationStorage, refs::StorageRefs, model::Model)
-
-    g.operation_expr = refs.expressions
+function operation_model!(g::LongDurationStorage, refs::StorageRefs, problem::AbstractProblem)
+    m = model(problem)
 
     refs.storage_level = @variable(
-        model,
+        m,
         [t in time_interval(g)],
         lower_bound = 0.0,
         base_name = "vSTOR_$(g.id)_period$(period_index(g))"
@@ -595,7 +513,7 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, model::Mode
             if i == :storage
                 STARTS = [first(sp) for sp in subperiods(g)];
                 refs.expressions[:storage] = @expression(
-                    model,
+                    m,
                     [t in time_interval(g)],
                     if t ∈ STARTS
                         -storage_level(refs, t) +
@@ -609,7 +527,7 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, model::Mode
                 )
             else
                 refs.expressions[i] =
-                @expression(model, [t in time_interval(g)], 0 * model[:vREF])
+                @expression(m, [t in time_interval(g)], 0 * m[:vREF])
             end
         end
     else
@@ -617,7 +535,7 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, model::Mode
     end
 
     newcon = LongDurationStorageChangeConstraint();
-    add_model_constraint!(newcon, g, model)
+    add_model_constraint!(newcon, g, m)
     refs.constraints[LongDurationStorageChangeConstraint] = constraint_ref(newcon)
     push!(g.constraints, newcon)
 

@@ -342,21 +342,9 @@ function planning_model!(system::StaticSystem, problem::Problem)
 end
 
 
-function operation_model!(system::System, model::Model)
-
-    operation_model!.(system.locations, Ref(model))
-
-    operation_model!.(system.assets, Ref(model))
-
-    add_constraints_by_type!(system, model, OperationConstraint)
-
-end
-
 function operation_model!(system::StaticSystem, problem::Problem)
-    model = problem.model
-
     foreach_problem_component!(system, problem) do component, refs
-        operation_model!(component, refs, model)
+        operation_model!(component, refs, problem)
     end
 
     add_constraints_by_type!(system, problem, OperationConstraint)
@@ -366,13 +354,6 @@ end
 function planning_model!(a::AbstractAsset, model::Model)
     for t in fieldnames(typeof(a))
         planning_model!(getfield(a, t), model)
-    end
-    return nothing
-end
-
-function operation_model!(a::AbstractAsset, model::Model)
-    for t in fieldnames(typeof(a))
-        operation_model!(getfield(a, t), model)
     end
     return nothing
 end
@@ -427,10 +408,20 @@ function add_constraints_by_type!(
 )
     for c in all_constraints(y)
         if isa(c, constraint_type)
-            Base.invokelatest(add_model_constraint!, c, y, model)
-            refs.constraints[typeof(c)] = constraint_ref(c)
+            Base.invokelatest(add_model_constraint!, c, y, refs, model)
         end
     end
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::AbstractTypeConstraint,
+    y::Union{AbstractEdge,AbstractVertex},
+    refs,
+    model::Model,
+)
+    Base.invokelatest(add_model_constraint!, ct, y, model)
+    refs.constraints[typeof(ct)] = constraint_ref(ct)
     return nothing
 end
 

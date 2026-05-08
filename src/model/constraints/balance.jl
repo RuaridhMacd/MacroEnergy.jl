@@ -29,6 +29,21 @@ function add_model_constraint!(ct::BalanceConstraint, v::AbstractVertex, model::
     return nothing
 end
 
+function add_model_constraint!(
+    ct::BalanceConstraint,
+    v::AbstractVertex,
+    refs::Union{NodeRefs,TransformationRefs,StorageRefs},
+    model::Model,
+)
+    refs.constraints[typeof(ct)] = @constraint(
+        model,
+        [i in balance_ids(v), t in time_interval(v)],
+        get_balance(refs, i, t) == 0.0
+    )
+
+    return nothing
+end
+
 """
     set_constraint_dual!(constraint::BalanceConstraint, v::AbstractVertex)
 

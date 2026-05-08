@@ -66,3 +66,49 @@ function add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, model::Model)
     )
 
 end
+
+function add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, refs::NodeRefs, model::Model)
+    ct_type = typeof(ct)
+
+    subperiod_balance = @expression(model, [w in subperiod_indices(n)], 0 * model[:vREF])
+
+    for t in time_interval(n)
+        w = current_subperiod(n,t)
+        add_to_expression!(
+            subperiod_balance[w],
+            subperiod_weight(n, w),
+            get_balance(refs, :emissions, t),
+        )
+    end
+
+    if haskey(price_unmet_policy(n), ct_type)
+        slack_name = Symbol(string(ct_type) * "_Slack")
+        refs.policy_slack_vars[slack_name] = @variable(
+            model,
+            [w in subperiod_indices(n)],
+            lower_bound = 0.0,
+            base_name = "v" * string(ct_type) * "_Slack_$(id(n))_period$(period_index(n))"
+        )
+        for w in subperiod_indices(n)
+            add_to_expression!(
+                model[:eVariableCost],
+                subperiod_weight(n, w) * price_unmet_policy(n, ct_type),
+                refs.policy_slack_vars[slack_name][w],
+            )
+
+            add_to_expression!(
+                subperiod_balance[w],
+                -refs.policy_slack_vars[slack_name][w],
+            )
+        end
+    end
+
+    refs.constraints[ct_type] = @constraint(
+        model,
+        [w in subperiod_indices(n)],
+        subperiod_balance[w] <=
+        refs.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
+    )
+
+    return nothing
+end

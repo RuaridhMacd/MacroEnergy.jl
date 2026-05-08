@@ -6,14 +6,14 @@ function write_outputs(
     case::Case, 
     solution::Union{Model,Problem}
 )
-    model = model(solution)
+    jump_model = model(solution)
     num_periods = number_of_periods(case)
     periods = get_periods(case)
     settings = get_settings(case)
     for (period_idx, period) in enumerate(periods)
         @info("Writing results for period $period_idx")
         results_dir = mkpath_for_period(case_path, num_periods, period_idx)
-        write_period_outputs(results_dir, period_idx, period, model, settings)
+        write_period_outputs(results_dir, period_idx, period, jump_model, settings)
     end
     write_settings(case, joinpath(case_path, "settings.json"))
     return nothing
@@ -29,7 +29,7 @@ function write_outputs(
     system::System, 
     period_idx::Int
 )
-    model = model(solution)
+    jump_model = model(solution)
     num_periods = number_of_periods(case)
     settings = get_settings(case)
     # Create results directory to store outputs for this period
@@ -37,10 +37,10 @@ function write_outputs(
 
     if settings.MyopicSettings[:WriteModelLP]
         @info(" -- Writing LP file for period $(period_idx)")
-        write_to_file(model, joinpath(results_dir, "model_period_$(period_idx).lp"))
+        write_to_file(jump_model, joinpath(results_dir, "model_period_$(period_idx).lp"))
     end
 
-    write_period_outputs(results_dir, period_idx, system, model, settings)
+    write_period_outputs(results_dir, period_idx, system, jump_model, settings)
     return nothing
 end
 
@@ -247,18 +247,18 @@ function write_period_outputs(
     solution::Union{Model,Problem},
     settings::NamedTuple
 )
-    model = model(solution)
+    jump_model = model(solution)
     
     # Capacity results
     write_capacity(joinpath(results_dir, "capacity.csv"), system)
     
     # Cost results (system level)
-    create_discounted_cost_expressions!(model, system, settings)
-    compute_undiscounted_costs!(model, system, settings)
-    write_costs(joinpath(results_dir, "costs.csv"), system, model)
-    write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), system, model)
+    create_discounted_cost_expressions!(jump_model, system, settings)
+    compute_undiscounted_costs!(jump_model, system, settings)
+    write_costs(joinpath(results_dir, "costs.csv"), system, jump_model)
+    write_undiscounted_costs(joinpath(results_dir, "undiscounted_costs.csv"), system, jump_model)
     # Cost results (detailed breakdown by type and zone, discounted and undiscounted)
-    write_detailed_costs(results_dir, system, model, settings)
+    write_detailed_costs(results_dir, system, jump_model, settings)
 
     # Flow results
     write_flow(joinpath(results_dir, "flows.csv"), system)
@@ -276,7 +276,7 @@ function write_period_outputs(
     # Scaling factor to account for discounting duals in multi-period models
     var_cost_discount = compute_variable_cost_discount_scaling(period_idx, settings)
     if system.settings.DualExportsEnabled
-        ensure_duals_available!(model)
+        ensure_duals_available!(jump_model)
         write_duals(results_dir, system, var_cost_discount)
     end
 
@@ -285,7 +285,7 @@ function write_period_outputs(
         write_full_timeseries(results_dir, system; var_cost_discount)
     end
 
-    write_objective_value(results_dir, model)
+    write_objective_value(results_dir, jump_model)
 
     return nothing
 end
@@ -296,9 +296,9 @@ end
 Write the solver objective value to `objective_value.csv` in `results_dir`.
 """
 function write_objective_value(results_dir::AbstractString, solution::Union{Model,Problem})
-    model = model(solution)
+    jump_model = model(solution)
     file_path = joinpath(results_dir, "objective_value.csv")
     @info "Writing objective value to $file_path"
-    CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(model)]))
+    CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(jump_model)]))
     return nothing
 end

@@ -25,3 +25,27 @@ function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, m
         n.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
     )
 end
+
+function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, refs::NodeRefs, model::Model)
+    ct_type = typeof(ct)
+
+    subperiod_balance = @expression(model, [w in subperiod_indices(n)], 0 * model[:vREF])
+
+    for t in time_interval(n)
+        w = current_subperiod(n,t)
+        add_to_expression!(
+            subperiod_balance[w],
+            subperiod_weight(n, w),
+            get_balance(refs, :co2_storage, t),
+        )
+    end
+
+    refs.constraints[ct_type] = @constraint(
+        model,
+        [w in subperiod_indices(n)],
+        subperiod_balance[w] <=
+        refs.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
+    )
+
+    return nothing
+end

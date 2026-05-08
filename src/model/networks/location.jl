@@ -62,7 +62,3 @@ end
 function planning_model!(location::Location, model::Model)
     return nothing
 end
-
-function operation_model!(location::Location, model::Model)
-    return nothing
-end

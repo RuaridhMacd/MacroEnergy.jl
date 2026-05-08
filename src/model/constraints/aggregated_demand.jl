@@ -42,3 +42,26 @@ function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model
 
 end
 
+function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, refs::NodeRefs, model::Model) where {T}
+    ct_type = typeof(ct)
+
+    subperiod_balance = @expression(model, [w in subperiod_indices(n)], 0 * model[:vREF])
+
+    for t in time_interval(n)
+        w = current_subperiod(n,t)
+        add_to_expression!(
+            subperiod_balance[w],
+            subperiod_weight(n, w),
+            get_balance(refs, :demand_flow, t),
+        )
+    end
+
+    refs.constraints[ct_type] = @constraint(
+        model,
+        [w in subperiod_indices(n)],
+        subperiod_balance[w] >=
+        refs.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")][w]
+    )
+
+    return nothing
+end

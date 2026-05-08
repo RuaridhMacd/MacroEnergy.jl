@@ -4,16 +4,16 @@ macro AbstractNodeBaseAttributes()
         demand::Vector{Float64} = Vector{Float64}()
         min_nsd::Vector{Float64} = $node_defaults[:min_nsd]
         max_nsd::Vector{Float64} = $node_defaults[:max_nsd]
-        non_served_demand::JuMPVariable = Matrix{VariableRef}(undef, 0, 0)
+        non_served_demand::Matrix{Float64} = zeros(0, 0)
         policy_budgeting_vars::Dict = Dict()
-        policy_budgeting_constraints::Dict{DataType,JuMPConstraint} = Dict{DataType,JuMPConstraint}()  # Store policy budget constraint references
+        policy_budgeting_constraints::Dict{DataType,Any} = Dict{DataType,Any}()
         policy_slack_vars::Dict = Dict()
         price::Vector{Float64} = Vector{Float64}()
         price_nsd::Vector{Float64} = $node_defaults[:price_nsd]
         price_unmet_policy::Dict{DataType,Float64} = Dict{DataType,Float64}()
         rhs_policy::Dict{DataType,Float64} = Dict{DataType,Float64}()
         supply::OrderedDict{Symbol,SupplySegment} = $node_defaults[:supply]
-        supply_flow::JuMPVariable = Matrix{VariableRef}(undef, 0, 0)
+        supply_flow::Matrix{Float64} = zeros(0, 0)
     end)
 end
 
@@ -172,7 +172,6 @@ function add_linking_variables!(n::Node, refs::NodeRefs, model::Model)
                 base_name = "v" * string(ct_type) * "_Budget_$(id(n))_period$(period_index(n))"
             )
         end
-        n.policy_budgeting_vars = refs.policy_budgeting_vars
     end
 
 end
@@ -219,112 +218,40 @@ function planning_model!(n::Node, refs::NodeRefs, model::Model)
     return nothing
 end
 
-function operation_model!(n::Node, model::Model)
-
-    if !isempty(balance_ids(n))
-        for i in balance_ids(n)
-            if i == :demand
-                n.operation_expr[:demand] = @expression(
-                    model,
-                    [t in time_interval(n)],
-                    -demand(n, t) * model[:vREF]
-                )
-            else
-                n.operation_expr[i] =
-                    @expression(model, [t in time_interval(n)], 0 * model[:vREF])
-            end
-        end
-    end
-
-    if !all(max_non_served_demand(n) .== 0)
-        n.non_served_demand = @variable(
-            model,
-            [s in segments_non_served_demand(n), t in time_interval(n)],
-            lower_bound = 0.0,
-            base_name = "vNSD_$(id(n))_period$(period_index(n))"
-        )
-        for t in time_interval(n)
-            w = current_subperiod(n,t)
-            for s in segments_non_served_demand(n)
-                add_to_expression!(
-                    model[:eVariableCost],
-                    subperiod_weight(n, w) * price_non_served_demand(n, s),
-                    non_served_demand(n, s, t),
-                )
-                add_to_expression!(get_balance(n, :demand, t), non_served_demand(n, s, t))
-            end
-        end
-    end
-
-    if !isempty(supply_segments(n))
-
-        n.supply_flow = @variable(
-            model,
-            [s in supply_segments(n) ,t in time_interval(n)],
-            lower_bound = 0.0,
-            base_name = "vSUPPLY_$(id(n))_period$(period_index(n))"
-        )
-
-        for t in time_interval(n)
-            w = current_subperiod(n,t)
-            for s in supply_segments(n)
-                sf = supply_flow(n, s, t)
-                min_sf = min_supply(n, s, t)
-                max_sf = max_supply(n, s, t)
-                if isfinite(min_sf) && min_sf > 0.0
-                    @constraint(model, sf >= min_sf)
-                end
-                if isfinite(max_sf)                    
-                    @constraint(model, sf <= max_sf)
-                end
-
-                add_to_expression!(model[:eVariableCost], subperiod_weight(n,w) * price_supply(n,s,t), sf)
-
-                add_to_expression!(get_balance(n, :demand, t), sf)
-            end
-        end
-
-    end
-
-    return nothing
-end
-
-function operation_model!(n::Node, refs::NodeRefs, model::Model)
-
-    n.operation_expr = refs.expressions
+function operation_model!(n::Node, refs::NodeRefs, problem::AbstractProblem)
+    m = model(problem)
 
     if !isempty(balance_ids(n))
         for i in balance_ids(n)
             if i == :demand
                 refs.expressions[:demand] = @expression(
-                    model,
+                    m,
                     [t in time_interval(n)],
-                    -demand(n, t) * model[:vREF]
+                    -demand(n, t) * m[:vREF]
                 )
             else
                 refs.expressions[i] =
-                    @expression(model, [t in time_interval(n)], 0 * model[:vREF])
+                    @expression(m, [t in time_interval(n)], 0 * m[:vREF])
             end
         end
     end
 
     if !all(max_non_served_demand(n) .== 0)
         refs.non_served_demand = @variable(
-            model,
+            m,
             [s in segments_non_served_demand(n), t in time_interval(n)],
             lower_bound = 0.0,
             base_name = "vNSD_$(id(n))_period$(period_index(n))"
         )
-        n.non_served_demand = refs.non_served_demand
         for t in time_interval(n)
             w = current_subperiod(n,t)
             for s in segments_non_served_demand(n)
                 add_to_expression!(
-                    model[:eVariableCost],
+                    m[:eVariableCost],
                     subperiod_weight(n, w) * price_non_served_demand(n, s),
                     refs.non_served_demand[s, t],
                 )
-                add_to_expression!(get_balance(n, :demand, t), refs.non_served_demand[s, t])
+                add_to_expression!(get_balance(refs, :demand, t), refs.non_served_demand[s, t])
             end
         end
     end
@@ -332,12 +259,11 @@ function operation_model!(n::Node, refs::NodeRefs, model::Model)
     if !isempty(supply_segments(n))
 
         refs.supply_flow = @variable(
-            model,
+            m,
             [s in supply_segments(n) ,t in time_interval(n)],
             lower_bound = 0.0,
             base_name = "vSUPPLY_$(id(n))_period$(period_index(n))"
         )
-        n.supply_flow = refs.supply_flow
 
         for t in time_interval(n)
             w = current_subperiod(n,t)
@@ -346,15 +272,15 @@ function operation_model!(n::Node, refs::NodeRefs, model::Model)
                 min_sf = min_supply(n, s, t)
                 max_sf = max_supply(n, s, t)
                 if isfinite(min_sf) && min_sf > 0.0
-                    refs.constraints[(:min_supply, s, t)] = @constraint(model, sf >= min_sf)
+                    refs.constraints[(:min_supply, s, t)] = @constraint(m, sf >= min_sf)
                 end
                 if isfinite(max_sf)
-                    refs.constraints[(:max_supply, s, t)] = @constraint(model, sf <= max_sf)
+                    refs.constraints[(:max_supply, s, t)] = @constraint(m, sf <= max_sf)
                 end
 
-                add_to_expression!(model[:eVariableCost], subperiod_weight(n,w) * price_supply(n,s,t), sf)
+                add_to_expression!(m[:eVariableCost], subperiod_weight(n,w) * price_supply(n,s,t), sf)
 
-                add_to_expression!(get_balance(n, :demand, t), sf)
+                add_to_expression!(get_balance(refs, :demand, t), sf)
             end
         end
 

@@ -21,7 +21,7 @@ macro AbstractVertexBaseAttributes()
             balance_data::Dict{Symbol,Dict{Symbol,Float64}} =
                 Dict{Symbol,Dict{Symbol,Float64}}()
             constraints::Vector{AbstractTypeConstraint} = Vector{AbstractTypeConstraint}()
-            operation_expr::Dict = Dict()
+            operation_expr::Dict{Symbol,Vector{Float64}} = Dict{Symbol,Vector{Float64}}()
         end,
     )
 end

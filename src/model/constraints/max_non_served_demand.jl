@@ -29,3 +29,22 @@ function add_model_constraint!(ct::MaxNonServedDemandConstraint, n::Node, model:
     end
 
 end
+
+function add_model_constraint!(
+    ct::MaxNonServedDemandConstraint,
+    n::Node,
+    refs::NodeRefs,
+    model::Model,
+)
+    if !isnothing(refs.non_served_demand)
+        refs.constraints[typeof(ct)] = @constraint(
+            model,
+            [t in time_interval(n)],
+            sum(refs.non_served_demand[s, t] for s in segments_non_served_demand(n)) <=
+            demand(n, t)
+        )
+    else
+        @warn "MaxNonServedDemandConstraint required for a node that does not have a non-served demand variable so Macro will not create this constraint"
+    end
+    return nothing
+end

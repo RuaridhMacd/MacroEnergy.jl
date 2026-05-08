@@ -194,7 +194,8 @@ function write_co2_cap_duals(
         push!(node_ids, id(node))
 
         # Get CO2 shadow prices
-        co2_shadow_price = -dual(constraint) / scaling
+        co2_shadow_price =
+            constraint isa AbstractVector{<:Real} ? -only(constraint) / scaling : -dual(constraint) / scaling
         push!(co2_shadow_prices, co2_shadow_price)
 
         # Calculate penalty cost if slack variables exist
@@ -202,7 +203,8 @@ function write_co2_cap_duals(
             
             # Get slack variables and penalty price
             slack_var_key = Symbol(string(ct_type) * "_Slack")
-            slack_vars = value.(policy_slack_vars(node)[slack_var_key])
+            slack_ref = policy_slack_vars(node)[slack_var_key]
+            slack_vars = slack_ref isa AbstractVector{<:Real} ? slack_ref : value.(slack_ref)
 
             # Total penalty cost across all subperiods
             co2_slack_sum = sum(subperiod_indices(node)) do w

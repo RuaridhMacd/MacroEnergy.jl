@@ -1,4 +1,4 @@
-Base.@kwdef struct Problem
+Base.@kwdef struct Problem <: AbstractProblem
     spec::ProblemSpec
     model::Model = Model()
     refs::ProblemRefs
@@ -22,7 +22,7 @@ function Problem(
     model::Model=Model(),
 )
     spec = full_problem_spec(static_system; id)
-    return Problem(spec; model)
+    return Problem(spec; model, refs=ProblemRefs(static_system, spec))
 end
 
 function Problem(
@@ -32,15 +32,15 @@ function Problem(
     model::Model=Model(),
 )
     spec = full_problem_spec(static_system; id)
-    return Problem(spec; model)
+    return Problem(spec; model, refs=ProblemRefs(static_system, spec))
 end
 
 function Problem(
-    ::StaticSystem,
+    static_system::StaticSystem,
     spec::ProblemSpec;
     model::Model=Model(),
 )
-    return Problem(spec; model)
+    return Problem(spec; model, refs=ProblemRefs(static_system, spec))
 end
 
 function optimize!(p::Problem)
