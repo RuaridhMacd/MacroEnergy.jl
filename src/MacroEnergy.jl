@@ -57,6 +57,7 @@ abstract type Steam <: Commodity end ## MWh
 ## Time data types
 abstract type AbstractTimeData{T<:Commodity} end
 
+abstract type AbstractProblem end
 ##
 abstract type AbstractSystem end
 
@@ -186,6 +187,7 @@ include("model/scaling.jl")
 include("model/myopic.jl")
 include_all_in_folder("model/constraints")
 include_all_in_folder("model/benders")
+include("model/problems/problemresults.jl")
 include("model/solver.jl")
 
 include("utilities/postprocessing.jl")
@@ -242,6 +244,7 @@ include_all_in_folder("load_inputs")
 include_all_in_folder("write_outputs/")
 
 export AbstractAsset,
+    AbstractProblem,
     AbstractTypeConstraint,
     AgeBasedRetirementConstraint,
     AggregatedDemandConstraint,
@@ -344,6 +347,7 @@ export AbstractAsset,
     Problem,
     ProblemRefs,
     ProblemSpec,
+    populate_results!,
     problem_spec,
     RampingLimitConstraint,
     run_case,
