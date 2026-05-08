@@ -1,7 +1,7 @@
 ###### ###### ###### ###### ###### ######
 # Function to write the system data to a JSON file
 ###### ###### ###### ###### ###### ######
-function write_to_json(system::System, file_path::AbstractString="", compress::Bool=true)::Nothing
+function write_to_json(system::System, file_path::AbstractString=""; compress::Bool=true)::Nothing
     system_data = prepare_to_json(system)
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
     println("Writing system data to JSON file at: ", file_path)
@@ -9,7 +9,7 @@ function write_to_json(system::System, file_path::AbstractString="", compress::B
     return nothing
 end
 
-function write_to_json(case::Case, file_path::AbstractString="", compress::Bool=true)::Nothing
+function write_to_json(case::Case, file_path::AbstractString=""; compress::Bool=true)::Nothing
     case_data = Dict{Symbol, Any}(
         :case => [prepare_to_json(system) for system in case.systems],
         :settings => prepare_to_json(case.settings)
