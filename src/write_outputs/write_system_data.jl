@@ -15,7 +15,7 @@ function write_to_json(case::Case, file_path::AbstractString=""; compress::Bool=
         :settings => prepare_to_json(case.settings)
     )
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
-    println("Writing system data to JSON file at: ", file_path)
+    @info("Writing system data to JSON file at: ", file_path)
     write_json(file_path, case_data, compress)
     return nothing
 end
