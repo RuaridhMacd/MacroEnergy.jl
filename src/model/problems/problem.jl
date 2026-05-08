@@ -48,4 +48,5 @@ function optimize!(p::Problem)
 end
 
 model(p::Problem) = p.model
+model(m::Model) = m
 id(p::Problem) = p.spec.id

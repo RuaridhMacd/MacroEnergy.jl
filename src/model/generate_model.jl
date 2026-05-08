@@ -19,9 +19,14 @@ function generate_model(case::Case, opt::Optimizer, ::Monolithic)
     settings = get_settings(case)
     fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
 
+    period_problems = Problem[]
+
     for (period_idx, system) in enumerate(periods)
         next = period_idx < length(periods) ? periods[period_idx+1] : nothing
-        add_period_to_model!(model, system, next, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+        push!(
+            period_problems,
+            add_period_to_model!(model, system, next, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+        )
     end
 
     finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
@@ -33,7 +38,7 @@ function generate_model(case::Case, opt::Optimizer, ::Monolithic)
     
     @info(" -- Model generation complete, it took $(time() - start_time) seconds")
     
-    return model
+    return length(period_problems) == 1 ? only(period_problems) : model
 end
 
 function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::Monolithic)
@@ -52,7 +57,7 @@ function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::
 
     fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
 
-    add_period_to_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+    problem = add_period_to_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
     finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
@@ -61,7 +66,7 @@ function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::
         scale_constraints!(model)
     end
 
-    return model
+    return problem
 
 end
 
@@ -152,17 +157,60 @@ function add_period_to_model!(
     om_fixed_cost::Dict,
     variable_cost::Dict
 )
+    static_system = StaticSystem(system)
+    problem = Problem(static_system; id=Symbol(:period_, period_index(system)), model)
+
     model[:eVariableCost] = AffExpr(0.0)
 
-    build_period_planning!(model, system, next_system)
+    build_period_planning!(problem, static_system, system, next_system)
 
     @info(" -- Generating operational model")
-    operation_model!(system, model)
+    operation_model!(static_system, problem)
 
     store_and_unregister_costs!(model, system, fixed_cost, investment_cost, om_fixed_cost)
 
     variable_cost[period_index(system)] = model[:eVariableCost]
     unregister(model, :eVariableCost)
+
+    return problem
+end
+
+function build_period_planning!(
+    problem::Problem,
+    static_system::StaticSystem,
+    system::System,
+    next_system::Union{System, Nothing}
+)
+    @info(" -- Period $(period_index(system))")
+
+    model = problem.model
+    model[:eFixedCost] = AffExpr(0.0)
+    model[:eInvestmentFixedCost] = AffExpr(0.0)
+    model[:eOMFixedCost] = AffExpr(0.0)
+
+    @info(" -- Adding linking variables")
+    add_linking_variables!(static_system, problem)
+
+    @info(" -- Defining available capacity")
+    define_available_capacity!(static_system, problem)
+
+    @info(" -- Generating planning model")
+    planning_model!(static_system, problem)
+
+    if system.settings.Retrofitting
+        @info(" -- Adding retrofit constraints")
+        add_retrofit_constraints!(system, model)
+    end
+
+    @info(" -- Including age-based retirements")
+    add_age_based_retirements!.(system.assets, model)
+
+    if !isnothing(next_system)
+        @info(" -- Available capacity in period $(period_index(system)) is being carried over to period $(period_index(next_system))")
+        carry_over_capacities!(next_system, system)
+    end
+
+    return nothing
 end
 
 """Set up the shared planning components for a single period: cost expressions,
@@ -266,7 +314,7 @@ const PROBLEM_COMPONENT_FIELD_PAIRS = (
     (:unit_commitment_edges, :unit_commitment_edge_indices),
 )
 
-function foreach_problem_component!(f::F, problem::Problem, system::StaticSystem) where {F}
+function foreach_problem_component!(f::F, system::StaticSystem, problem::Problem) where {F}
     for (component_field, spec_field) in PROBLEM_COMPONENT_FIELD_PAIRS
         components = getproperty(system, component_field)
         refs_by_idx = getproperty(problem.refs, component_field)
@@ -282,14 +330,14 @@ constraint_refs(refs) = refs
 constraint_refs(refs::UnidirectionalEdgeRefs) = refs.edge
 constraint_refs(refs::BidirectionalEdgeRefs) = refs.edge
 
-function planning_model!(problem::Problem, system::StaticSystem)
+function planning_model!(system::StaticSystem, problem::Problem)
     model = problem.model
 
-    foreach_problem_component!(problem, system) do component, refs
+    foreach_problem_component!(system, problem) do component, refs
         planning_model!(component, refs, model)
     end
 
-    add_constraints_by_type!(problem, system, PlanningConstraint)
+    add_constraints_by_type!(system, problem, PlanningConstraint)
     return nothing
 end
 
@@ -304,14 +352,14 @@ function operation_model!(system::System, model::Model)
 
 end
 
-function operation_model!(problem::Problem, system::StaticSystem)
+function operation_model!(system::StaticSystem, problem::Problem)
     model = problem.model
 
-    foreach_problem_component!(problem, system) do component, refs
+    foreach_problem_component!(system, problem) do component, refs
         operation_model!(component, refs, model)
     end
 
-    add_constraints_by_type!(problem, system, OperationConstraint)
+    add_constraints_by_type!(system, problem, OperationConstraint)
     return nothing
 end
 
@@ -337,20 +385,20 @@ function add_linking_variables!(system::System, model::Model)
 
 end
 
-function add_linking_variables!(problem::Problem, system::StaticSystem)
+function add_linking_variables!(system::StaticSystem, problem::Problem)
     model = problem.model
 
-    foreach_problem_component!(problem, system) do component, refs
+    foreach_problem_component!(system, problem) do component, refs
         add_linking_variables!(component, refs, model)
     end
 
     return nothing
 end
 
-function define_available_capacity!(problem::Problem, system::StaticSystem)
+function define_available_capacity!(system::StaticSystem, problem::Problem)
     model = problem.model
 
-    foreach_problem_component!(problem, system) do component, refs
+    foreach_problem_component!(system, problem) do component, refs
         define_available_capacity!(component, refs, model)
     end
 
@@ -358,13 +406,13 @@ function define_available_capacity!(problem::Problem, system::StaticSystem)
 end
 
 function add_constraints_by_type!(
-    problem::Problem,
     system::StaticSystem,
+    problem::Problem,
     constraint_type::DataType,
 )
     model = problem.model
 
-    foreach_problem_component!(problem, system) do component, refs
+    foreach_problem_component!(system, problem) do component, refs
         add_constraints_by_type!(component, constraint_refs(refs), model, constraint_type)
     end
 

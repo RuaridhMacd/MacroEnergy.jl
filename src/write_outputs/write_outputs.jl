@@ -4,8 +4,9 @@ Write results when using Monolithic as solution algorithm.
 function write_outputs(
     case_path::AbstractString, 
     case::Case, 
-    model::Model
+    solution::Union{Model,Problem}
 )
+    model = model(solution)
     num_periods = number_of_periods(case)
     periods = get_periods(case)
     settings = get_settings(case)
@@ -24,10 +25,11 @@ Write results for a single Myopic iteration when using Myopic as expansion horiz
 function write_outputs(
     output_path::AbstractString, 
     case::Case, 
-    model::Model, 
+    solution::Union{Model,Problem},
     system::System, 
     period_idx::Int
 )
+    model = model(solution)
     num_periods = number_of_periods(case)
     settings = get_settings(case)
     # Create results directory to store outputs for this period
@@ -242,9 +244,10 @@ function write_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
-    model::Model,
+    solution::Union{Model,Problem},
     settings::NamedTuple
 )
+    model = model(solution)
     
     # Capacity results
     write_capacity(joinpath(results_dir, "capacity.csv"), system)
@@ -292,7 +295,8 @@ end
 
 Write the solver objective value to `objective_value.csv` in `results_dir`.
 """
-function write_objective_value(results_dir::AbstractString, model::Model)
+function write_objective_value(results_dir::AbstractString, solution::Union{Model,Problem})
+    model = model(solution)
     file_path = joinpath(results_dir, "objective_value.csv")
     @info "Writing objective value to $file_path"
     CSV.write(file_path, DataFrame(objective_value = [JuMP.objective_value(model)]))
