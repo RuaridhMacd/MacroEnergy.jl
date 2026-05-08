@@ -180,14 +180,18 @@ function prepare_to_json(data::Dict{DataType,Any})
 end
 
 function prepare_to_json(data::OrderedDict{Symbol,SupplySegment})
-    return OrderedDict{Symbol,OrderedDict{Symbol,Vector{Float64}}}(
-        segment_name => OrderedDict(
-            :price => segment.price,
-            :min => segment.min,
-            :max => segment.max,
-        ) for (segment_name, segment) in data
+    return OrderedDict{Symbol,OrderedDict{Symbol,Vector{Any}}}(
+        segment_name => prepare_to_json(segment) for (segment_name, segment) in data
     )
-end 
+end
+
+function prepare_to_json(segment::SupplySegment)
+    return OrderedDict{Symbol,Any}(
+        :price => prepare_to_json(segment.price),
+        :min => prepare_to_json(segment.min),
+        :max => prepare_to_json(segment.max),
+    )
+end
 
 function prepare_to_json(data::NamedTuple)
     return Dict(Symbol(k) => prepare_to_json(v) for (k, v) in pairs(data))
@@ -239,8 +243,18 @@ function prepare_to_json(data::JuMP.Containers.DenseAxisArray{<:AbstractJuMPScal
     return value.(data).data
 end
 
+# DenseAxisArray{Float64} (e.g. from dual.(con_ref)) — extract the plain Array first
+# to avoid StepRange axis issues when iterating or collecting
+function prepare_to_json(data::JuMP.Containers.DenseAxisArray)
+    return prepare_to_json(data.data)
+end
+
 function prepare_to_json(data::AbstractArray{<:AbstractJuMPScalar})
     return value.(data)
+end
+
+function prepare_to_json(data::AbstractVector)
+    return [prepare_to_json(v) for v in data]
 end
 
 # In general, for all attributes (Floats, Strings, etc), `prepare_to_json` simply returns the data as it is
