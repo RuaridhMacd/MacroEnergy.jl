@@ -34,7 +34,7 @@ a complete Macro workflow.
 - `subproblem_optimizer_attributes::Tuple`: Solver settings for the subproblems.
 
 # Returns
-- `case::Case`: A case object containting a cector of solved system objects (one per period) and the case settings
+- `case::Case`: A case object containing a vector of solved system objects (one per period) and the case settings
 - `solution`: The solution object (type depends on the solution algorithm: `Model` for 
   Monolithic, `MyopicResults` for Myopic, `BendersResults` for Benders).
 

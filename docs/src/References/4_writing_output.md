@@ -158,6 +158,11 @@ MacroEnergy.write_undiscounted_costs
 MacroEnergy.write_dataframe
 ```
 
+## `write_to_json`
+```@docs
+MacroEnergy.write_to_json
+```
+
 ## `MacroEnergy.write_outputs`
 ```@docs
 MacroEnergy.MacroEnergy.write_outputs

@@ -1,6 +1,25 @@
 ###### ###### ###### ###### ###### ######
 # Function to write the system data to a JSON file
 ###### ###### ###### ###### ###### ######
+"""
+    write_to_json(system::System, file_path::AbstractString=""; compress::Bool=true)
+    write_to_json(case::Case, file_path::AbstractString=""; compress::Bool=true)
+
+Serialize a `System` or `Case` object to a JSON file.
+
+# Arguments
+- `system` or `case`: The object to serialize.
+- `file_path`: Path to the output file. Defaults to `output_system_data.json` in the current directory.
+  If `compress=true` and the path does not end in `.gz`, the `.gz` extension is appended automatically.
+
+# Keyword Arguments
+- `compress::Bool=true`: Whether to gzip-compress the output file.
+
+# Notes
+- When serializing a `Case`, the output contains two top-level keys: `:case` (a vector of
+  per-period system data) and `:settings` (the case settings).
+- Constraint dual values are included in the output when available.
+"""
 function write_to_json(system::System, file_path::AbstractString=""; compress::Bool=true)::Nothing
     system_data = prepare_to_json(system)
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
