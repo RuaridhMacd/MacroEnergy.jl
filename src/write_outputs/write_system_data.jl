@@ -190,8 +190,9 @@ function prepare_to_json(data::Dict{Symbol,TimeData})
         time_data[:NumberOfSubperiods] = length(v.subperiod_indices)
         time_data[:HoursPerTimeStep][k] = v.hours_per_timestep
         time_data[:HoursPerSubperiod][k] = length(v.subperiods[1]) # TODO: Check this
+        time_data[:TotalHoursModeled] = v.total_hours_modeled
     end
-    time_data[:TotalHoursModeled] = first(time_data[:HoursPerSubperiod]).second * time_data[:NumberOfSubperiods]
+    
     # Make subperiod map
     (comm, comm_time_data) = first(data)
     rep_period_map = Dict(p => idx for (idx,p) in enumerate(comm_time_data.subperiod_indices))
