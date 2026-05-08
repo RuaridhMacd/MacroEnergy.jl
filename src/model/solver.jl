@@ -14,6 +14,7 @@ function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Opt
     model = generate_model(case, opt, alg)
 
     optimize!(model)
+    populate_results!(case, model)
 
     return (case, model)
 end
@@ -64,6 +65,7 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
         model = generate_model(system, opt, settings, alg)
 
         optimize!(model)
+        populate_results!(system, model)
 
         period_idx < length(periods) && carry_over_capacities!(periods[period_idx+1], system, perfect_foresight=false)
 
