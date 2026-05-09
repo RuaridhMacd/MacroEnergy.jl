@@ -34,12 +34,12 @@ end
 function add_model_constraint!(
     ct::MustRunConstraint,
     e::UnidirectionalEdge,
-    refs::EdgeRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
+    jump_model, refs = constraint_model_and_refs(e, problem)
     if has_capacity(e)
         ct.constraint_ref = @constraint(
-            model,
+            jump_model,
             [t in time_interval(e)],
             flow(refs, t) == availability(e, t) * capacity(refs)
         )
@@ -51,12 +51,12 @@ end
 function add_model_constraint!(
     ct::MustRunConstraint,
     e::EdgeWithUC,
-    refs::EdgeWithUCRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
+    jump_model, refs = constraint_model_and_refs(e, problem)
     if has_capacity(e)
         ct.constraint_ref = @constraint(
-            model,
+            jump_model,
             [t in time_interval(e)],
             flow(refs, t) == availability(e, t) * capacity_size(e) * ucommit(refs, t)
         )

@@ -39,12 +39,12 @@ end
 function add_model_constraint!(
     ct::StorageChargeLimitConstraint,
     e::AbstractEdge,
-    refs::Union{EdgeRefs,EdgeWithUCRefs},
     problem::AbstractProblem,
 )
+    jump_model, refs = constraint_model_and_refs(e, problem)
+
     if isa(end_vertex(e), Storage)
         storage_refs = get_component_refs(problem.refs, end_vertex_ref(refs))
-        jump_model = model(problem)
         ct.constraint_ref = @constraint(
             jump_model,
             [t in time_interval(e)],
@@ -64,7 +64,6 @@ end
 function add_model_constraint!(
     ct::StorageChargeLimitConstraint,
     e::BidirectionalEdge,
-    refs::EdgeRefs,
     problem::AbstractProblem,
 )
     @warn "Storage charge limit constraint is not applicable to bidirectional edges. No constraint added."

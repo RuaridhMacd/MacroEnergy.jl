@@ -33,11 +33,12 @@ end
 function add_model_constraint!(
     ct::MaxNonServedDemandConstraint,
     n::Node,
-    refs::NodeRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
+    model, refs = constraint_model_and_refs(n, problem)
+
     if !isnothing(refs.non_served_demand)
-        refs.constraints[typeof(ct)] = @constraint(
+        ct.constraint_ref = @constraint(
             model,
             [t in time_interval(n)],
             sum(refs.non_served_demand[s, t] for s in segments_non_served_demand(n)) <=

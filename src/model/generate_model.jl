@@ -338,6 +338,11 @@ component_ref_field(::UnidirectionalEdge) = :unidirectional_edges
 component_ref_field(::BidirectionalEdge) = :bidirectional_edges
 component_ref_field(::EdgeWithUC) = :unit_commitment_edges
 
+function constraint_model_and_refs(component, problem::AbstractProblem)
+    refs = constraint_refs(get_component_refs(problem.refs, component))
+    return model(problem), refs
+end
+
 function planning_model!(system::StaticSystem, problem::Problem)
     model = problem.model
 

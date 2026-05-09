@@ -26,8 +26,9 @@ function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, m
     )
 end
 
-function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, refs::NodeRefs, model::Model)
+function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, problem::AbstractProblem)
     ct_type = typeof(ct)
+    model, refs = constraint_model_and_refs(n, problem)
 
     subperiod_balance = @expression(model, [w in subperiod_indices(n)], 0 * model[:vREF])
 
@@ -40,7 +41,7 @@ function add_model_constraint!(ct::CO2StorageConstraint, n::Node{CO2Captured}, r
         )
     end
 
-    refs.constraints[ct_type] = @constraint(
+    ct.constraint_ref = @constraint(
         model,
         [w in subperiod_indices(n)],
         subperiod_balance[w] <=

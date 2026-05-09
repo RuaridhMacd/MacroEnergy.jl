@@ -25,9 +25,9 @@ end
 function add_model_constraint!(
     ct::MinCapacityConstraint,
     y::AbstractEdge,
-    refs::Union{EdgeRefs,EdgeWithUCRefs},
-    model::Model,
+    problem::AbstractProblem,
 )
-    ct.constraint_ref = @constraint(model, capacity(refs) >= min_capacity(y))
+    jump_model, refs = constraint_model_and_refs(y, problem)
+    ct.constraint_ref = @constraint(jump_model, capacity(refs) >= min_capacity(y))
     return nothing
 end

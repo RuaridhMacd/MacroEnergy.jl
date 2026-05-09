@@ -55,8 +55,7 @@ end
 function add_model_constraint!(
     ct::MinDownTimeConstraint,
     e::EdgeWithUC,
-    refs::EdgeWithUCRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
     if !has_capacity(e)
         @warn "Min down time constraints are only available for edges with capacity"
@@ -68,6 +67,8 @@ function add_model_constraint!(
             "The minimum down time for $(id(e)) is longer than the length of one subperiod",
         )
     end
+
+    model, refs = constraint_model_and_refs(e, problem)
 
     ct.constraint_ref = @constraint(
         model,
@@ -125,8 +126,7 @@ end
 function add_model_constraint!(
     ct::MinUpTimeConstraint,
     e::EdgeWithUC,
-    refs::EdgeWithUCRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
     if !has_capacity(e)
         @warn "Min up time constraints are only available for edges with capacity"
@@ -136,6 +136,8 @@ function add_model_constraint!(
     if min_up_time(e) > minimum(length.(subperiods(e)))
         error("The minimum up time for $(id(e)) is longer than the length of one subperiod")
     end
+
+    model, refs = constraint_model_and_refs(e, problem)
 
     ct.constraint_ref = @constraint(
         model,

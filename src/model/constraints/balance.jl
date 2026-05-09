@@ -32,11 +32,11 @@ end
 function add_model_constraint!(
     ct::BalanceConstraint,
     v::AbstractVertex,
-    refs::Union{NodeRefs,TransformationRefs,StorageRefs},
-    model::Model,
+    problem::AbstractProblem,
 )
-    refs.constraints[typeof(ct)] = @constraint(
-        model,
+    jump_model, refs = constraint_model_and_refs(v, problem)
+    ct.constraint_ref = @constraint(
+        jump_model,
         [i in balance_ids(v), t in time_interval(v)],
         get_balance(refs, i, t) == 0.0
     )

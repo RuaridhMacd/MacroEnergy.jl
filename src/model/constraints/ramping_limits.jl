@@ -65,13 +65,14 @@ end
 function add_model_constraint!(
     ct::RampingLimitConstraint,
     e::EdgeWithoutUC,
-    refs::EdgeRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
     if !has_capacity(e)
         @warn "Edge $(id(e)) does not have capacity. Ignoring ramping limit constraint."
         return nothing
     end
+
+    model, refs = constraint_model_and_refs(e, problem)
 
     reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
     regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
@@ -169,9 +170,10 @@ end
 function add_model_constraint!(
     ct::RampingLimitConstraint,
     e::EdgeWithUC,
-    refs::EdgeWithUCRefs,
-    model::Model,
+    problem::AbstractProblem,
 )
+    model, refs = constraint_model_and_refs(e, problem)
+
     reserves_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
     regulation_term = @expression(model, [t in time_interval(e)], 0 * model[:vREF])
 

@@ -42,8 +42,9 @@ function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, model
 
 end
 
-function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, refs::NodeRefs, model::Model) where {T}
+function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, problem::AbstractProblem) where {T}
     ct_type = typeof(ct)
+    model, refs = constraint_model_and_refs(n, problem)
 
     subperiod_balance = @expression(model, [w in subperiod_indices(n)], 0 * model[:vREF])
 
@@ -56,7 +57,7 @@ function add_model_constraint!(ct::AggregatedDemandConstraint, n::Node{T}, refs:
         )
     end
 
-    refs.constraints[ct_type] = @constraint(
+    ct.constraint_ref = @constraint(
         model,
         [w in subperiod_indices(n)],
         subperiod_balance[w] >=
