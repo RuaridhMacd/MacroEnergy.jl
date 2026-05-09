@@ -38,15 +38,9 @@ function add_model_constraint!(
     g::AbstractStorage,
     problem::AbstractProblem,
 )
-    e = discharge_edge(g)
-
-    if !has_capacity(e)
-        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring max duration constraint."
-    end
-
-    if max_duration(g) > 0 && has_capacity(e)
+    if max_duration(g) > 0
         jump_model, refs = constraint_model_and_refs(g, problem)
-        discharge_refs = discharge_edge_refs(refs, problem.refs)
+        discharge_refs = discharge_edge(refs, problem)
         ct.constraint_ref =
             @constraint(jump_model, capacity(refs) <= max_duration(g) * capacity(discharge_refs))
     end
@@ -95,15 +89,9 @@ function add_model_constraint!(
     g::AbstractStorage,
     problem::AbstractProblem,
 )
-    e = discharge_edge(g)
-
-    if !has_capacity(e)
-        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring min duration constraint."
-    end
-
-    if min_duration(g) > 0 && has_capacity(e)
+    if min_duration(g) > 0
         jump_model, refs = constraint_model_and_refs(g, problem)
-        discharge_refs = discharge_edge_refs(refs, problem.refs)
+        discharge_refs = discharge_edge(refs, problem)
         ct.constraint_ref =
             @constraint(jump_model, capacity(refs) >= min_duration(g) * capacity(discharge_refs))
     end

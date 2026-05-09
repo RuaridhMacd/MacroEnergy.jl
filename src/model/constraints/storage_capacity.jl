@@ -26,3 +26,18 @@ function add_model_constraint!(ct::StorageCapacityConstraint, g::AbstractStorage
 
     return nothing
 end
+
+function add_model_constraint!(
+    ct::StorageCapacityConstraint,
+    g::AbstractStorage,
+    problem::AbstractProblem,
+)
+    jump_model, refs = constraint_model_and_refs(g, problem)
+    ct.constraint_ref = @constraint(
+        jump_model,
+        [t in time_interval(g)],
+        storage_level(refs, t) <= capacity(refs)
+    )
+
+    return nothing
+end

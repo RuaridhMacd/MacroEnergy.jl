@@ -1,16 +1,16 @@
 macro AbstractStorageBaseAttributes()
     storage_defaults = storage_default_data()
     esc(quote
-        charge_edge::Union{Nothing,AbstractEdge} = nothing
-        discharge_edge::Union{Nothing,AbstractEdge} = nothing
-        spillage_edge::Union{Nothing, AbstractEdge} = nothing
+        charge_edge::Union{Nothing,AbstractEdge,ComponentRefKey} = nothing
+        discharge_edge::Union{Nothing,AbstractEdge,ComponentRefKey} = nothing
+        spillage_edge::Union{Nothing,AbstractEdge,ComponentRefKey} = nothing
         can_expand::Bool = $storage_defaults[:can_expand]
         can_retire::Bool = $storage_defaults[:can_retire]
-        capacity::Union{JuMPVariable,AffExpr,Float64} = AffExpr(0.0)
+        capacity::Float64 = 0.0
         capacity_size::Float64 = $storage_defaults[:capacity_size]
         capital_recovery_period::Int64 = $storage_defaults[:capital_recovery_period]
         charge_discharge_ratio::Float64 = $storage_defaults[:charge_discharge_ratio]
-        existing_capacity::Union{JuMPVariable,AffExpr,Float64,Int64} = $storage_defaults[:existing_capacity]
+        existing_capacity::Float64 = $storage_defaults[:existing_capacity]
         fixed_om_cost::Float64 = $storage_defaults[:fixed_om_cost]
         investment_cost::Float64 = $storage_defaults[:investment_cost]
         lifetime::Int64 = $storage_defaults[:lifetime]
@@ -26,14 +26,14 @@ macro AbstractStorageBaseAttributes()
         min_retired_capacity::Float64 = $storage_defaults[:min_retired_capacity]
         min_retired_capacity_track::Float64 = 0.0
         min_storage_level::Float64 = $storage_defaults[:min_storage_level]
-        new_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
-        new_capacity_track::Dict{Int64,AffExpr} = Dict(1=>AffExpr(0.0))
-        new_units::Union{Missing, JuMPVariable} = missing
-        retired_capacity::Union{AffExpr,Float64} = AffExpr(0.0)
-        retired_capacity_track::Dict{Int64,AffExpr} = Dict(1=>AffExpr(0.0))
+        new_capacity::Float64 = 0.0
+        new_capacity_track::Dict{Int64,Float64} = Dict(1=>0.0)
+        new_units::Float64 = 0.0
+        retired_capacity::Float64 = 0.0
+        retired_capacity_track::Dict{Int64,Float64} = Dict(1=>0.0)
         retirement_period::Int64 = $storage_defaults[:retirement_period]
-        retired_units::Union{Missing, JuMPVariable} = missing
-        storage_level::JuMPVariable = Vector{VariableRef}()
+        retired_units::Float64 = 0.0
+        storage_level::Vector{Float64} = Float64[]
         variable_om_cost::Float64 = $storage_defaults[:variable_om_cost]
         wacc::Union{Missing,Float64} = missing
         annualized_investment_cost::Union{Nothing,Float64} = $storage_defaults[:annualized_investment_cost]
@@ -209,32 +209,9 @@ function add_linking_variables!(g::Storage, model::Model)
     end
 end
 
-function mirror_storage_refs!(g::AbstractStorage, refs::StorageRefs)
-    if !isnothing(refs.capacity)
-        g.capacity = refs.capacity
-    end
-    if !isnothing(refs.new_units)
-        g.new_units = refs.new_units
-    end
-    if !isnothing(refs.new_capacity)
-        g.new_capacity = refs.new_capacity
-    end
-    if !isnothing(refs.retired_units)
-        g.retired_units = refs.retired_units
-    end
-    if !isnothing(refs.retired_capacity)
-        g.retired_capacity = refs.retired_capacity
-    end
-    if !isnothing(refs.storage_level)
-        g.storage_level = refs.storage_level
-    end
-    return nothing
-end
-
 function add_linking_variables!(g::Storage, refs::StorageRefs, model::Model)
     if has_capacity(g)
         refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
-        g.capacity = refs.capacity
     else
         refs.capacity = capacity(g)
     end
@@ -276,12 +253,6 @@ function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model
 
         refs.retired_capacity = @expression(model, capacity_size(g) * refs.retired_units)
 
-        g.new_capacity_track[period_index(g)] = refs.new_capacity
-
-        g.retired_capacity_track[period_index(g)] = refs.retired_capacity
-
-        mirror_storage_refs!(g, refs)
-
         refs.constraints[:available_capacity] = @constraint(
             model,
             capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(g)
@@ -308,8 +279,6 @@ end
 
 function planning_model!(g::Storage, refs::StorageRefs, model::Model)
 
-    mirror_storage_refs!(g, refs)
-
     if !g.can_expand
         fix(new_units(refs), 0.0; force = true)
     end
@@ -318,7 +287,7 @@ function planning_model!(g::Storage, refs::StorageRefs, model::Model)
         fix(retired_units(refs), 0.0; force = true)
     end
 
-    compute_fixed_costs!(g, model)
+    compute_fixed_costs!(g, refs, model)
 
     refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
 
@@ -334,7 +303,6 @@ function operation_model!(g::Storage, refs::StorageRefs, problem::AbstractProble
         lower_bound = 0.0,
         base_name = "vSTOR_$(g.id)_period$(period_index(g))"
     )
-    g.storage_level = refs.storage_level
 
     if :storage ∈ balance_ids(g)
 
@@ -362,8 +330,8 @@ end
 Base.@kwdef mutable struct LongDurationStorage{T} <: AbstractStorage{T}
     @AbstractVertexBaseAttributes()
     @AbstractStorageBaseAttributes()
-    storage_initial::Union{JuMPVariable,Dict{Int64,Float64}}= Vector{VariableRef}()
-    storage_change::Union{JuMPVariable,Dict{Int64,Float64}} = Vector{VariableRef}()
+    storage_initial::Dict{Int64,Float64} = Dict{Int64,Float64}()
+    storage_change::Dict{Int64,Float64} = Dict{Int64,Float64}()
 end
 storage_initial(g::LongDurationStorage) = g.storage_initial;
 storage_initial(g::LongDurationStorage, r::Int64) = g.storage_initial[r];
@@ -413,17 +381,6 @@ function add_linking_variables!(g::LongDurationStorage, model::Model)
 
 end
 
-function mirror_storage_refs!(g::LongDurationStorage, refs::StorageRefs)
-    invoke(mirror_storage_refs!, Tuple{AbstractStorage,StorageRefs}, g, refs)
-    if !isnothing(refs.storage_initial)
-        g.storage_initial = refs.storage_initial
-    end
-    if !isnothing(refs.storage_change)
-        g.storage_change = refs.storage_change
-    end
-    return nothing
-end
-
 function add_linking_variables!(g::LongDurationStorage, refs::StorageRefs, model::Model)
 
     refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
@@ -433,8 +390,6 @@ function add_linking_variables!(g::LongDurationStorage, refs::StorageRefs, model
 
     refs.storage_change =
     @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))")
-
-    mirror_storage_refs!(g, refs)
 
     return nothing
 end
@@ -468,8 +423,6 @@ end
 
 function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model)
 
-    mirror_storage_refs!(g, refs)
-
     if !g.can_expand
         fix(new_units(refs), 0.0; force = true)
     end
@@ -478,7 +431,7 @@ function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model
         fix(retired_units(refs), 0.0; force = true)
     end
 
-    compute_fixed_costs!(g, model)
+    compute_fixed_costs!(g, refs, model)
 
     refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
 
@@ -505,7 +458,6 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, problem::Ab
         lower_bound = 0.0,
         base_name = "vSTOR_$(g.id)_period$(period_index(g))"
     )
-    mirror_storage_refs!(g, refs)
 
     if :storage ∈ balance_ids(g)
 
@@ -535,7 +487,7 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, problem::Ab
     end
 
     newcon = LongDurationStorageChangeConstraint();
-    add_model_constraint!(newcon, g, m)
+    add_model_constraint!(newcon, g, problem)
     refs.constraints[LongDurationStorageChangeConstraint] = constraint_ref(newcon)
     push!(g.constraints, newcon)
 
@@ -554,6 +506,22 @@ function compute_investment_costs!(g::AbstractStorage, model::Model, cost_type::
     end
 end
 
+function compute_investment_costs!(
+    g::AbstractStorage,
+    refs::StorageRefs,
+    model::Model,
+    cost_type::Function=pv_period_investment_cost,
+)
+    if has_capacity(g) && can_expand(g)
+        add_to_expression!(
+            model[:eInvestmentFixedCost],
+            cost_type(g),
+            new_capacity(refs),
+        )
+    end
+    return nothing
+end
+
 function compute_om_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Function=pv_period_fixed_om_cost)
     if has_capacity(g)
         if fixed_om_cost(g) > 0
@@ -564,6 +532,22 @@ function compute_om_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Fu
             )
         end
     end
+end
+
+function compute_om_fixed_costs!(
+    g::AbstractStorage,
+    refs::StorageRefs,
+    model::Model,
+    cost_type::Function=pv_period_fixed_om_cost,
+)
+    if has_capacity(g) && fixed_om_cost(g) > 0
+        add_to_expression!(
+            model[:eOMFixedCost],
+            cost_type(g),
+            capacity(refs),
+        )
+    end
+    return nothing
 end
 
 function compute_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Symbol=:PV)
@@ -581,6 +565,28 @@ function compute_fixed_costs!(g::AbstractStorage, model::Model, cost_type::Symbo
     )
     compute_investment_costs!(g, model, invesment_cost_function[cost_type])
     compute_om_fixed_costs!(g, model, fom_cost_function[cost_type])
+end
+
+function compute_fixed_costs!(
+    g::AbstractStorage,
+    refs::StorageRefs,
+    model::Model,
+    cost_type::Symbol=:PV,
+)
+    allowed_cost_types = [:PV, :CF]
+    if !(cost_type in allowed_cost_types)
+        error("Invalid cost type: $cost_type. Allowed types are: $(allowed_cost_types)")
+    end
+    invesment_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_investment_cost,
+        :CF => cf_period_investment_cost
+    )
+    fom_cost_function = Dict{Symbol, Function}(
+        :PV => pv_period_fixed_om_cost,
+        :CF => cf_period_fixed_om_cost
+    )
+    compute_investment_costs!(g, refs, model, invesment_cost_function[cost_type])
+    compute_om_fixed_costs!(g, refs, model, fom_cost_function[cost_type])
 end
 
 # Function to filter storages with capacity variables from a Vector of storages.

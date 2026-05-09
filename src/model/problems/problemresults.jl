@@ -45,6 +45,11 @@ function assign_matrix_result!(set!, ref)
     return nothing
 end
 
+function result_dict(ref, indices)
+    isnothing(ref) && return Dict{Int64,Float64}()
+    return Dict{Int64,Float64}(idx => Float64(value(ref[idx])) for idx in indices)
+end
+
 function constraint_dual_vector(ref)
     values = dual.(ref)
     values isa Number && return [Float64(values)]
@@ -158,8 +163,17 @@ end
 function populate_common_storage_results!(storage::AbstractStorage, refs::StorageRefs)
     populate_vertex_results!(storage, refs)
     assign_result!(value -> storage.capacity = value, refs.capacity)
-    assign_result!(value -> storage.new_capacity = value, refs.new_capacity)
-    assign_result!(value -> storage.retired_capacity = value, refs.retired_capacity)
+    assign_result!(value -> storage.new_units = value, refs.new_units)
+    assign_result!(value -> begin
+        storage.new_capacity = value
+        storage.new_capacity_track[period_index(storage)] = value
+    end, refs.new_capacity)
+    assign_result!(value -> storage.retired_units = value, refs.retired_units)
+    assign_result!(value -> begin
+        storage.retired_capacity = value
+        storage.retired_capacity_track[period_index(storage)] = value
+    end, refs.retired_capacity)
+    assign_vector_result!(value -> storage.storage_level = value, refs.storage_level)
     return nothing
 end
 
@@ -169,6 +183,8 @@ end
 
 function populate_results!(storage::LongDurationStorage, refs::StorageRefs)
     populate_common_storage_results!(storage, refs)
+    storage.storage_initial = result_dict(refs.storage_initial, modeled_subperiods(storage))
+    storage.storage_change = result_dict(refs.storage_change, subperiod_indices(storage))
     return nothing
 end
 

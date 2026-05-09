@@ -27,6 +27,21 @@ function add_model_constraint!(ct::MaxStorageLevelConstraint, g::AbstractStorage
     return nothing
 end
 
+function add_model_constraint!(
+    ct::MaxStorageLevelConstraint,
+    g::AbstractStorage,
+    problem::AbstractProblem,
+)
+    jump_model, refs = constraint_model_and_refs(g, problem)
+    ct.constraint_ref = @constraint(
+        jump_model,
+        [t in time_interval(g)],
+        storage_level(refs, t) <= max_storage_level(g) * capacity(refs)
+    )
+
+    return nothing
+end
+
 Base.@kwdef mutable struct MaxInitStorageLevelConstraint <: PlanningConstraint
     value::Union{Missing,Vector{Float64}} = missing
     constraint_dual::Union{Missing,Vector{Float64}} = missing
@@ -57,6 +72,21 @@ function add_model_constraint!(ct::MaxInitStorageLevelConstraint, g::LongDuratio
         model,
         [r in modeled_subperiods(g)],
         storage_initial(g, r) <= max_storage_level(g) * capacity(g)
+    )
+
+    return nothing
+end
+
+function add_model_constraint!(
+    ct::MaxInitStorageLevelConstraint,
+    g::LongDurationStorage,
+    problem::AbstractProblem,
+)
+    jump_model, refs = constraint_model_and_refs(g, problem)
+    ct.constraint_ref = @constraint(
+        jump_model,
+        [r in modeled_subperiods(g)],
+        storage_initial(refs, r) <= max_storage_level(g) * capacity(refs)
     )
 
     return nothing

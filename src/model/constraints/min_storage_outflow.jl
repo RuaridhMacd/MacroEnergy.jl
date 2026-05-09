@@ -44,3 +44,25 @@ function add_model_constraint!(ct::MinStorageOutflowConstraint, g::AbstractStora
 
     return nothing
 end
+
+function add_model_constraint!(
+    ct::MinStorageOutflowConstraint,
+    g::AbstractStorage,
+    problem::AbstractProblem,
+)
+    model, refs = constraint_model_and_refs(g, problem)
+    if isnothing(refs.spillage_edge_ref)
+        @warn "Min outflow constraints for $(g.id) are not being created because it does not have a spillage edge. If the discharge edge is the only outflow, you should apply MinFlowConstraint to the discharge edge."
+        return nothing
+    end
+
+    discharge_refs = discharge_edge(refs, problem)
+    spillage_refs = spillage_edge(refs, problem)
+    ct.constraint_ref = @constraint(
+        model,
+        [t in time_interval(g)],
+        flow(spillage_refs, t) + flow(discharge_refs, t) >= min_outflow_fraction(g) * capacity(discharge_refs)
+    )
+
+    return nothing
+end

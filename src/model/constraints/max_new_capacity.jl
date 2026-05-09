@@ -22,3 +22,13 @@ function add_model_constraint!(
     ct.constraint_ref = @constraint(jump_model, new_capacity(refs) <= max_new_capacity(y))
     return nothing
 end
+
+function add_model_constraint!(
+    ct::MaxNewCapacityConstraint,
+    y::AbstractStorage,
+    problem::AbstractProblem,
+)
+    jump_model, refs = constraint_model_and_refs(y, problem)
+    ct.constraint_ref = @constraint(jump_model, new_capacity(refs) <= max_new_capacity(y))
+    return nothing
+end

@@ -35,3 +35,18 @@ function add_model_constraint!(
     end
     return nothing
 end
+
+function add_model_constraint!(
+    ct::StorageChargeDischargeRatioConstraint,
+    g::AbstractStorage,
+    problem::AbstractProblem,
+)
+    model, refs = constraint_model_and_refs(g, problem)
+    discharge_refs = discharge_edge(refs, problem)
+    charge_refs = charge_edge(refs, problem)
+    ct.constraint_ref = @constraint(
+        model,
+        charge_discharge_ratio(g) * capacity(discharge_refs) == capacity(charge_refs)
+    )
+    return nothing
+end

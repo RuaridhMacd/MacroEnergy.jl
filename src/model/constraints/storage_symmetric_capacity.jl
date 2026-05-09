@@ -49,16 +49,9 @@ function add_model_constraint!(
     g::AbstractStorage,
     problem::AbstractProblem,
 )
-    e_discharge = g.discharge_edge
-
-    if !has_capacity(e_discharge)
-        @warn "Discharge edge for storage $(id(g)) does not have capacity. Ignoring symmetric capacity constraint."
-        return nothing
-    end
-
     jump_model, refs = constraint_model_and_refs(g, problem)
-    discharge_refs = discharge_edge_refs(refs, problem.refs)
-    charge_refs = charge_edge_refs(refs, problem.refs)
+    discharge_refs = discharge_edge(refs, problem)
+    charge_refs = charge_edge(refs, problem)
     ct.constraint_ref = @constraint(
         jump_model,
         [t in time_interval(g)],

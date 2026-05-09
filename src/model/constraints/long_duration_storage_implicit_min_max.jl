@@ -84,6 +84,74 @@ function add_model_constraint!(ct::LongDurationStorageImplicitMinMaxConstraint, 
 
 end
 
+function add_model_constraint!(
+    ct::LongDurationStorageImplicitMinMaxConstraint,
+    g::LongDurationStorage,
+    problem::AbstractProblem,
+)
+    model, refs = constraint_model_and_refs(g, problem)
+    W = subperiod_indices(g)
+    N = setdiff(modeled_subperiods(g), W)
+
+    if !isempty(N)
+        charge_refs = charge_edge(refs, problem)
+        discharge_refs = discharge_edge(refs, problem)
+
+        max_storage_level = @variable(model, [w in W], lower_bound = 0.0, base_name = "vSTORMAX_$(id(g))_period$(period_index(g))")
+        min_storage_level = @variable(model, [w in W], lower_bound = 0.0, base_name = "vSTORMIN_$(id(g))_period$(period_index(g))")
+
+        refs.constraints[:implicit_max_storage_level] = @constraint(
+            model,
+            [t in time_interval(g)],
+            storage_level(refs, t) <= max_storage_level[current_subperiod(g, t)]
+        )
+        refs.constraints[:implicit_min_storage_level] = @constraint(
+            model,
+            [t in time_interval(g)],
+            storage_level(refs, t) >= min_storage_level[current_subperiod(g, t)]
+        )
+
+        tstart = Dict(n => first(get_subperiod(g, subperiod_map(g, n))) for n in N)
+        storage_balance_data = balance_data(g, :storage)
+        charge_balance_coeff = get(storage_balance_data, charge_edge_id(refs), 0.0)
+        discharge_balance_coeff = get(storage_balance_data, discharge_edge_id(refs), 0.0)
+
+        stor_balance_expr = @expression(
+            model,
+            [n in N],
+            (1 - loss_fraction(g, tstart[n])) * storage_initial(refs, n)
+        )
+        for n in N
+            add_to_expression!(
+                stor_balance_expr[n],
+                charge_balance_coeff,
+                flow(charge_refs, tstart[n]),
+            )
+            add_to_expression!(
+                stor_balance_expr[n],
+                -discharge_balance_coeff,
+                flow(discharge_refs, tstart[n]),
+            )
+        end
+
+        refs.constraints[:implicit_max_storage_capacity] = @constraint(
+            model,
+            [n in N],
+            stor_balance_expr[n] + max_storage_level[subperiod_map(g, n)] - storage_level(refs, tstart[n]) <= capacity(refs)
+        )
+
+        refs.constraints[:implicit_min_storage_capacity] = @constraint(
+            model,
+            [n in N],
+            stor_balance_expr[n] + min_storage_level[subperiod_map(g, n)] - storage_level(refs, tstart[n]) >= 0
+        )
+    else
+        @warn "LongDurationStorageImplicitMinMaxConstraint is redundant when all modeled subperiods are representative subperiods so Macro will not create this constraint"
+    end
+
+    return nothing
+end
+
 function add_model_constraint!(ct::LongDurationStorageImplicitMinMaxConstraint, g::Storage, model::Model)
    
     @warn "$(g.id) is not a long duration storage resource, so Macro will not create a LongDurationStorageImplicitMinMaxConstraint"

@@ -70,6 +70,9 @@ Base.@kwdef mutable struct StorageRefs
     charge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
     discharge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
     spillage_edge_ref::Union{Nothing,ComponentRefKey} = nothing
+    charge_edge_id::Union{Nothing,Symbol} = nothing
+    discharge_edge_id::Union{Nothing,Symbol} = nothing
+    spillage_edge_id::Union{Nothing,Symbol} = nothing
     capacity::Any = nothing
     new_units::Any = nothing
     new_capacity::Any = nothing
@@ -152,6 +155,8 @@ function maybe_component_ref_key(system, component)
     return component_ref_key(system, component)
 end
 
+maybe_component_ref_key(system, key::ComponentRefKey) = key
+
 function get_component_refs(refs::ProblemRefs, key::ComponentRefKey)
     return getproperty(refs, key.field)[key.index]
 end
@@ -182,8 +187,14 @@ function set_storage_edge_refs!(refs::StorageRefs, system, storage)
     refs.charge_edge_ref = maybe_component_ref_key(system, charge_edge(storage))
     refs.discharge_edge_ref = maybe_component_ref_key(system, discharge_edge(storage))
     refs.spillage_edge_ref = maybe_component_ref_key(system, spillage_edge(storage))
+    refs.charge_edge_id = component_id(system, refs.charge_edge_ref)
+    refs.discharge_edge_id = component_id(system, refs.discharge_edge_ref)
+    refs.spillage_edge_id = component_id(system, refs.spillage_edge_ref)
     return nothing
 end
+
+component_id(system, key::Nothing) = nothing
+component_id(system, key::ComponentRefKey) = id(getproperty(system, key.field)[key.index])
 
 function validate_storage_edge_ref!(problem_refs::ProblemRefs, key, storage, edge_role::Symbol)
     isnothing(key) && return nothing
@@ -295,13 +306,16 @@ storage_initial(refs::StorageRefs) = refs.storage_initial
 storage_initial(refs::StorageRefs, r::Int64) = refs.storage_initial[r]
 storage_change(refs::StorageRefs) = refs.storage_change
 storage_change(refs::StorageRefs, w::Int64) = refs.storage_change[w]
+charge_edge_id(refs::StorageRefs) = refs.charge_edge_id
+discharge_edge_id(refs::StorageRefs) = refs.discharge_edge_id
+spillage_edge_id(refs::StorageRefs) = refs.spillage_edge_id
 
-charge_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
-    edge_refs(get_component_refs(problem_refs, refs.charge_edge_ref))
-discharge_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
-    edge_refs(get_component_refs(problem_refs, refs.discharge_edge_ref))
-spillage_edge_refs(refs::StorageRefs, problem_refs::ProblemRefs) =
-    edge_refs(get_component_refs(problem_refs, refs.spillage_edge_ref))
+charge_edge(refs::StorageRefs, problem::AbstractProblem) =
+    edge_refs(get_component_refs(problem.refs, refs.charge_edge_ref))
+discharge_edge(refs::StorageRefs, problem::AbstractProblem) =
+    edge_refs(get_component_refs(problem.refs, refs.discharge_edge_ref))
+spillage_edge(refs::StorageRefs, problem::AbstractProblem) =
+    edge_refs(get_component_refs(problem.refs, refs.spillage_edge_ref))
 
 get_balance(refs::Union{NodeRefs,TransformationRefs,StorageRefs}, i::Symbol) =
     refs.expressions[i]

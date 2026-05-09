@@ -13,3 +13,19 @@ function add_model_constraint!(ct::LongDurationStorageChangeConstraint, g::LongD
                         )
     return nothing
 end
+
+function add_model_constraint!(
+    ct::LongDurationStorageChangeConstraint,
+    g::LongDurationStorage,
+    problem::AbstractProblem,
+)
+    model, refs = constraint_model_and_refs(g, problem)
+    subperiod_end = Dict(w => last(get_subperiod(g, w)) for w in subperiod_indices(g))
+
+    ct.constraint_ref = @constraint(
+        model,
+        [w in subperiod_indices(g)],
+        storage_initial(refs, w) == storage_level(refs, subperiod_end[w]) - storage_change(refs, w)
+    )
+    return nothing
+end

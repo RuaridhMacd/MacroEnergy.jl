@@ -46,7 +46,7 @@ function StaticSystem(system::System)
         storage for storage in storages_all if storage isa LongDurationStorage
     ]
 
-    return StaticSystem(
+    static_system = StaticSystem(
         data_dirpath = system.data_dirpath,
         settings = system.settings,
         commodities = copy(system.commodities),
@@ -61,7 +61,39 @@ function StaticSystem(system::System)
         assets = copy(system.assets),
         locations = copy(system.locations),
     )
+    set_storage_edge_keys!(static_system)
+    return static_system
 end
+
+function component(system::StaticSystem, key::ComponentRefKey)
+    return getproperty(system, key.field)[key.index]
+end
+
+function storage_edge_key(system::StaticSystem, edge)
+    isnothing(edge) && return nothing
+    edge isa ComponentRefKey && return edge
+    return component_ref_key(system, edge)
+end
+
+function set_storage_edge_keys!(storage::AbstractStorage, system::StaticSystem)
+    storage.charge_edge = storage_edge_key(system, storage.charge_edge)
+    storage.discharge_edge = storage_edge_key(system, storage.discharge_edge)
+    storage.spillage_edge = storage_edge_key(system, storage.spillage_edge)
+    return nothing
+end
+
+function set_storage_edge_keys!(system::StaticSystem)
+    foreach(storage -> set_storage_edge_keys!(storage, system), system.storages)
+    foreach(storage -> set_storage_edge_keys!(storage, system), system.long_duration_storages)
+    return nothing
+end
+
+charge_edge(storage::AbstractStorage, system::StaticSystem) =
+    isnothing(storage.charge_edge) ? nothing : component(system, storage.charge_edge)
+discharge_edge(storage::AbstractStorage, system::StaticSystem) =
+    isnothing(storage.discharge_edge) ? nothing : component(system, storage.discharge_edge)
+spillage_edge(storage::AbstractStorage, system::StaticSystem) =
+    isnothing(storage.spillage_edge) ? nothing : component(system, storage.spillage_edge)
 
 """
     asset_ids(system::System; source::String="assets")
