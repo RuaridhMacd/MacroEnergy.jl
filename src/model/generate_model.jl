@@ -416,15 +416,9 @@ function add_constraints_by_type!(
     problem::AbstractProblem,
     constraint_type::DataType,
 )
-    refs = constraint_refs(get_component_refs(problem.refs, y))
-
     for c in all_constraints(y)
         if isa(c, constraint_type)
             Base.invokelatest(add_model_constraint!, c, y, problem)
-            ref = constraint_ref(c)
-            if !ismissing(ref)
-                refs.constraints[typeof(c)] = ref
-            end
         end
     end
     return nothing

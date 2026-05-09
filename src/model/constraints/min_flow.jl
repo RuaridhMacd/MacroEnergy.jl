@@ -37,7 +37,7 @@ function add_model_constraint!(
 )
     jump_model, refs = constraint_model_and_refs(e, problem)
     if has_capacity(e)
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             jump_model,
             [t in time_interval(e)],
             flow(refs, t) >= min_flow_fraction(e) * capacity(refs)
@@ -81,7 +81,7 @@ function add_model_constraint!(
     problem::AbstractProblem,
 )
     jump_model, refs = constraint_model_and_refs(e, problem)
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         jump_model,
         [t in time_interval(e)],
         flow(refs, t) >= min_flow_fraction(e) * capacity_size(e) * ucommit(refs, t)

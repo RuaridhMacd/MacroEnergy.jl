@@ -45,7 +45,7 @@ function add_model_constraint!(
     model, refs = constraint_model_and_refs(n, problem)
 
     if !isnothing(refs.non_served_demand)
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             model,
             [s in segments_non_served_demand(n), t in time_interval(n)],
             refs.non_served_demand[s, t] <= max_non_served_demand(n, s) * demand(n, t)

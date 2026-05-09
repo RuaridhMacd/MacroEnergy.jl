@@ -58,7 +58,7 @@ function add_model_constraint!(
 
     discharge_refs = discharge_edge(refs, problem)
     spillage_refs = spillage_edge(refs, problem)
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [t in time_interval(g)],
         flow(spillage_refs, t) + flow(discharge_refs, t) >= min_outflow_fraction(g) * capacity(discharge_refs)

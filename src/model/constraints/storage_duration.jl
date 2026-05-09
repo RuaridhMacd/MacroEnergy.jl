@@ -41,7 +41,7 @@ function add_model_constraint!(
     if max_duration(g) > 0
         jump_model, refs = constraint_model_and_refs(g, problem)
         discharge_refs = discharge_edge(refs, problem)
-        ct.constraint_ref =
+        refs.constraints[typeof(ct)] =
             @constraint(jump_model, capacity(refs) <= max_duration(g) * capacity(discharge_refs))
     end
 
@@ -92,7 +92,7 @@ function add_model_constraint!(
     if min_duration(g) > 0
         jump_model, refs = constraint_model_and_refs(g, problem)
         discharge_refs = discharge_edge(refs, problem)
-        ct.constraint_ref =
+        refs.constraints[typeof(ct)] =
             @constraint(jump_model, capacity(refs) >= min_duration(g) * capacity(discharge_refs))
     end
 

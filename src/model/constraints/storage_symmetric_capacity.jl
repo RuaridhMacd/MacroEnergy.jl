@@ -52,7 +52,7 @@ function add_model_constraint!(
     jump_model, refs = constraint_model_and_refs(g, problem)
     discharge_refs = discharge_edge(refs, problem)
     charge_refs = charge_edge(refs, problem)
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         jump_model,
         [t in time_interval(g)],
         flow(discharge_refs, t) + flow(charge_refs, t) <= capacity(discharge_refs)

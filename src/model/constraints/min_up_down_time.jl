@@ -70,7 +70,7 @@ function add_model_constraint!(
 
     model, refs = constraint_model_and_refs(e, problem)
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [t in time_interval(e)],
         capacity(refs) / capacity_size(e) - ucommit(refs, t) >= sum(
@@ -139,7 +139,7 @@ function add_model_constraint!(
 
     model, refs = constraint_model_and_refs(e, problem)
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [t in time_interval(e)],
         ucommit(refs, t) >= sum(

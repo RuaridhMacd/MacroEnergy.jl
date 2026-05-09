@@ -46,7 +46,7 @@ function add_model_constraint!(
 
     if isa(start_vertex(e), Storage)
         storage_refs = get_component_refs(problem.refs, start_vertex_ref(refs))
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             jump_model,
             [t in time_interval(e)],
             balance_data(e, start_vertex(e), :storage) * flow(refs, t) <=

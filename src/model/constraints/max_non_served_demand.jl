@@ -38,7 +38,7 @@ function add_model_constraint!(
     model, refs = constraint_model_and_refs(n, problem)
 
     if !isnothing(refs.non_served_demand)
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             model,
             [t in time_interval(n)],
             sum(refs.non_served_demand[s, t] for s in segments_non_served_demand(n)) <=

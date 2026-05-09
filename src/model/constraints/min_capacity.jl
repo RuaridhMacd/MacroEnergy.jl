@@ -28,7 +28,7 @@ function add_model_constraint!(
     problem::AbstractProblem,
 )
     jump_model, refs = constraint_model_and_refs(y, problem)
-    ct.constraint_ref = @constraint(jump_model, capacity(refs) >= min_capacity(y))
+    refs.constraints[typeof(ct)] = @constraint(jump_model, capacity(refs) >= min_capacity(y))
     return nothing
 end
 
@@ -38,6 +38,6 @@ function add_model_constraint!(
     problem::AbstractProblem,
 )
     jump_model, refs = constraint_model_and_refs(y, problem)
-    ct.constraint_ref = @constraint(jump_model, capacity(refs) >= min_capacity(y))
+    refs.constraints[typeof(ct)] = @constraint(jump_model, capacity(refs) >= min_capacity(y))
     return nothing
 end

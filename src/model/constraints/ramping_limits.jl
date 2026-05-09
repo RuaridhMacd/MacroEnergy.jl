@@ -95,7 +95,7 @@ function add_model_constraint!(
 
     ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [s in [:RampUp, :RampDown], t in time_interval(e)],
         ramp_expr_dict[s][t] <= 0
@@ -205,7 +205,7 @@ function add_model_constraint!(
 
     ramp_expr_dict = Dict(:RampUp => eRampUp, :RampDown => eRampDown)
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [s in [:RampUp, :RampDown], t in time_interval(e)],
         ramp_expr_dict[s][t] <= 0

@@ -33,7 +33,7 @@ function add_model_constraint!(
     problem::AbstractProblem,
 )
     jump_model, refs = constraint_model_and_refs(g, problem)
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         jump_model,
         [t in time_interval(g)],
         storage_level(refs, t) >= min_storage_level(g) * capacity(refs)
@@ -83,7 +83,7 @@ function add_model_constraint!(
     problem::AbstractProblem,
 )
     jump_model, refs = constraint_model_and_refs(g, problem)
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         jump_model,
         [r in modeled_subperiods(g)],
         storage_initial(refs, r) >= min_storage_level(g) * capacity(refs)

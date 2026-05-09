@@ -39,7 +39,7 @@ function add_model_constraint!(
     jump_model = model(problem)
 
     if has_capacity(e)
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             jump_model,
             [t in time_interval(e)],
             flow(refs, t) <= availability(e, t) * capacity(refs)
@@ -85,7 +85,7 @@ function add_model_constraint!(
     jump_model = model(problem)
 
     if has_capacity(e)
-        ct.constraint_ref = @constraint(
+        refs.constraints[typeof(ct)] = @constraint(
             jump_model,
             [i in [-1, 1], t in time_interval(e)],
             i * flow(refs, t) <= availability(e, t) * capacity(refs)
@@ -136,7 +136,7 @@ function add_model_constraint!(
     refs = constraint_refs(get_component_refs(problem.refs, e))
     jump_model = model(problem)
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         jump_model,
         [t in time_interval(e)],
         flow(refs, t) <= availability(e, t) * capacity_size(e) * ucommit(refs, t)

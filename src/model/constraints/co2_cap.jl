@@ -104,7 +104,7 @@ function add_model_constraint!(ct::CO2CapConstraint, n::Node{CO2}, problem::Abst
         end
     end
 
-    ct.constraint_ref = @constraint(
+    refs.constraints[typeof(ct)] = @constraint(
         model,
         [w in subperiod_indices(n)],
         subperiod_balance[w] <=
