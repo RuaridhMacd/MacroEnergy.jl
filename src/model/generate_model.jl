@@ -424,38 +424,6 @@ function add_constraints_by_type!(
     return nothing
 end
 
-function add_model_constraint!(
-    ct::AbstractTypeConstraint,
-    y::Union{AbstractEdge,AbstractVertex},
-    problem::AbstractProblem,
-)
-    refs = constraint_refs(get_component_refs(problem.refs, y))
-    Base.invokelatest(add_model_constraint!, ct, y, refs, problem)
-    return nothing
-end
-
-function add_model_constraint!(
-    ct::AbstractTypeConstraint,
-    y::Union{AbstractEdge,AbstractVertex},
-    refs,
-    problem::AbstractProblem,
-)
-    jump_model = model(problem)
-    Base.invokelatest(add_model_constraint!, ct, y, refs, jump_model)
-    return nothing
-end
-
-function add_model_constraint!(
-    ct::AbstractTypeConstraint,
-    y::Union{AbstractEdge,AbstractVertex},
-    refs,
-    model::Model,
-)
-    Base.invokelatest(add_model_constraint!, ct, y, model)
-    refs.constraints[typeof(ct)] = constraint_ref(ct)
-    return nothing
-end
-
 function add_linking_variables!(a::AbstractAsset, model::Model)
     for t in fieldnames(typeof(a))
         add_linking_variables!(getfield(a, t), model)

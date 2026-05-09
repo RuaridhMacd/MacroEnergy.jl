@@ -488,8 +488,6 @@ function operation_model!(g::LongDurationStorage, refs::StorageRefs, problem::Ab
 
     newcon = LongDurationStorageChangeConstraint();
     add_model_constraint!(newcon, g, problem)
-    refs.constraints[LongDurationStorageChangeConstraint] = constraint_ref(newcon)
-    push!(g.constraints, newcon)
 
     return nothing
 end
