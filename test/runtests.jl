@@ -12,6 +12,7 @@ with_logger(test_logger) do
         include("test_user_additions.jl")
         include("test_registry_user_smoke.jl")
         include("test_problemrefs.jl")
+        include("test_multiperiod_monolithic_regression.jl")
 
         Test.@testset "Asset tests" begin
             include("asset_tests/test_assets_transmission_links.jl")

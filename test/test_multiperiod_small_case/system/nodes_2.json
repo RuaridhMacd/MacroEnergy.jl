@@ -1,0 +1,28 @@
+{
+    "nodes": [
+        {
+            "type": "Electricity",
+            "global_data": {
+                "constraints": {
+                    "BalanceConstraint": true,
+                    "MaxNonServedDemandConstraint": true,
+                    "MaxNonServedDemandPerSegmentConstraint": true
+                },
+                "max_nsd": [1],
+                "price_nsd": [10000],
+                "time_interval": "Electricity"
+            },
+            "instance_data": [
+                {
+                    "id": "elec",
+                    "demand": {
+                        "timeseries": {
+                            "path": "system/demand_2.csv",
+                            "header": "elec_demand"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

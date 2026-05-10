@@ -1,0 +1,10 @@
+{
+    "HoursPerTimeStep": {
+        "Electricity": 1
+    },
+    "NumberOfSubperiods": 1,
+    "HoursPerSubperiod": {
+        "Electricity": 1
+    },
+    "TotalHoursModeled": 1
+}
