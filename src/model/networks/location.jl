@@ -49,16 +49,3 @@ function load_locations!(system::AbstractSystem, rel_or_abs_path::String, data::
     end
     return nothing
 end
-
-function add_linking_variables!(location::Location, model::Model)
-    return nothing
-end
-
-function define_available_capacity!(location::Location, model::Model)
-    # FIXME to return capacities?
-    return nothing
-end
-
-function planning_model!(location::Location, model::Model)
-    return nothing
-end

@@ -142,23 +142,6 @@ price_supply(n::Node,s::Int64,t::Int64) = length(price_supply(n, s)) == 1 ? pric
 ######### Node interface #########
 
 
-function add_linking_variables!(n::Node, model::Model)
-
-    if any(isa.(n.constraints, PolicyConstraint))
-        ct_all = findall(isa.(n.constraints, PolicyConstraint))
-        for ct in ct_all
-
-            ct_type = typeof(n.constraints[ct])
-            n.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")] = @variable(
-                model,
-                [w in subperiod_indices(n)],
-                base_name = "v" * string(ct_type) * "_Budget_$(id(n))_period$(period_index(n))"
-            )
-        end
-    end
-
-end
-
 function add_linking_variables!(n::Node, refs::NodeRefs, model::Model)
 
     if any(isa.(n.constraints, PolicyConstraint))
@@ -176,29 +159,7 @@ function add_linking_variables!(n::Node, refs::NodeRefs, model::Model)
 
 end
 
-function define_available_capacity!(n::Node, model::Model)
-    return nothing
-end
-
 function define_available_capacity!(::Node, ::NodeRefs, ::Model)
-    return nothing
-end
-
-function planning_model!(n::Node, model::Model)
-
-    ### DEFAULT CONSTRAINTS ###
-
-    if any(isa.(n.constraints, PolicyConstraint))
-        ct_all = findall(isa.(n.constraints, PolicyConstraint))
-        for ct in ct_all
-            ct_type = typeof(n.constraints[ct])
-            n.policy_budgeting_constraints[ct_type] = @constraint(
-                model,
-                sum(n.policy_budgeting_vars[Symbol(string(ct_type) * "_Budget")]) ==
-                rhs_policy(n, ct_type)
-            )
-        end
-    end
     return nothing
 end
 

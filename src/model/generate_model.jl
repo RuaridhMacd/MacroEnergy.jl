@@ -225,43 +225,6 @@ function build_period_planning!(
     return nothing
 end
 
-"""Set up the shared planning components for a single period: cost expressions,
-linking variables, available capacity, planning model, retrofitting, age-based
-retirements, and capacity carry-over."""
-function build_period_planning!(
-    model::Model,
-    system::System,
-    next_system::Union{System, Nothing}
-)
-    @info(" -- Period $(period_index(system))")
-
-    model[:eFixedCost] = AffExpr(0.0)
-    model[:eInvestmentFixedCost] = AffExpr(0.0)
-    model[:eOMFixedCost] = AffExpr(0.0)
-
-    @info(" -- Adding linking variables")
-    add_linking_variables!(system, model)
-
-    @info(" -- Defining available capacity")
-    define_available_capacity!(system, model)
-
-    @info(" -- Generating planning model")
-    planning_model!(system, model)
-
-    if system.settings.Retrofitting
-        @info(" -- Adding retrofit constraints")
-        add_retrofit_constraints!(system, model)
-    end
-
-    @info(" -- Including age-based retirements")
-    add_age_based_retirements!.(system.assets, model)
-
-    if !isnothing(next_system)
-        @info(" -- Available capacity in period $(period_index(system)) is being carried over to period $(period_index(next_system))")
-        carry_over_capacities!(next_system, system)
-    end
-end
-
 """Store fixed cost expressions in the cost dicts and unregister them from the model."""
 function store_and_unregister_costs!(model::Model, system::System, fixed_cost::Dict, investment_cost::Dict, om_fixed_cost::Dict)
     curr_period = period_index(system)
@@ -304,16 +267,6 @@ function finalize_model_objective!(
     @objective(model, Min, model[:eFixedCost] + model[:eVariableCost])
 
     return nothing
-end
-
-function planning_model!(system::System, model::Model)
-
-    planning_model!.(system.locations, Ref(model))
-
-    planning_model!.(system.assets, Ref(model))
-
-    add_constraints_by_type!(system, model, PlanningConstraint)
-
 end
 
 function foreach_problem_component!(f::F, system::StaticSystem, problem::Problem) where {F}
@@ -377,21 +330,6 @@ function operation_model!(system::StaticSystem, problem::Problem)
     return nothing
 end
 
-function planning_model!(a::AbstractAsset, model::Model)
-    for t in fieldnames(typeof(a))
-        planning_model!(getfield(a, t), model)
-    end
-    return nothing
-end
-
-function add_linking_variables!(system::System, model::Model)
-
-    add_linking_variables!.(system.locations, model)
-
-    add_linking_variables!.(system.assets, model)
-
-end
-
 function add_linking_variables!(system::StaticSystem, problem::Problem)
     model = problem.model
 
@@ -435,40 +373,6 @@ function add_constraints_by_type!(
         end
     end
     return nothing
-end
-
-function add_linking_variables!(a::AbstractAsset, model::Model)
-    for t in fieldnames(typeof(a))
-        add_linking_variables!(getfield(a, t), model)
-    end
-end
-
-function define_available_capacity!(system::System, model::Model)
-
-    define_available_capacity!.(system.locations, model)
-
-    define_available_capacity!.(system.assets, model)
-
-end
-
-function define_available_capacity!(a::AbstractAsset, model::Model)
-    for t in fieldnames(typeof(a))
-        define_available_capacity!(getfield(a, t), model)
-    end
-end
-
-function add_age_based_retirements!(a::AbstractAsset,model::Model)
-
-    for t in fieldnames(typeof(a))
-        y = getfield(a, t)
-        if isa(y,AbstractEdge) || isa(y,AbstractStorage)
-            if retirement_period(y) > 0 || min_retired_capacity_track(y) > 0.0 ### Otherwise the constraint is trivially satisfied because the left hand side is zero
-                push!(y.constraints, AgeBasedRetirementConstraint())
-                add_model_constraint!(y.constraints[end], y, model)
-            end
-        end
-    end
-
 end
 
 const CAPACITY_COMPONENT_FIELDS = (
@@ -526,21 +430,6 @@ function compute_retirement_period!(a::AbstractAsset, period_lengths::Vector{Int
     return nothing
 end
 
-function carry_over_capacities!(system::System, system_prev::System; perfect_foresight::Bool = true)
-
-    for a in system.assets
-        a_prev_index = findfirst(id.(system_prev.assets).==id(a))
-        if isnothing(a_prev_index)
-            @info("Skipping asset $(id(a)) as it was not present in the previous period")
-            validate_existing_capacity(a)
-        else
-            a_prev = system_prev.assets[a_prev_index];
-            carry_over_capacities!(a, a_prev ; perfect_foresight)
-        end
-    end
-
-end
-
 function carry_over_capacities!(problem::Problem, system::StaticSystem, system_prev::StaticSystem)
     for component_field in CAPACITY_COMPONENT_FIELDS
         previous_components = getproperty(system_prev, component_field)
@@ -579,55 +468,6 @@ function carry_over_capacities!(
         end
     end
 
-    return nothing
-end
-
-function carry_over_capacities!(a::AbstractAsset, a_prev::AbstractAsset; perfect_foresight::Bool = true)
-
-    for t in fieldnames(typeof(a))
-        carry_over_capacities!(getfield(a,t), getfield(a_prev,t); perfect_foresight)
-    end
-
-end
-
-function carry_over_capacities!(y::Union{AbstractEdge,AbstractStorage},y_prev::Union{AbstractEdge,AbstractStorage}; perfect_foresight::Bool = true)
-    if has_capacity(y_prev)
-        
-        if perfect_foresight
-            y.existing_capacity = capacity(y_prev)
-        else
-            y.existing_capacity = value(capacity(y_prev))
-        end
-
-        for prev_period in keys(new_capacity_track(y_prev))
-            if perfect_foresight
-                y.new_capacity_track[prev_period] = new_capacity_track(y_prev,prev_period)
-                y.retired_capacity_track[prev_period] = retired_capacity_track(y_prev,prev_period)
-
-                if isa(y, AbstractEdge)
-                    y.retrofitted_capacity_track[prev_period] = retrofitted_capacity_track(y_prev,prev_period)
-                else
-                    continue # Storage does not have retrofitted capacity
-                end
-            else
-                y.new_capacity_track[prev_period] = value(new_capacity_track(y_prev,prev_period))
-                y.retired_capacity_track[prev_period] = value(retired_capacity_track(y_prev,prev_period))
-
-                if isa(y, AbstractEdge)
-                    y.retrofitted_capacity_track[prev_period] = value(retrofitted_capacity_track(y_prev,prev_period))
-                else
-                    continue # Storage does not have retrofitted capacity
-                    
-                end
-            end
-        end
-        
-    end
-end
-function carry_over_capacities!(g::Transformation,g_prev::Transformation; perfect_foresight::Bool = true)
-    return nothing
-end
-function carry_over_capacities!(n::Node,n_prev::Node; perfect_foresight::Bool = true)
     return nothing
 end
 

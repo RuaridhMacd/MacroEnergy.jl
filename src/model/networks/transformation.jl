@@ -19,24 +19,11 @@ Base.@kwdef mutable struct Transformation <: AbstractVertex
     @AbstractVertexBaseAttributes()
 end
 
-function add_linking_variables!(g::Transformation, model::Model)
-    return nothing
-end
-
 function add_linking_variables!(::Transformation, ::TransformationRefs, ::Model)
     return nothing
 end
 
-function planning_model!(g::Transformation, model::Model)
-
-    return nothing
-end
-
 function planning_model!(::Transformation, ::TransformationRefs, ::Model)
-    return nothing
-end
-
-function define_available_capacity!(g::Transformation, model::Model)
     return nothing
 end
 

@@ -203,12 +203,6 @@ variable_om_cost(g::AbstractStorage) = g.variable_om_cost;
 pv_period_variable_om_cost(g::AbstractStorage) = g.pv_period_variable_om_cost;
 cf_period_variable_om_cost(g::AbstractStorage) = g.cf_period_variable_om_cost;
 
-function add_linking_variables!(g::Storage, model::Model)
-    if has_capacity(g)
-        g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
-    end
-end
-
 function add_linking_variables!(g::Storage, refs::StorageRefs, model::Model)
     if has_capacity(g)
         refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
@@ -216,30 +210,6 @@ function add_linking_variables!(g::Storage, refs::StorageRefs, model::Model)
         refs.capacity = capacity(g)
     end
     return nothing
-end
-
-function define_available_capacity!(g::AbstractStorage, model::Model)
-
-    if has_capacity(g)
-        g.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))")
-
-        g.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(g))_period$(period_index(g))")
-        
-        g.new_capacity = @expression(model, capacity_size(g) * new_units(g))
-        
-        g.retired_capacity = @expression(model, capacity_size(g) * retired_units(g))
-        
-        g.new_capacity_track[period_index(g)] = new_capacity(g);
-            
-        g.retired_capacity_track[period_index(g)] = retired_capacity(g);
-
-        @constraint(model, capacity(g) == new_capacity(g) - retired_capacity(g) + existing_capacity(g))
-
-        # g.capacity = @expression(
-        #     model,
-        #     new_capacity(g) - retired_capacity(g) + existing_capacity(g)
-        # )
-    end
 end
 
 function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model::Model)
@@ -267,22 +237,6 @@ function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model
         )
     end
     return nothing
-end
-
-function planning_model!(g::Storage, model::Model)
-
-    if !g.can_expand
-        fix(new_units(g), 0.0; force = true)
-    end
-
-    if !g.can_retire
-        fix(retired_units(g), 0.0; force = true)
-    end
-
-    compute_fixed_costs!(g, model)
-
-    @constraint(model, retired_capacity(g) <= existing_capacity(g))
-
 end
 
 function planning_model!(g::Storage, refs::StorageRefs, model::Model)
@@ -377,18 +331,6 @@ end
 LongDurationStorage(id::Symbol, data::Dict{Symbol,Any}, time_data::TimeData, commodity::DataType, location::Union{Missing,Symbol} = missing) =
     make_long_duration_storage(id, data, time_data, commodity, location)
 
-function add_linking_variables!(g::LongDurationStorage, model::Model)
-
-    g.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
-
-    g.storage_initial =
-    @variable(model, [r in modeled_subperiods(g)], lower_bound = 0.0, base_name = "vSTOR_INIT_$(g.id)_period$(period_index(g))")
-
-    g.storage_change =
-    @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))")
-
-end
-
 function add_linking_variables!(g::LongDurationStorage, refs::StorageRefs, model::Model)
 
     refs.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(g))_period$(period_index(g))")
@@ -400,33 +342,6 @@ function add_linking_variables!(g::LongDurationStorage, refs::StorageRefs, model
     @variable(model, [w in subperiod_indices(g)], base_name = "vSTOR_CHANGE_$(g.id)_period$(period_index(g))")
 
     return nothing
-end
-
-function planning_model!(g::LongDurationStorage, model::Model)
-
-    if !g.can_expand
-        fix(new_units(g), 0.0; force = true)
-    end
-
-    if !g.can_retire
-        fix(retired_units(g), 0.0; force = true)
-    end
-
-    compute_fixed_costs!(g, model)
-
-    @constraint(model, retired_capacity(g) <= existing_capacity(g))
-
-    MODELED_SUBPERIODS = modeled_subperiods(g)
-    NPeriods = length(MODELED_SUBPERIODS);
-
-    @constraint(model,[r in MODELED_SUBPERIODS], 
-        storage_initial(g, r) <= capacity(g)
-    )
-
-    @constraint(model, [r in MODELED_SUBPERIODS], 
-        storage_initial(g, mod1(r + 1, NPeriods)) == storage_initial(g, r) + storage_change(g, subperiod_map(g,r))
-    )
-
 end
 
 function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model)

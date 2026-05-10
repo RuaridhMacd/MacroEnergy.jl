@@ -67,7 +67,7 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
         optimize!(model)
         populate_results!(system, model)
 
-        period_idx < length(periods) && carry_over_capacities!(periods[period_idx+1], system, perfect_foresight=false)
+        period_idx < length(periods) && carry_over_solved_capacities!(periods[period_idx+1], system)
 
         write_outputs(output_path, case, model, system, period_idx)
 

@@ -367,16 +367,6 @@ pv_period_variable_om_cost(e::AbstractEdge) = e.pv_period_variable_om_cost;
 
 ##### End of Edge interface #####
 
-function add_linking_variables!(e::AbstractEdge, model::Model)
-
-    if has_capacity(e)
-        e.capacity = @variable(model, lower_bound = 0.0, base_name = "vCAP_$(id(e))_period$(period_index(e))")
-    end
-
-    return nothing
-
-end
-
 function add_linking_variables!(
     e::AbstractEdge,
     refs::Union{EdgeRefs,EdgeWithUCRefs},
@@ -399,46 +389,6 @@ end
 
 function add_linking_variables!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
     return add_linking_variables!(e, refs.edge, model)
-end
-
-function define_available_capacity!(e::AbstractEdge, model::Model)
-
-    if has_capacity(e)
-        
-        e.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(e))_period$(period_index(e))")
-
-        e.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(e))_period$(period_index(e))")
-
-        e.new_capacity = @expression(model, capacity_size(e) * new_units(e))
-        
-        e.retired_capacity = @expression(model, capacity_size(e) * retired_units(e))
-
-        e.new_capacity_track[period_index(e)] = new_capacity(e);
-        
-        e.retired_capacity_track[period_index(e)] = retired_capacity(e);
-
-        if can_retrofit(e)
-
-            e.retrofitted_units = @variable(model, lower_bound = 0.0, base_name = "vRETROFITUNIT_$(id(e))_period$(period_index(e))")
-            
-            e.retrofitted_capacity = @expression(model, capacity_size(e) * retrofitted_units(e))
-
-            e.retrofitted_capacity_track[period_index(e)] = retrofitted_capacity(e)
-
-            @constraint(model, capacity(e) == new_capacity(e) - retired_capacity(e) - retrofitted_capacity(e) + existing_capacity(e))
-            
-        else
-            @constraint(model, capacity(e) == new_capacity(e) - retired_capacity(e) + existing_capacity(e))
-        end
-
-        # e.capacity = @expression(
-        #     model,
-        #     new_capacity(e) - retired_capacity(e) + existing_capacity(e)
-        # )
-    end
-
-    return nothing
-
 end
 
 function define_available_capacity!(
@@ -495,43 +445,6 @@ end
 
 function define_available_capacity!(e::BidirectionalEdge, refs::BidirectionalEdgeRefs, model::Model)
     return define_available_capacity!(e, refs.edge, model)
-end
-
-function planning_model!(e::AbstractEdge, model::Model)
-
-    if has_capacity(e)
-
-        if !can_expand(e)
-            fix(new_units(e), 0.0; force = true)
-        else
-            if integer_decisions(e)
-                set_integer(new_units(e))
-            end
-        end
-
-        if !can_retire(e)
-            fix(retired_units(e), 0.0; force = true)
-        else
-            if integer_decisions(e)
-                set_integer(retired_units(e))
-            end
-        end
-
-        if can_retrofit(e)
-            @constraint(model, retrofitted_capacity(e) + retired_capacity(e) <= existing_capacity(e))
-            if integer_decisions(e)
-                set_integer(retrofitted_units(e))
-            end
-        else
-            @constraint(model, retired_capacity(e) <= existing_capacity(e))
-        end
-
-    end
-
-    compute_fixed_costs!(e, model)
-
-    return nothing
-
 end
 
 function planning_model!(
