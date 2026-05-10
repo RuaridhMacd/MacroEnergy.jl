@@ -1,10 +1,21 @@
 Base.@kwdef struct ComponentRefKey
+    period_index::Int
     field::Symbol
     index::Int
 end
 
+const PROBLEM_COMPONENT_FIELD_PAIRS = (
+    (:nodes, :node_keys),
+    (:transformations, :transformation_keys),
+    (:storages, :storage_keys),
+    (:long_duration_storages, :long_duration_storage_keys),
+    (:unidirectional_edges, :unidirectional_edge_keys),
+    (:bidirectional_edges, :bidirectional_edge_keys),
+    (:unit_commitment_edges, :unit_commitment_edge_keys),
+)
+
 Base.@kwdef mutable struct NodeRefs
-    component_index::Int
+    component_key::ComponentRefKey
     non_served_demand::Any = nothing
     supply_flow::Any = nothing
     policy_budgeting_vars::Dict{Symbol,Any} = Dict{Symbol,Any}()
@@ -15,7 +26,7 @@ Base.@kwdef mutable struct NodeRefs
 end
 
 Base.@kwdef mutable struct EdgeRefs
-    component_index::Int
+    component_key::ComponentRefKey
     start_vertex_ref::Union{Nothing,ComponentRefKey} = nothing
     end_vertex_ref::Union{Nothing,ComponentRefKey} = nothing
     capacity::Any = nothing
@@ -25,6 +36,10 @@ Base.@kwdef mutable struct EdgeRefs
     retired_capacity::Any = nothing
     retrofitted_units::Any = nothing
     retrofitted_capacity::Any = nothing
+    existing_capacity::Any = nothing
+    new_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
+    retired_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
+    retrofitted_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
     flow::Any = nothing
     constraints::Dict{Any,Any} = Dict{Any,Any}()
     expressions::Dict{Symbol,Any} = Dict{Symbol,Any}()
@@ -41,7 +56,7 @@ Base.@kwdef mutable struct BidirectionalEdgeRefs
 end
 
 Base.@kwdef mutable struct EdgeWithUCRefs
-    component_index::Int
+    component_key::ComponentRefKey
     start_vertex_ref::Union{Nothing,ComponentRefKey} = nothing
     end_vertex_ref::Union{Nothing,ComponentRefKey} = nothing
     capacity::Any = nothing
@@ -51,6 +66,10 @@ Base.@kwdef mutable struct EdgeWithUCRefs
     retired_capacity::Any = nothing
     retrofitted_units::Any = nothing
     retrofitted_capacity::Any = nothing
+    existing_capacity::Any = nothing
+    new_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
+    retired_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
+    retrofitted_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
     flow::Any = nothing
     ucommit::Any = nothing
     ustart::Any = nothing
@@ -60,13 +79,13 @@ Base.@kwdef mutable struct EdgeWithUCRefs
 end
 
 Base.@kwdef mutable struct TransformationRefs
-    component_index::Int
+    component_key::ComponentRefKey
     constraints::Dict{Any,Any} = Dict{Any,Any}()
     expressions::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct StorageRefs
-    component_index::Int
+    component_key::ComponentRefKey
     charge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
     discharge_edge_ref::Union{Nothing,ComponentRefKey} = nothing
     spillage_edge_ref::Union{Nothing,ComponentRefKey} = nothing
@@ -78,6 +97,9 @@ Base.@kwdef mutable struct StorageRefs
     new_capacity::Any = nothing
     retired_units::Any = nothing
     retired_capacity::Any = nothing
+    existing_capacity::Any = nothing
+    new_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
+    retired_capacity_track::Dict{Int64,Any} = Dict{Int64,Any}()
     storage_level::Any = nothing
     storage_initial::Any = nothing
     storage_change::Any = nothing
@@ -86,36 +108,45 @@ Base.@kwdef mutable struct StorageRefs
 end
 
 Base.@kwdef mutable struct ProblemRefs
-    nodes::Dict{Int,NodeRefs} = Dict{Int,NodeRefs}()
-    unidirectional_edges::Dict{Int,UnidirectionalEdgeRefs} = Dict{Int,UnidirectionalEdgeRefs}()
-    bidirectional_edges::Dict{Int,BidirectionalEdgeRefs} = Dict{Int,BidirectionalEdgeRefs}()
-    unit_commitment_edges::Dict{Int,EdgeWithUCRefs} = Dict{Int,EdgeWithUCRefs}()
-    transformations::Dict{Int,TransformationRefs} = Dict{Int,TransformationRefs}()
-    storages::Dict{Int,StorageRefs} = Dict{Int,StorageRefs}()
-    long_duration_storages::Dict{Int,StorageRefs} = Dict{Int,StorageRefs}()
-    component_keys::Dict{Tuple{Symbol,Symbol},ComponentRefKey} = Dict{Tuple{Symbol,Symbol},ComponentRefKey}()
+    nodes::Dict{ComponentRefKey,NodeRefs} = Dict{ComponentRefKey,NodeRefs}()
+    unidirectional_edges::Dict{ComponentRefKey,UnidirectionalEdgeRefs} = Dict{ComponentRefKey,UnidirectionalEdgeRefs}()
+    bidirectional_edges::Dict{ComponentRefKey,BidirectionalEdgeRefs} = Dict{ComponentRefKey,BidirectionalEdgeRefs}()
+    unit_commitment_edges::Dict{ComponentRefKey,EdgeWithUCRefs} = Dict{ComponentRefKey,EdgeWithUCRefs}()
+    transformations::Dict{ComponentRefKey,TransformationRefs} = Dict{ComponentRefKey,TransformationRefs}()
+    storages::Dict{ComponentRefKey,StorageRefs} = Dict{ComponentRefKey,StorageRefs}()
+    long_duration_storages::Dict{ComponentRefKey,StorageRefs} = Dict{ComponentRefKey,StorageRefs}()
+    component_keys::Dict{Tuple{Int,Symbol,Symbol},ComponentRefKey} = Dict{Tuple{Int,Symbol,Symbol},ComponentRefKey}()
 end
 
 function ProblemRefs(spec)
     return ProblemRefs(
-        nodes = Dict(idx => NodeRefs(component_index=idx) for idx in spec.node_indices),
+        nodes = Dict(key => NodeRefs(component_key = key) for key in spec.node_keys),
         unidirectional_edges = Dict(
-            idx => UnidirectionalEdgeRefs(edge=EdgeRefs(component_index=idx))
-            for idx in spec.unidirectional_edge_indices
+            key => UnidirectionalEdgeRefs(edge = EdgeRefs(component_key = key))
+            for key in spec.unidirectional_edge_keys
         ),
         bidirectional_edges = Dict(
-            idx => BidirectionalEdgeRefs(edge=EdgeRefs(component_index=idx))
-            for idx in spec.bidirectional_edge_indices
+            key => BidirectionalEdgeRefs(edge = EdgeRefs(component_key = key))
+            for key in spec.bidirectional_edge_keys
         ),
         unit_commitment_edges = Dict(
-            idx => EdgeWithUCRefs(component_index=idx)
-            for idx in spec.unit_commitment_edge_indices
+            key => EdgeWithUCRefs(component_key = key)
+            for key in spec.unit_commitment_edge_keys
         ),
-        transformations = Dict(idx => TransformationRefs(component_index=idx) for idx in spec.transformation_indices),
-        storages = Dict(idx => StorageRefs(component_index=idx) for idx in spec.storage_indices),
-        long_duration_storages = Dict(idx => StorageRefs(component_index=idx) for idx in spec.long_duration_storage_indices),
+        transformations = Dict(key => TransformationRefs(component_key = key) for key in spec.transformation_keys),
+        storages = Dict(key => StorageRefs(component_key = key) for key in spec.storage_keys),
+        long_duration_storages = Dict(key => StorageRefs(component_key = key) for key in spec.long_duration_storage_keys),
     )
 end
+
+component_key(refs::NodeRefs) = refs.component_key
+component_key(refs::EdgeRefs) = refs.component_key
+component_key(refs::UnidirectionalEdgeRefs) = refs.edge.component_key
+component_key(refs::BidirectionalEdgeRefs) = refs.edge.component_key
+component_key(refs::EdgeWithUCRefs) = refs.component_key
+component_key(refs::TransformationRefs) = refs.component_key
+component_key(refs::StorageRefs) = refs.component_key
+component_index(refs) = component_key(refs).index
 
 function component_ref_key(system, component)
     for field in (
@@ -130,14 +161,22 @@ function component_ref_key(system, component)
         components = getproperty(system, field)
         idx = findfirst(candidate -> candidate === component, components)
         if !isnothing(idx)
-            return ComponentRefKey(field = field, index = idx)
+            return ComponentRefKey(period_index = period_index(system), field = field, index = idx)
         end
     end
 
-    error("Component $(id(component)) is not present in the StaticSystem")
+    error("Component $(id(component)) is not present in the StaticSystem for period $(period_index(system))")
 end
 
-component_id_key(component) = (component_ref_field(component), id(component))
+function component_ref_key(systems::AbstractVector, component)
+    for system in systems
+        period_index(system) == period_index(component) || continue
+        return component_ref_key(system, component)
+    end
+    error("Component $(id(component)) is not present in any StaticSystem for period $(period_index(component))")
+end
+
+component_id_key(component) = (period_index(component), component_ref_field(component), id(component))
 
 function set_component_ref_key!(refs::ProblemRefs, component, key::ComponentRefKey)
     refs.component_keys[component_id_key(component)] = key
@@ -146,7 +185,7 @@ end
 
 function component_ref_key(refs::ProblemRefs, component)
     key = get(refs.component_keys, component_id_key(component), nothing)
-    isnothing(key) && error("Component $(id(component)) is not included in this Problem")
+    isnothing(key) && error("Component $(id(component)) in period $(period_index(component)) is not included in this Problem")
     return key
 end
 
@@ -158,7 +197,7 @@ end
 maybe_component_ref_key(system, key::ComponentRefKey) = key
 
 function get_component_refs(refs::ProblemRefs, key::ComponentRefKey)
-    return getproperty(refs, key.field)[key.index]
+    return getproperty(refs, key.field)[key]
 end
 
 function get_component_refs(refs::ProblemRefs, component)
@@ -166,7 +205,7 @@ function get_component_refs(refs::ProblemRefs, component)
 end
 
 function has_component_ref(refs::ProblemRefs, key::ComponentRefKey)
-    return haskey(getproperty(refs, key.field), key.index)
+    return haskey(getproperty(refs, key.field), key)
 end
 
 function set_edge_endpoint_refs!(refs::Union{EdgeRefs,EdgeWithUCRefs}, system, edge)
@@ -194,7 +233,7 @@ function set_storage_edge_refs!(refs::StorageRefs, system, storage)
 end
 
 component_id(system, key::Nothing) = nothing
-component_id(system, key::ComponentRefKey) = id(getproperty(system, key.field)[key.index])
+component_id(system, key::ComponentRefKey) = id(component(system, key))
 
 function validate_storage_edge_ref!(problem_refs::ProblemRefs, key, storage, edge_role::Symbol)
     isnothing(key) && return nothing
@@ -210,55 +249,28 @@ function validate_storage_edge_refs!(refs::StorageRefs, problem_refs::ProblemRef
     return nothing
 end
 
-function ProblemRefs(system, spec)
+function ProblemRefs(systems::AbstractVector, spec)
     refs = ProblemRefs(spec)
 
-    for (component_field, spec_field) in (
-        (:nodes, :node_indices),
-        (:transformations, :transformation_indices),
-        (:storages, :storage_indices),
-        (:long_duration_storages, :long_duration_storage_indices),
-        (:unidirectional_edges, :unidirectional_edge_indices),
-        (:bidirectional_edges, :bidirectional_edge_indices),
-        (:unit_commitment_edges, :unit_commitment_edge_indices),
-    )
-        components = getproperty(system, component_field)
-        for idx in getproperty(spec, spec_field)
-            set_component_ref_key!(
-                refs,
-                components[idx],
-                ComponentRefKey(field = component_field, index = idx),
-            )
+    for (component_field, spec_field) in PROBLEM_COMPONENT_FIELD_PAIRS
+        for key in getproperty(spec, spec_field)
+            set_component_ref_key!(refs, component(systems, key), key)
         end
     end
 
-    for (component_field, spec_field) in (
-        (:unidirectional_edges, :unidirectional_edge_indices),
-        (:bidirectional_edges, :bidirectional_edge_indices),
-        (:unit_commitment_edges, :unit_commitment_edge_indices),
-    )
-        edges = getproperty(system, component_field)
-        refs_by_idx = getproperty(refs, component_field)
-
-        for idx in getproperty(spec, spec_field)
-            edge = edges[idx]
-            edge_ref = edge_refs(refs_by_idx[idx])
-            set_edge_endpoint_refs!(edge_ref, system, edge)
+    for component_field in (:unidirectional_edges, :bidirectional_edges, :unit_commitment_edges)
+        for (key, refs_for_key) in getproperty(refs, component_field)
+            edge = component(systems, key)
+            edge_ref = edge_refs(refs_for_key)
+            set_edge_endpoint_refs!(edge_ref, systems, edge)
             validate_edge_endpoint_refs!(edge_ref, refs, edge)
         end
     end
 
-    for (component_field, spec_field) in (
-        (:storages, :storage_indices),
-        (:long_duration_storages, :long_duration_storage_indices),
-    )
-        storages = getproperty(system, component_field)
-        refs_by_idx = getproperty(refs, component_field)
-
-        for idx in getproperty(spec, spec_field)
-            storage = storages[idx]
-            storage_refs = refs_by_idx[idx]
-            set_storage_edge_refs!(storage_refs, system, storage)
+    for component_field in (:storages, :long_duration_storages)
+        for (key, storage_refs) in getproperty(refs, component_field)
+            storage = component(systems, key)
+            set_storage_edge_refs!(storage_refs, systems, storage)
             validate_storage_edge_refs!(storage_refs, refs, storage)
         end
     end
@@ -266,9 +278,15 @@ function ProblemRefs(system, spec)
     return refs
 end
 
+ProblemRefs(system, spec) = ProblemRefs([system], spec)
+
 edge_refs(refs::UnidirectionalEdgeRefs) = refs.edge
 edge_refs(refs::BidirectionalEdgeRefs) = refs.edge
 edge_refs(refs::EdgeWithUCRefs) = refs
+
+capacity_refs(refs) = refs
+capacity_refs(refs::UnidirectionalEdgeRefs) = refs.edge
+capacity_refs(refs::BidirectionalEdgeRefs) = refs.edge
 
 start_vertex_ref(refs::UnidirectionalEdgeRefs) = refs.edge.start_vertex_ref
 start_vertex_ref(refs::BidirectionalEdgeRefs) = refs.edge.start_vertex_ref
@@ -286,6 +304,16 @@ retired_units(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retired_units
 retired_capacity(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retired_capacity
 retrofitted_units(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retrofitted_units
 retrofitted_capacity(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retrofitted_capacity
+existing_capacity(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.existing_capacity
+new_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.new_capacity_track
+new_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}, s::Int64) =
+    get(refs.new_capacity_track, s, 0.0)
+retired_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retired_capacity_track
+retired_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}, s::Int64) =
+    get(refs.retired_capacity_track, s, 0.0)
+retrofitted_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.retrofitted_capacity_track
+retrofitted_capacity_track(refs::Union{EdgeRefs,EdgeWithUCRefs}, s::Int64) =
+    get(refs.retrofitted_capacity_track, s, 0.0)
 flow(refs::Union{EdgeRefs,EdgeWithUCRefs}) = refs.flow
 flow(refs::Union{EdgeRefs,EdgeWithUCRefs}, t::Int64) = refs.flow[t]
 ucommit(refs::EdgeWithUCRefs) = refs.ucommit
@@ -300,6 +328,14 @@ new_units(refs::StorageRefs) = refs.new_units
 new_capacity(refs::StorageRefs) = refs.new_capacity
 retired_units(refs::StorageRefs) = refs.retired_units
 retired_capacity(refs::StorageRefs) = refs.retired_capacity
+existing_capacity(refs::StorageRefs) = refs.existing_capacity
+new_capacity_track(refs::StorageRefs) = refs.new_capacity_track
+new_capacity_track(refs::StorageRefs, s::Int64) =
+    get(refs.new_capacity_track, s, 0.0)
+retired_capacity_track(refs::StorageRefs) = refs.retired_capacity_track
+retired_capacity_track(refs::StorageRefs, s::Int64) =
+    get(refs.retired_capacity_track, s, 0.0)
+retrofitted_capacity_track(refs::StorageRefs, s::Int64) = 0.0
 storage_level(refs::StorageRefs) = refs.storage_level
 storage_level(refs::StorageRefs, t::Int64) = refs.storage_level[t]
 storage_initial(refs::StorageRefs) = refs.storage_initial
@@ -322,17 +358,11 @@ get_balance(refs::Union{NodeRefs,TransformationRefs,StorageRefs}, i::Symbol) =
 get_balance(refs::Union{NodeRefs,TransformationRefs,StorageRefs}, i::Symbol, t::Int64) =
     get_balance(refs, i)[t]
 
-parent_component(refs::NodeRefs, system) =
-    system.nodes[refs.component_index]
-parent_component(refs::UnidirectionalEdgeRefs, system) =
-    system.unidirectional_edges[refs.edge.component_index]
-parent_component(refs::BidirectionalEdgeRefs, system) =
-    system.bidirectional_edges[refs.edge.component_index]
-parent_component(refs::EdgeWithUCRefs, system) =
-    system.unit_commitment_edges[refs.component_index]
-parent_component(refs::TransformationRefs, system) =
-    system.transformations[refs.component_index]
-parent_component(refs::StorageRefs, system) =
-    system.storages[refs.component_index]
+parent_component(refs, system) =
+    component(system, component_key(refs))
+parent_component(refs, systems::AbstractVector) =
+    component(systems, component_key(refs))
 parent_long_duration_storage(refs::StorageRefs, system) =
-    system.long_duration_storages[refs.component_index]
+    component(system, component_key(refs))
+parent_long_duration_storage(refs::StorageRefs, systems::AbstractVector) =
+    component(systems, component_key(refs))

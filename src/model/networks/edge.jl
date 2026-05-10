@@ -448,6 +448,9 @@ function define_available_capacity!(
 )
 
     if has_capacity(e)
+        if isnothing(refs.existing_capacity)
+            refs.existing_capacity = existing_capacity(e)
+        end
 
         refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(e))_period$(period_index(e))")
 
@@ -457,21 +460,27 @@ function define_available_capacity!(
 
         refs.retired_capacity = @expression(model, capacity_size(e) * refs.retired_units)
 
+        refs.new_capacity_track[period_index(e)] = new_capacity(refs)
+
+        refs.retired_capacity_track[period_index(e)] = retired_capacity(refs)
+
         if can_retrofit(e)
 
             refs.retrofitted_units = @variable(model, lower_bound = 0.0, base_name = "vRETROFITUNIT_$(id(e))_period$(period_index(e))")
 
             refs.retrofitted_capacity = @expression(model, capacity_size(e) * refs.retrofitted_units)
 
+            refs.retrofitted_capacity_track[period_index(e)] = retrofitted_capacity(refs)
+
             refs.constraints[:available_capacity] = @constraint(
                 model,
-                capacity(refs) == new_capacity(refs) - retired_capacity(refs) - retrofitted_capacity(refs) + existing_capacity(e)
+                capacity(refs) == new_capacity(refs) - retired_capacity(refs) - retrofitted_capacity(refs) + existing_capacity(refs)
             )
 
         else
             refs.constraints[:available_capacity] = @constraint(
                 model,
-                capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(e)
+                capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(refs)
             )
         end
     end
@@ -552,7 +561,7 @@ function planning_model!(
         if can_retrofit(e)
             refs.constraints[:retrofit_existing_capacity] = @constraint(
                 model,
-                retrofitted_capacity(refs) + retired_capacity(refs) <= existing_capacity(e)
+                retrofitted_capacity(refs) + retired_capacity(refs) <= existing_capacity(refs)
             )
             if integer_decisions(e)
                 set_integer(retrofitted_units(refs))
@@ -560,7 +569,7 @@ function planning_model!(
         else
             refs.constraints[:retired_existing_capacity] = @constraint(
                 model,
-                retired_capacity(refs) <= existing_capacity(e)
+                retired_capacity(refs) <= existing_capacity(refs)
             )
         end
 

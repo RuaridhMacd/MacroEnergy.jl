@@ -9,6 +9,7 @@ mutable struct System <: AbstractSystem
 end
 
 Base.@kwdef struct StaticSystem <: AbstractSystem
+    period_index::Int = 1
     data_dirpath::String = ""
     settings::NamedTuple = NamedTuple()
     commodities::Dict{Symbol,DataType} = Dict{Symbol,DataType}()
@@ -47,6 +48,7 @@ function StaticSystem(system::System)
     ]
 
     static_system = StaticSystem(
+        period_index = period_index(system),
         data_dirpath = system.data_dirpath,
         settings = system.settings,
         commodities = copy(system.commodities),
@@ -66,7 +68,15 @@ function StaticSystem(system::System)
 end
 
 function component(system::StaticSystem, key::ComponentRefKey)
+    key.period_index == period_index(system) ||
+        error("Component key period $(key.period_index) does not match StaticSystem period $(period_index(system))")
     return getproperty(system, key.field)[key.index]
+end
+
+function component(systems::AbstractVector{StaticSystem}, key::ComponentRefKey)
+    system_idx = findfirst(system -> period_index(system) == key.period_index, systems)
+    isnothing(system_idx) && error("No StaticSystem found for period $(key.period_index)")
+    return component(systems[system_idx], key)
 end
 
 function storage_edge_key(system::StaticSystem, edge)
@@ -169,7 +179,7 @@ location_ids(system::System) = map(x -> x.id, system.locations)
 location_ids(system::StaticSystem) = map(x -> x.id, system.locations)
 
 period_index(system::System) = first(values(system.time_data)).period_index;
-period_index(system::StaticSystem) = first(values(system.time_data)).period_index;
+period_index(system::StaticSystem) = system.period_index;
 
 """
     get_asset_types(system::System)

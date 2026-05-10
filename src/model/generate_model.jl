@@ -16,16 +16,24 @@ function generate_model(case::Case, opt::Optimizer, ::Monolithic)
     @variable(model, vREF == 1)
 
     periods = get_periods(case)
+    static_systems = StaticSystem.(periods)
+    problem = Problem(static_systems; id=:monolithic, model)
     settings = get_settings(case)
     fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
 
-    period_problems = Problem[]
-
-    for (period_idx, system) in enumerate(periods)
+    for (period_idx, (system, static_system)) in enumerate(zip(periods, static_systems))
         next = period_idx < length(periods) ? periods[period_idx+1] : nothing
-        push!(
-            period_problems,
-            add_period_to_model!(model, system, next, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+        next_static_system = period_idx < length(static_systems) ? static_systems[period_idx+1] : nothing
+        add_period_to_model!(
+            problem,
+            static_system,
+            system,
+            next,
+            next_static_system,
+            fixed_cost,
+            investment_cost,
+            om_fixed_cost,
+            variable_cost,
         )
     end
 
@@ -38,7 +46,7 @@ function generate_model(case::Case, opt::Optimizer, ::Monolithic)
     
     @info(" -- Model generation complete, it took $(time() - start_time) seconds")
     
-    return length(period_problems) == 1 ? only(period_problems) : model
+    return problem
 end
 
 function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::Monolithic)
@@ -57,7 +65,9 @@ function generate_model(system::System, opt::Optimizer, settings::NamedTuple, ::
 
     fixed_cost, investment_cost, om_fixed_cost, variable_cost = Dict(), Dict(), Dict(), Dict()
 
-    problem = add_period_to_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
+    static_system = StaticSystem(system)
+    problem = Problem(static_system; id=Symbol(:period_, period_index(system)), model)
+    add_period_to_model!(problem, static_system, system, nothing, nothing, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
     finalize_model_objective!(model, settings, fixed_cost, investment_cost, om_fixed_cost, variable_cost)
 
@@ -149,20 +159,21 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
 end
 
 function add_period_to_model!(
-    model::Model,
+    problem::Problem,
+    static_system::StaticSystem,
     system::System,
     next_system::Union{System, Nothing},
+    next_static_system::Union{StaticSystem, Nothing},
     fixed_cost::Dict,
     investment_cost::Dict,
     om_fixed_cost::Dict,
     variable_cost::Dict
 )
-    static_system = StaticSystem(system)
-    problem = Problem(static_system; id=Symbol(:period_, period_index(system)), model)
+    model = problem.model
 
     model[:eVariableCost] = AffExpr(0.0)
 
-    build_period_planning!(problem, static_system, system, next_system)
+    build_period_planning!(problem, static_system, system, next_system, next_static_system)
 
     @info(" -- Generating operational model")
     operation_model!(static_system, problem)
@@ -179,7 +190,8 @@ function build_period_planning!(
     problem::Problem,
     static_system::StaticSystem,
     system::System,
-    next_system::Union{System, Nothing}
+    next_system::Union{System, Nothing},
+    next_static_system::Union{StaticSystem, Nothing}
 )
     @info(" -- Period $(period_index(system))")
 
@@ -203,11 +215,11 @@ function build_period_planning!(
     end
 
     @info(" -- Including age-based retirements")
-    add_age_based_retirements!.(system.assets, model)
+    add_age_based_retirements!(static_system, problem)
 
     if !isnothing(next_system)
         @info(" -- Available capacity in period $(period_index(system)) is being carried over to period $(period_index(next_system))")
-        carry_over_capacities!(next_system, system)
+        carry_over_capacities!(problem, next_static_system, static_system)
     end
 
     return nothing
@@ -304,23 +316,24 @@ function planning_model!(system::System, model::Model)
 
 end
 
-const PROBLEM_COMPONENT_FIELD_PAIRS = (
-    (:nodes, :node_indices),
-    (:transformations, :transformation_indices),
-    (:storages, :storage_indices),
-    (:long_duration_storages, :long_duration_storage_indices),
-    (:unidirectional_edges, :unidirectional_edge_indices),
-    (:bidirectional_edges, :bidirectional_edge_indices),
-    (:unit_commitment_edges, :unit_commitment_edge_indices),
-)
-
 function foreach_problem_component!(f::F, system::StaticSystem, problem::Problem) where {F}
     for (component_field, spec_field) in PROBLEM_COMPONENT_FIELD_PAIRS
-        components = getproperty(system, component_field)
-        refs_by_idx = getproperty(problem.refs, component_field)
+        refs_by_key = getproperty(problem.refs, component_field)
 
-        for idx in getproperty(problem.spec, spec_field)
-            f(components[idx], refs_by_idx[idx])
+        for key in getproperty(problem.spec, spec_field)
+            key.period_index == period_index(system) || continue
+            f(component(system, key), refs_by_key[key])
+        end
+    end
+    return nothing
+end
+
+function foreach_problem_component!(f::F, systems::AbstractVector{StaticSystem}, problem::Problem) where {F}
+    for (component_field, spec_field) in PROBLEM_COMPONENT_FIELD_PAIRS
+        refs_by_key = getproperty(problem.refs, component_field)
+
+        for key in getproperty(problem.spec, spec_field)
+            f(component(systems, key), refs_by_key[key])
         end
     end
     return nothing
@@ -458,6 +471,26 @@ function add_age_based_retirements!(a::AbstractAsset,model::Model)
 
 end
 
+const CAPACITY_COMPONENT_FIELDS = (
+    :storages,
+    :long_duration_storages,
+    :unidirectional_edges,
+    :bidirectional_edges,
+    :unit_commitment_edges,
+)
+
+function add_age_based_retirements!(system::StaticSystem, problem::Problem)
+    for component_field in CAPACITY_COMPONENT_FIELDS
+        for y in getproperty(system, component_field)
+            if retirement_period(y) > 0 || min_retired_capacity_track(y) > 0.0
+                push!(y.constraints, AgeBasedRetirementConstraint())
+                Base.invokelatest(add_model_constraint!, y.constraints[end], y, problem)
+            end
+        end
+    end
+    return nothing
+end
+
 #### All new capacity built up to the retirement period must retire in the current period
 ### Key assumption: all capacity decisions are taken at the very beggining of the period.
 ### Example: Consider four periods of lengths [5,5,5,5] and technology with a lifetime of 15 years. 
@@ -506,6 +539,47 @@ function carry_over_capacities!(system::System, system_prev::System; perfect_for
         end
     end
 
+end
+
+function carry_over_capacities!(problem::Problem, system::StaticSystem, system_prev::StaticSystem)
+    for component_field in CAPACITY_COMPONENT_FIELDS
+        previous_components = getproperty(system_prev, component_field)
+        previous_by_id = Dict(id(component) => component for component in previous_components)
+
+        for y in getproperty(system, component_field)
+            y_prev = get(previous_by_id, id(y), nothing)
+            if isnothing(y_prev)
+                validate_existing_capacity(y)
+            else
+                carry_over_capacities!(problem, y, y_prev)
+            end
+        end
+    end
+    return nothing
+end
+
+function carry_over_capacities!(
+    problem::Problem,
+    y::Union{AbstractEdge,AbstractStorage},
+    y_prev::Union{AbstractEdge,AbstractStorage},
+)
+    has_capacity(y_prev) || return nothing
+
+    refs = capacity_refs(get_component_refs(problem.refs, y))
+    refs_prev = capacity_refs(get_component_refs(problem.refs, y_prev))
+
+    refs.existing_capacity = capacity(refs_prev)
+
+    for prev_period in keys(new_capacity_track(refs_prev))
+        refs.new_capacity_track[prev_period] = new_capacity_track(refs_prev, prev_period)
+        refs.retired_capacity_track[prev_period] = retired_capacity_track(refs_prev, prev_period)
+
+        if y isa AbstractEdge
+            refs.retrofitted_capacity_track[prev_period] = retrofitted_capacity_track(refs_prev, prev_period)
+        end
+    end
+
+    return nothing
 end
 
 function carry_over_capacities!(a::AbstractAsset, a_prev::AbstractAsset; perfect_foresight::Bool = true)
@@ -725,6 +799,15 @@ function validate_existing_capacity(asset::AbstractAsset)
             end
         end
     end
+end
+
+function validate_existing_capacity(component::Union{AbstractEdge,AbstractStorage})
+    if existing_capacity(component) > 0
+        msg = " -- Component with id: \"$(id(component))\" has existing capacity equal to $(existing_capacity(component))"
+        msg *= "\nbut it was not present in the previous period. Please double check that the input data is correct."
+        @warn(msg)
+    end
+    return nothing
 end
 
 function create_direct_model_with_optimizer(opt::Optimizer)

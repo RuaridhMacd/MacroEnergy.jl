@@ -141,3 +141,6 @@ function ensure_duals_available!(model::Model)
     
     return nothing
 end
+
+ensure_duals_available!(problem::Problem) =
+    ensure_duals_available!(model(problem))

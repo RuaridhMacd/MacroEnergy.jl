@@ -50,6 +50,9 @@ function write_costs(
     return nothing
 end
 
+write_costs(file_path::AbstractString, system::System, problem::Problem; kwargs...) =
+    write_costs(file_path, system, model(problem); kwargs...)
+
 """
     write_undiscounted_costs(
         file_path::AbstractString,
@@ -93,6 +96,9 @@ function write_undiscounted_costs(
     return nothing
 end
 
+write_undiscounted_costs(file_path::AbstractString, system::System, problem::Problem; kwargs...) =
+    write_undiscounted_costs(file_path, system, model(problem); kwargs...)
+
 ## Cost extraction functions ##
 """
     get_optimal_discounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
@@ -105,6 +111,9 @@ function get_optimal_discounted_costs(model::Union{Model,NamedTuple}; scaling::F
     costs[!, (!isa).(eachcol(costs), Vector{Missing})] # remove missing columns
 end
 
+get_optimal_discounted_costs(problem::Problem; kwargs...) =
+    get_optimal_discounted_costs(model(problem); kwargs...)
+
 """
     get_optimal_undiscounted_costs(model::Union{Model,NamedTuple}; scaling::Float64=1.0)
 
@@ -115,6 +124,9 @@ function get_optimal_undiscounted_costs(model::Union{Model,NamedTuple}; scaling:
     costs = prepare_undiscounted_costs(model, scaling)
     costs[!, (!isa).(eachcol(costs), Vector{Missing})] # remove missing columns
 end
+
+get_optimal_undiscounted_costs(problem::Problem; kwargs...) =
+    get_optimal_undiscounted_costs(model(problem); kwargs...)
 
 # The following functions will return:
 # - Variable cost
@@ -381,6 +393,9 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
     end
 end
 
+create_discounted_cost_expressions!(problem::Problem, system::System, settings::NamedTuple) =
+    create_discounted_cost_expressions!(model(problem), system, settings)
+
 function compute_undiscounted_costs!(model::Model, system::System, settings::NamedTuple)
     
     period_lengths = collect(settings.PeriodLengths)
@@ -402,6 +417,9 @@ function compute_undiscounted_costs!(model::Model, system::System, settings::Nam
         model[:eVariableCost] = period_lengths[period_index] * model[:eVariableCostByPeriod][period_index] / (discount_factor * opexmult)
     end
 end
+
+compute_undiscounted_costs!(problem::Problem, system::System, settings::NamedTuple) =
+    compute_undiscounted_costs!(model(problem), system, settings)
 
 ##############################
 ## Detailed Cost Breakdown  ##
@@ -469,6 +487,14 @@ function write_detailed_costs(
 
     return nothing
 end
+
+write_detailed_costs(
+    results_dir::AbstractString,
+    system::System,
+    problem::Problem,
+    settings::NamedTuple;
+    kwargs...,
+) = write_detailed_costs(results_dir, system, model(problem), settings; kwargs...)
 
 """
     write_detailed_costs_benders(

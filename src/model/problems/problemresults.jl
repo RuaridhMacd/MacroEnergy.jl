@@ -2,6 +2,8 @@ function result_value(ref)
     return value(ref)
 end
 
+result_value(ref::Number) = Float64(ref)
+
 function result_value(refs::Union{AbstractArray,JuMP.Containers.DenseAxisArray,JuMP.Containers.SparseAxisArray})
     return value.(refs)
 end
@@ -99,6 +101,7 @@ end
 
 function populate_common_edge_results!(edge::AbstractEdge, refs::Union{EdgeRefs,EdgeWithUCRefs})
     assign_result!(value -> edge.capacity = value, refs.capacity)
+    assign_result!(value -> edge.existing_capacity = value, refs.existing_capacity)
     assign_result!(value -> edge.new_units = value, refs.new_units)
     assign_result!(value -> begin
         edge.new_capacity = value
@@ -163,6 +166,7 @@ end
 function populate_common_storage_results!(storage::AbstractStorage, refs::StorageRefs)
     populate_vertex_results!(storage, refs)
     assign_result!(value -> storage.capacity = value, refs.capacity)
+    assign_result!(value -> storage.existing_capacity = value, refs.existing_capacity)
     assign_result!(value -> storage.new_units = value, refs.new_units)
     assign_result!(value -> begin
         storage.new_capacity = value
@@ -195,6 +199,13 @@ function populate_results!(system::StaticSystem, problem::Problem)
     return nothing
 end
 
+function populate_results!(systems::AbstractVector{StaticSystem}, problem::Problem)
+    foreach_problem_component!(systems, problem) do component, refs
+        populate_results!(component, refs)
+    end
+    return nothing
+end
+
 populate_results!(::StaticSystem, ::Model) = nothing
 populate_results!(::System, ::Model) = nothing
 
@@ -203,9 +214,7 @@ function populate_results!(system::System, problem::Problem)
 end
 
 function populate_results!(case::Case, problem::Problem)
-    periods = get_periods(case)
-    length(periods) == 1 || return nothing
-    return populate_results!(only(periods), problem)
+    return populate_results!(StaticSystem.(get_periods(case)), problem)
 end
 
 populate_results!(::Case, ::Model) = nothing

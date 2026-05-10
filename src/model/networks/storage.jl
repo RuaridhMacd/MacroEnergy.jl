@@ -245,6 +245,10 @@ end
 function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model::Model)
 
     if has_capacity(g)
+        if isnothing(refs.existing_capacity)
+            refs.existing_capacity = existing_capacity(g)
+        end
+
         refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))")
 
         refs.retired_units = @variable(model, lower_bound = 0.0, base_name = "vRETUNIT_$(id(g))_period$(period_index(g))")
@@ -253,9 +257,13 @@ function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model
 
         refs.retired_capacity = @expression(model, capacity_size(g) * refs.retired_units)
 
+        refs.new_capacity_track[period_index(g)] = new_capacity(refs)
+
+        refs.retired_capacity_track[period_index(g)] = retired_capacity(refs)
+
         refs.constraints[:available_capacity] = @constraint(
             model,
-            capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(g)
+            capacity(refs) == new_capacity(refs) - retired_capacity(refs) + existing_capacity(refs)
         )
     end
     return nothing
@@ -289,7 +297,7 @@ function planning_model!(g::Storage, refs::StorageRefs, model::Model)
 
     compute_fixed_costs!(g, refs, model)
 
-    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
+    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(refs))
 
     return nothing
 end
@@ -433,7 +441,7 @@ function planning_model!(g::LongDurationStorage, refs::StorageRefs, model::Model
 
     compute_fixed_costs!(g, refs, model)
 
-    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(g))
+    refs.constraints[:retired_existing_capacity] = @constraint(model, retired_capacity(refs) <= existing_capacity(refs))
 
     MODELED_SUBPERIODS = modeled_subperiods(g)
     NPeriods = length(MODELED_SUBPERIODS);
