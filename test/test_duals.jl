@@ -27,6 +27,7 @@ import MacroEnergy:
     load_case,
     objective_value,
     optimize!,
+    populate_results!,
     set_constraint_dual!,
     set_logger,
     set_optimizer,
@@ -90,6 +91,7 @@ function test_ensure_duals_available!()
         # HiGHS provides duals for LP problems
         @test_nowarn ensure_duals_available!(model)
         @test has_duals(model)
+        @test_nowarn populate_results!(case, model)
 
         # Return and cache case and model
         return case, model
@@ -120,11 +122,8 @@ function test_set_constraint_dual!(case, model)
         balance_constraint = get_constraint_by_type(test_node, BalanceConstraint)
         @test !isnothing(balance_constraint)
         
-        # Initially, constraint_dual should be missing
-        @test ismissing(constraint_dual(balance_constraint))
-        
-        # Extract dual values using set_constraint_dual!
-        @test_nowarn set_constraint_dual!(balance_constraint, test_node)
+        # Duals are populated from ProblemRefs after optimization.
+        @test !ismissing(constraint_dual(balance_constraint))
         
         # After extraction, constraint_dual should be a Dict
         duals_dict = constraint_dual(balance_constraint)
@@ -309,8 +308,6 @@ function test_dual_values_consistency(case, model)
             node_id = id(test_node)
             
             if !isnothing(balance_constraint)
-                # Extract duals for the demand balance equation
-                set_constraint_dual!(balance_constraint, test_node)
                 duals_dict = constraint_dual(balance_constraint)
                 
                 # Get the duals for the demand balance equation
@@ -351,12 +348,9 @@ function test_multiple_balance_ids(case, model)
         for vertex in vcat(nodes, transforms)
             balance_constraint = get_constraint_by_type(vertex, BalanceConstraint)
             
-            if !isnothing(balance_constraint) && !ismissing(balance_constraint.constraint_ref)
+            if !isnothing(balance_constraint) && !ismissing(constraint_dual(balance_constraint))
                 # Get balance IDs for this vertex
                 node_balance_ids = balance_ids(vertex)
-                
-                # Extract duals
-                set_constraint_dual!(balance_constraint, vertex)
                 duals_dict = constraint_dual(balance_constraint)
                 
                 # Verify that all balance IDs have corresponding duals
@@ -418,4 +412,3 @@ end
 run_all_dual_tests()
 
 end # module TestDuals
-
