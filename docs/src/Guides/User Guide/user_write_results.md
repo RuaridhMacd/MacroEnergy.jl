@@ -1,4 +1,4 @@
-# Writing Results to Files
+# [Writing Results to Files](@id user-write-results)
 
 Currently, Macro supports the following types of outputs:
 
