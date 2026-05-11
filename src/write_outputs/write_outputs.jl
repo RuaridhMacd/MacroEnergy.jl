@@ -50,7 +50,7 @@ Write results when using Perfect Foresight + Benders as solution algorithm.
 function write_outputs(
     case_path::AbstractString,
     case::Case,
-    bm::BendersModel
+    bm::Union{BendersModel,BendersProblem}
 )
     settings = get_settings(case);
     num_periods = number_of_periods(case);
@@ -94,7 +94,7 @@ LP file writing is handled here using the planning problem stored in the Benders
 function write_outputs(
     output_path::AbstractString,
     case::Case,
-    bm::BendersModel,
+    bm::Union{BendersModel,BendersProblem},
     system::System,
     period_idx::Int
 )
@@ -108,7 +108,7 @@ function write_outputs(
     if settings.MyopicSettings[:WriteModelLP]
         @info(" -- Writing LP file for period $(period_idx)")
         write_to_file(
-            bm.planning_problem,
+            benders_planning_model(bm),
             joinpath(results_dir, "planning_problem_period_$(period_idx).lp")
         )
     end
@@ -126,7 +126,7 @@ function write_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
-    bm::BendersModel,
+    bm::Union{BendersModel,BendersProblem},
     settings::NamedTuple
 )
     period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
@@ -159,7 +159,7 @@ function _write_benders_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
-    bm::BendersModel,
+    bm::Union{BendersModel,BendersProblem},
     subop_indices,
     subproblems_data,
     slack_vars,

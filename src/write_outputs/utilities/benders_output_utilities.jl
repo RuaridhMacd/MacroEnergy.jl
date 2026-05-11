@@ -8,11 +8,11 @@ function write_benders_convergence(case_path::AbstractString, conv::BendersConve
 end
 
 function prepare_costs_benders(system::System, 
-    bm::BendersModel,
+    bm::Union{BendersModel,BendersProblem},
     subop_indices::Vector{Int64}, 
     settings::NamedTuple
 )
-    planning_problem = bm.planning_problem
+    planning_problem = benders_planning_model(bm)
     subop_sol = bm.subop_sol
     planning_variable_values = bm.planning_sol.values
 
@@ -24,7 +24,7 @@ function prepare_costs_benders(system::System,
     # stored in system. So, no need to re-evaluate the expression on planning_variable_values.
     fixed_cost = value(planning_problem[:eFixedCost])
     # Evaluate the discounted fixed cost expression on the Benders planning solutions
-    discounted_fixed_cost = value(x -> planning_variable_values[name(x)], planning_problem[:eDiscountedFixedCost])
+    discounted_fixed_cost = benders_solution_value(bm, planning_problem[:eDiscountedFixedCost])
 
     #### Get variables costs from subproblem solutions and apply undiscounting
     variable_cost, discounted_variable_cost = compute_benders_variable_costs(subop_sol, subop_indices, system, settings)
@@ -35,6 +35,27 @@ function prepare_costs_benders(system::System,
         eDiscountedFixedCost = discounted_fixed_cost,
         eDiscountedVariableCost = discounted_variable_cost
     )
+end
+
+benders_planning_model(bm::BendersModel) = bm.planning_problem
+benders_planning_model(bp::BendersProblem) = model(bp.planning)
+
+function benders_solution_value(bm::BendersModel, expression)
+    return value(x -> bm.planning_sol.values[name(x)], expression)
+end
+
+function benders_solution_value(bp::BendersProblem, expression)
+    values_by_ref = benders_planning_values_by_ref(bp)
+    return value(x -> values_by_ref[x], expression)
+end
+
+numeric_result_value(x::Number) = Float64(x)
+numeric_result_value(x) = Float64(value(x))
+
+function local_time_axis(component, value_count::Int)
+    axis = collect(time_interval(component))
+    length(axis) >= value_count && return axis[1:value_count]
+    return collect(1:value_count)
 end
 
 function compute_benders_variable_costs(subop_sol::Dict, subop_indices::Vector{Int64}, system::System, settings::NamedTuple)
@@ -81,6 +102,11 @@ function collect_distributed_data(subproblems::Union{Vector{Dict{Any,Any}},Distr
     @sync for i in 1:np_id
         @async result_chunks[i] = @fetchfrom p_id[i] begin
             local_subproblems = DistributedArrays.localpart(subproblems)
+            for sp in local_subproblems
+                if haskey(sp, :problem)
+                    populate_results!(sp[:system_local], sp[:problem])
+                end
+            end
             [extract_subproblem_results(sp[:system_local]; scaling=scaling) for sp in local_subproblems]
         end
     end
@@ -98,6 +124,9 @@ function collect_local_data(subproblems::Union{Vector{Dict{Any,Any}},Distributed
     results = SubproblemsData(n)
 
     for i in eachindex(subproblems)
+        if haskey(subproblems[i], :problem)
+            populate_results!(subproblems[i][:system_local], subproblems[i][:problem])
+        end
         system = subproblems[i][:system_local]
         results[i] = extract_subproblem_results(system; scaling)
     end
@@ -222,13 +251,12 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
         zone = get_zone_name(e)
         asset_type = get_type(edge_asset_map[id(e)])
 
-        # Reuse existing flow extraction function
-        push!(flow_dfs, get_optimal_flow(e, scaling, edge_asset_map))
+        push!(flow_dfs, get_benders_optimal_flow(e, scaling, edge_asset_map))
 
         # Compute operational costs
-        vom_cost = compute_variable_om_cost(e)
-        fuel_cost = compute_fuel_cost(e)
-        startup_cost_val = compute_startup_cost(e)
+        vom_cost = compute_benders_variable_om_cost(e)
+        fuel_cost = compute_benders_fuel_cost(e)
+        startup_cost_val = compute_benders_startup_cost(e)
 
         if fuel_cost > 0 && isa(start_vertex(e), Node)
             source_node = start_vertex(e)
@@ -245,7 +273,7 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
     flows_df = isempty(flow_dfs) ? DataFrame() : reduce(vcat, flow_dfs)
 
     # Extract storage levels
-    storage_levels_df = get_optimal_storage_level(storages, scaling, storage_asset_map)
+    storage_levels_df = get_benders_optimal_storage_level(storages, scaling, storage_asset_map)
 
     # Extract NSD and compute NSD/Supply/Slack costs for nodes
     nsd_dfs = DataFrame[]
@@ -253,19 +281,18 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
         zone = get_zone_name(node)
         node_type = get_type(node)
 
-        # Reuse existing NSD extraction function
-        push!(nsd_dfs, get_optimal_non_served_demand(node, scaling))
+        push!(nsd_dfs, get_benders_optimal_non_served_demand(node, scaling))
 
         # NSD cost
-        nsd_cost = compute_nsd_cost(node)
+        nsd_cost = compute_benders_nsd_cost(node)
         nsd_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:NonServedDemand, value=nsd_cost * scaling^2))
 
         # Supply cost
-        supply_cost = compute_residual_supply_cost(node, get(attributed_fuel_cost_by_node, id(node), 0.0))
+        supply_cost = compute_benders_residual_supply_cost(node, get(attributed_fuel_cost_by_node, id(node), 0.0))
         supply_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:Supply, value=supply_cost * scaling^2))
 
         # Slack cost
-        slack_cost = compute_slack_cost(node)
+        slack_cost = compute_benders_slack_cost(node)
         slack_cost > 0 && push!(cost_rows, (zone=zone, type=node_type, category=:UnmetPolicyPenalty, value=slack_cost * scaling^2))
     end
     nsd_df = isempty(nsd_dfs) ? DataFrame() : reduce(vcat, nsd_dfs)
@@ -276,7 +303,7 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
                            DataFrame(cost_rows)
 
     # Extract curtailment for VRE edges
-    curtailment_df = get_optimal_curtailment(system; scaling)
+    curtailment_df = get_benders_optimal_curtailment(system; scaling)
 
     return (
         flows=flows_df,
@@ -285,6 +312,257 @@ function extract_subproblem_results(system::System; scaling::Float64=1.0)
         curtailment=curtailment_df,
         operational_costs=operational_costs_df
     )
+end
+
+function get_benders_optimal_flow(
+    obj::AbstractEdge,
+    scaling::Float64=1.0,
+    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}(),
+)
+    flow_values = numeric_result_value.(flow(obj))
+    time_axis = local_time_axis(obj, length(flow_values))
+    flow_sign = get_flow_sign(obj)
+
+    if isempty(obj_asset_map)
+        return DataFrame(
+            case_name = fill(missing, length(time_axis)),
+            commodity = fill(get_commodity_name(obj), length(time_axis)),
+            node_in = fill(get_node_in(obj), length(time_axis)),
+            node_out = fill(get_node_out(obj), length(time_axis)),
+            resource_id = fill(get_component_id(obj), length(time_axis)),
+            component_id = fill(get_component_id(obj), length(time_axis)),
+            component_type = fill(get_type(obj), length(time_axis)),
+            variable = :flow,
+            year = fill(missing, length(time_axis)),
+            time = time_axis,
+            value = flow_values .* scaling .* flow_sign,
+        )
+    else
+        return DataFrame(
+            case_name = fill(missing, length(time_axis)),
+            commodity = fill(get_commodity_name(obj), length(time_axis)),
+            node_in = fill(get_node_in(obj), length(time_axis)),
+            node_out = fill(get_node_out(obj), length(time_axis)),
+            resource_id = fill(get_resource_id(obj, obj_asset_map), length(time_axis)),
+            component_id = fill(get_component_id(obj), length(time_axis)),
+            resource_type = fill(get_type(obj_asset_map[id(obj)]), length(time_axis)),
+            component_type = fill(get_type(obj), length(time_axis)),
+            variable = :flow,
+            year = fill(missing, length(time_axis)),
+            time = time_axis,
+            value = flow_values .* scaling .* flow_sign,
+        )
+    end
+end
+
+function get_benders_optimal_storage_level(
+    storages::Vector{<:AbstractStorage},
+    scaling::Float64=1.0,
+    storage_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}(),
+)
+    isempty(storages) && return DataFrame()
+    return reduce(vcat, [get_benders_optimal_storage_level(s, scaling, storage_asset_map) for s in storages])
+end
+
+function get_benders_optimal_storage_level(
+    storage::AbstractStorage,
+    scaling::Float64=1.0,
+    storage_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}(),
+)
+    storage_values = numeric_result_value.(storage_level(storage))
+    time_axis = local_time_axis(storage, length(storage_values))
+    total_rows = length(time_axis)
+
+    if isempty(storage_asset_map)
+        return DataFrame(
+            case_name = fill(missing, total_rows),
+            commodity = fill(get_commodity_name(storage), total_rows),
+            zone = fill(get_zone_name(storage), total_rows),
+            resource_id = fill(id(storage), total_rows),
+            component_id = fill(id(storage), total_rows),
+            component_type = fill(get_type(storage), total_rows),
+            variable = fill(:storage_level, total_rows),
+            year = fill(missing, total_rows),
+            time = Int[t for t in time_axis],
+            value = storage_values .* scaling,
+        )
+    else
+        return DataFrame(
+            case_name = fill(missing, total_rows),
+            commodity = fill(get_commodity_name(storage), total_rows),
+            zone = fill(get_zone_name(storage), total_rows),
+            resource_id = fill(get_resource_id(storage, storage_asset_map), total_rows),
+            component_id = fill(id(storage), total_rows),
+            resource_type = fill(get_type(storage_asset_map[id(storage)]), total_rows),
+            component_type = fill(get_type(storage), total_rows),
+            variable = fill(:storage_level, total_rows),
+            year = fill(missing, total_rows),
+            time = Int[t for t in time_axis],
+            value = storage_values .* scaling,
+        )
+    end
+end
+
+function get_benders_optimal_non_served_demand(node::Node, scaling::Float64=1.0)
+    isempty(non_served_demand(node)) && return DataFrame()
+
+    nsd_values = numeric_result_value.(non_served_demand(node))
+    num_segments, num_times = size(nsd_values)
+    time_axis = local_time_axis(node, num_times)
+    total_rows = num_segments * num_times
+
+    return DataFrame(
+        case_name = fill(missing, total_rows),
+        commodity = fill(get_commodity_name(node), total_rows),
+        zone = fill(get_zone_name(node), total_rows),
+        component_id = fill(id(node), total_rows),
+        component_type = fill(get_type(node), total_rows),
+        variable = fill(:non_served_demand, total_rows),
+        year = fill(missing, total_rows),
+        segment = Int[s for s in 1:num_segments for _ in time_axis],
+        time = Int[t for _ in 1:num_segments for t in time_axis],
+        value = Float64[nsd_values[s, i] * scaling for s in 1:num_segments for i in 1:num_times],
+    )
+end
+
+function get_benders_optimal_curtailment(system::System; scaling::Float64=1.0)
+    vres_assets = get_assets_sametype(system, VRE)
+    isempty(vres_assets) && return DataFrame()
+
+    edges, edge_asset_map = edges_with_capacity_variables(vres_assets, return_ids_map=true)
+    isempty(edges) && return DataFrame()
+
+    curtailment_df = reduce(vcat, [get_benders_optimal_curtailment(e, scaling, edge_asset_map) for e in edges])
+    return curtailment_df[!, (!isa).(eachcol(curtailment_df), Vector{Missing})]
+end
+
+function get_benders_optimal_curtailment(
+    obj::AbstractEdge,
+    scaling::Float64=1.0,
+    obj_asset_map::Dict{Symbol,Base.RefValue{<:AbstractAsset}}=Dict{Symbol,Base.RefValue{<:AbstractAsset}}(),
+)
+    flow_values = numeric_result_value.(flow(obj))
+    time_axis = local_time_axis(obj, length(flow_values))
+    cap_val = numeric_result_value(capacity(obj))
+    curtailment_values = Float64[
+        max(0.0, cap_val * availability(obj, t) - flow_values[i]) * scaling
+        for (i, t) in enumerate(time_axis)
+    ]
+
+    if isempty(obj_asset_map)
+        return DataFrame(
+            case_name = fill(missing, length(time_axis)),
+            commodity = fill(get_commodity_name(obj), length(time_axis)),
+            zone = fill(get_zone_name(obj), length(time_axis)),
+            resource_id = fill(get_component_id(obj), length(time_axis)),
+            component_id = fill(get_component_id(obj), length(time_axis)),
+            component_type = fill(get_type(obj), length(time_axis)),
+            variable = fill(:curtailment, length(time_axis)),
+            year = fill(missing, length(time_axis)),
+            time = time_axis,
+            value = curtailment_values,
+        )
+    else
+        return DataFrame(
+            case_name = fill(missing, length(time_axis)),
+            commodity = fill(get_commodity_name(obj), length(time_axis)),
+            zone = fill(get_zone_name(obj), length(time_axis)),
+            resource_id = fill(get_resource_id(obj, obj_asset_map), length(time_axis)),
+            component_id = fill(get_component_id(obj), length(time_axis)),
+            resource_type = fill(get_type(obj_asset_map[id(obj)]), length(time_axis)),
+            component_type = fill(get_type(obj), length(time_axis)),
+            variable = fill(:curtailment, length(time_axis)),
+            year = fill(missing, length(time_axis)),
+            time = time_axis,
+            value = curtailment_values,
+        )
+    end
+end
+
+function compute_benders_variable_om_cost(e::AbstractEdge)::Float64
+    variable_om_cost(e) <= 0 && return 0.0
+    flow_values = numeric_result_value.(flow(e))
+    time_axis = local_time_axis(e, length(flow_values))
+    return sum(enumerate(time_axis)) do (i, t)
+        w = current_subperiod(e, t)
+        subperiod_weight(e, w) * variable_om_cost(e) * flow_values[i]
+    end
+end
+
+function compute_benders_fuel_cost(e::AbstractEdge)::Float64
+    !isa(start_vertex(e), Node) && return 0.0
+    source_node = start_vertex(e)
+    isempty(supply_segments(source_node)) && return 0.0
+    isempty(price(source_node)) && return 0.0
+
+    flow_values = numeric_result_value.(flow(e))
+    time_axis = local_time_axis(e, length(flow_values))
+    return sum(enumerate(time_axis)) do (i, t)
+        w = current_subperiod(e, t)
+        subperiod_weight(e, w) * price(source_node, t) * flow_values[i]
+    end
+end
+
+function compute_benders_startup_cost(e::EdgeWithUC)::Float64
+    startup_cost(e) <= 0 && return 0.0
+    startup_values = numeric_result_value.(ustart(e))
+    time_axis = local_time_axis(e, length(startup_values))
+    return sum(enumerate(time_axis)) do (i, t)
+        w = current_subperiod(e, t)
+        subperiod_weight(e, w) * startup_cost(e) * capacity_size(e) * startup_values[i]
+    end
+end
+compute_benders_startup_cost(::AbstractEdge)::Float64 = 0.0
+
+function compute_benders_nsd_cost(n::Node)::Float64
+    isempty(non_served_demand(n)) && return 0.0
+
+    nsd_values = numeric_result_value.(non_served_demand(n))
+    num_segments, num_times = size(nsd_values)
+    time_axis = local_time_axis(n, num_times)
+    nsd_cost = 0.0
+    for s in 1:num_segments, (i, t) in enumerate(time_axis)
+        w = current_subperiod(n, t)
+        nsd_cost += subperiod_weight(n, w) * price_non_served_demand(n, s) * nsd_values[s, i]
+    end
+    return nsd_cost
+end
+
+function compute_benders_supply_cost(n::Node)::Float64
+    isempty(supply_segments(n)) && return 0.0
+    isempty(supply_flow(n)) && return 0.0
+
+    supply_values = numeric_result_value.(supply_flow(n))
+    num_segments, num_times = size(supply_values)
+    time_axis = local_time_axis(n, num_times)
+    supply_cost = 0.0
+    for s in 1:num_segments, (i, t) in enumerate(time_axis)
+        w = current_subperiod(n, t)
+        supply_cost += subperiod_weight(n, w) * price_supply(n, s, t) * supply_values[s, i]
+    end
+    return supply_cost
+end
+
+function compute_benders_residual_supply_cost(n::Node, attributed_fuel_cost::Float64=0.0)::Float64
+    total_supply_cost = compute_benders_supply_cost(n)
+    residual_supply_cost = total_supply_cost - attributed_fuel_cost
+    tolerance = 1e-6 * max(abs(total_supply_cost), abs(attributed_fuel_cost), 1.0)
+    return abs(residual_supply_cost) <= tolerance ? 0.0 : residual_supply_cost
+end
+
+function compute_benders_slack_cost(n::Node)::Float64
+    slack_cost = 0.0
+    for (ct_type, penalty_price) in price_unmet_policy(n)
+        slack_var_key = Symbol(string(ct_type) * "_Slack")
+        haskey(policy_slack_vars(n), slack_var_key) || continue
+
+        slack_vars = numeric_result_value.(policy_slack_vars(n)[slack_var_key])
+        for (i, w) in enumerate(subperiod_indices(n))
+            i > length(slack_vars) && continue
+            slack_cost += subperiod_weight(n, w) * penalty_price * slack_vars[i]
+        end
+    end
+    return slack_cost
 end
 
 """
@@ -301,6 +579,10 @@ function densearray_to_dict(arr::JuMP.Containers.DenseAxisArray)
         return Dict(idx_tuple => JuMP.value(arr[idx_tuple...]) 
             for idx_tuple in Iterators.product(arr.axes...))
     end
+end
+
+function densearray_to_dict(arr::AbstractVector)
+    return Dict(idx => numeric_result_value(arr[idx]) for idx in eachindex(arr))
 end
 
 """
@@ -414,7 +696,9 @@ function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
                 
                 # Convert DenseAxisArray to Dict before assigning to the period_dict
                 slack_array = policy_slack_vars(node)[slack_vars_key]
-                axis_dict = densearray_to_dict(slack_array)
+                axis_dict = slack_array isa AbstractVector ?
+                    Dict(w => numeric_result_value(slack_array[i]) for (i, w) in enumerate(subperiod_indices(node)) if i <= length(slack_array)) :
+                    densearray_to_dict(slack_array)
                 
                 # Ensure period_index dict exists
                 period_dict = get!(slack_vars, period_index, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}())

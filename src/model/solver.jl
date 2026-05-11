@@ -79,6 +79,28 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
     return (case, MyopicResults(stored))
 end
 
+####### optimize! for BendersProblem #######
+function JuMP.optimize!(bp::BendersProblem)
+    raw = MacroEnergySolvers.benders(
+        model(bp.planning),
+        bp.subproblems,
+        bp.linking_variables_sub,
+        Dict(pairs(bp.settings));
+        planning_variables=bp.planning_variables,
+    )
+
+    @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
+    bp.planning_sol = raw.planning_sol
+    bp.subop_sol = MacroEnergySolvers.solve_subproblems(
+        bp.subproblems,
+        raw.planning_sol,
+        true,
+    )
+
+    bp.convergence = BendersConvergence(raw)
+    return nothing
+end
+
 ####### optimize! for BendersModel #######
 function JuMP.optimize!(bm::BendersModel)
     # call MESolvers.jl to solve the Benders decomposition problem

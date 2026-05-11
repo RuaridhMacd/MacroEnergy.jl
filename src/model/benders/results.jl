@@ -22,6 +22,27 @@ BendersConvergence(nt::NamedTuple) = BendersConvergence(
     nt.LB_hist, nt.UB_hist, nt.gap_hist, nt.termination_status, nt.cpu_time
 )
 
+Base.@kwdef struct BendersLinkKey
+    component_key::ComponentRefKey
+    field::Symbol
+    index::Tuple = ()
+end
+
+Base.@kwdef mutable struct BendersProblem <: AbstractProblem
+    settings::NamedTuple
+    planning::Problem
+    subproblems::Union{Vector{Dict{Any,Any}},DistributedArrays.DArray}
+    planning_variables::Vector
+    linking_variables_sub::Dict
+    period_to_subproblem_map::Dict{Int,Vector{Int}}
+    planning_sol::Union{NamedTuple,Nothing} = nothing
+    subop_sol::Union{Dict{Any,Any},Nothing} = nothing
+    convergence::Union{BendersConvergence,Nothing} = nothing
+end
+
+model(bp::BendersProblem) = model(bp.planning)
+id(bp::BendersProblem) = id(bp.planning)
+
 """
     BendersModel
 

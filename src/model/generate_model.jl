@@ -83,9 +83,9 @@ end
 function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Benders)
     @info("*** Generating Benders decomposition model ***")
     
-    planning_model = Model()
     planning_optimizer = opt[:planning]
     optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
+    planning_model = Model()
     set_optimizer(planning_model, optimizer)
     set_silent(planning_model)
     
@@ -95,17 +95,30 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
     @variable(planning_model, vREF == 1)
     
     periods = get_periods(case)
+    static_systems = StaticSystem.(periods)
+    planning_problem = Problem(static_systems; id=:planning, model=planning_model)
     settings = get_settings(case)
     fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
 
     periods_decomp = generate_decomposed_system(periods)
     
-    for (i, system) in enumerate(periods)
+    for (i, (system, static_system)) in enumerate(zip(periods, static_systems))
         next = i < length(periods) ? periods[i+1] : nothing
-        add_period_to_planning_model!(planning_model, system, next, fixed_cost, investment_cost, om_fixed_cost)
+        next_static_system = i < length(static_systems) ? static_systems[i+1] : nothing
+        add_period_to_planning_model!(
+            planning_problem,
+            static_system,
+            system,
+            next,
+            next_static_system,
+            fixed_cost,
+            investment_cost,
+            om_fixed_cost,
+        )
     end
     
-    finalize_planning_model_objective!(planning_model, periods, settings, fixed_cost, investment_cost, om_fixed_cost)
+    finalize_planning_model_objective!(planning_problem, periods, settings, fixed_cost, investment_cost, om_fixed_cost)
+    planning_variables = benders_planning_variables(planning_problem)
     
     @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")
     
@@ -119,16 +132,24 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
         periods_decomp, opt[:subproblems], settings,
         bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
     )
+    period_to_subproblem_map, _ = get_period_to_subproblem_mapping(periods)
 
-    return BendersModel(bd_setup, case, planning_model, subproblems, linking_variables_sub)
+    return BendersProblem(
+        settings=bd_setup,
+        planning=planning_problem,
+        subproblems=subproblems,
+        planning_variables=planning_variables,
+        linking_variables_sub=linking_variables_sub,
+        period_to_subproblem_map=period_to_subproblem_map,
+    )
 end
 
 function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, settings::NamedTuple, ::Benders)
     @info("*** Generating Benders decomposition model ***")
     
-    model = Model()
     planning_optimizer = opt[:planning]
     optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
+    model = Model()
     set_optimizer(model, optimizer)
     set_silent(model)
     
@@ -139,10 +160,22 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
     fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
     
     period_decomp = generate_decomposed_system([system])
+    static_system = StaticSystem(system)
+    planning_problem = Problem(static_system; id=Symbol(:planning_period_, period_index(system)), model)
+
+    add_period_to_planning_model!(
+        planning_problem,
+        static_system,
+        system,
+        nothing,
+        nothing,
+        fixed_cost,
+        investment_cost,
+        om_fixed_cost,
+    )
     
-    add_period_to_planning_model!(model, system, nothing, fixed_cost, investment_cost, om_fixed_cost)
-    
-    finalize_planning_model_objective!(model, [system], settings, fixed_cost, investment_cost, om_fixed_cost)
+    finalize_planning_model_objective!(planning_problem, [system], settings, fixed_cost, investment_cost, om_fixed_cost)
+    planning_variables = benders_planning_variables(planning_problem)
     
     if system.settings.ConstraintScaling
         @info "Scaling constraints and RHS"
@@ -154,8 +187,16 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
         period_decomp, opt[:subproblems], settings,
         bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
     )
+    period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
 
-    return BendersModel(bd_setup, system, model, subproblems, linking_variables_sub)
+    return BendersProblem(
+        settings=bd_setup,
+        planning=planning_problem,
+        subproblems=subproblems,
+        planning_variables=planning_variables,
+        linking_variables_sub=linking_variables_sub,
+        period_to_subproblem_map=period_to_subproblem_map,
+    )
 end
 
 function add_period_to_model!(

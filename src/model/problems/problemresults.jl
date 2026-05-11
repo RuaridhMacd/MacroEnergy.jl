@@ -218,5 +218,112 @@ function populate_results!(case::Case, problem::Problem)
 end
 
 populate_results!(::Case, ::Model) = nothing
+
+function populate_results!(case::Case, problem::BendersProblem)
+    isnothing(problem.planning_sol) && return nothing
+    return populate_planning_results!(StaticSystem.(get_periods(case)), problem)
+end
+
+function populate_results!(system::System, problem::BendersProblem)
+    isnothing(problem.planning_sol) && return nothing
+    return populate_planning_results!(StaticSystem(system), problem)
+end
+
 populate_results!(::Case, ::BendersModel) = nothing
 populate_results!(::System, ::BendersModel) = nothing
+
+function populate_planning_results!(systems, problem::Problem, planning_sol::NamedTuple)
+    values_by_ref = Dict(ref => planning_sol.values[key] for (key, ref) in planning_sol.refs)
+    foreach_problem_component!(systems, problem) do component, refs
+        populate_planning_results!(component, refs, values_by_ref)
+    end
+    return nothing
+end
+
+function populate_planning_results!(systems, problem::BendersProblem)
+    values_by_ref = benders_planning_values_by_ref(problem)
+    foreach_problem_component!(systems, problem.planning) do component, refs
+        populate_planning_results!(component, refs, values_by_ref)
+    end
+    return nothing
+end
+
+function benders_planning_values_by_ref(problem::BendersProblem)
+    values_by_ref = Dict{VariableRef,Float64}()
+    for variable in problem.planning_variables
+        value = benders_planning_value(problem.planning_sol.values, variable)
+        isnothing(value) && continue
+        values_by_ref[getproperty(variable, :ref)] = Float64(value)
+    end
+    return values_by_ref
+end
+
+function benders_planning_value(values::AbstractDict, variable)
+    key = getproperty(variable, :key)
+    haskey(values, key) && return values[key]
+    key isa VariableRef || return nothing
+
+    key_name = JuMP.name(key)
+    for (candidate, value) in values
+        candidate isa VariableRef || continue
+        JuMP.name(candidate) == key_name && return value
+    end
+    return nothing
+end
+
+populate_planning_results!(::Transformation, ::TransformationRefs, ::Dict) = nothing
+
+function populate_planning_results!(node::Node, refs::NodeRefs, values_by_ref::Dict)
+    for (name, variables) in refs.policy_budgeting_vars
+        node.policy_budgeting_vars[name] = [solution_value(values_by_ref, variables[w]) for w in subperiod_indices(node)]
+    end
+    return nothing
+end
+
+function populate_planning_results!(
+    component::Union{AbstractEdge,AbstractStorage},
+    refs,
+    values_by_ref::Dict,
+)
+    populate_capacity_planning_results!(component, refs, values_by_ref)
+    return nothing
+end
+
+function populate_capacity_planning_results!(
+    component::Union{AbstractEdge,AbstractStorage},
+    refs,
+    values_by_ref::Dict,
+)
+    capacity_ref = capacity_refs(refs)
+    has_capacity(component) || return nothing
+
+    component.capacity = solution_value(values_by_ref, capacity(capacity_ref))
+    component.new_capacity = solution_value(values_by_ref, new_capacity(capacity_ref))
+    component.retired_capacity = solution_value(values_by_ref, retired_capacity(capacity_ref))
+    component.new_capacity_track[period_index(component)] = component.new_capacity
+    component.retired_capacity_track[period_index(component)] = component.retired_capacity
+
+    if component isa AbstractEdge
+        component.retrofitted_capacity = solution_value(values_by_ref, retrofitted_capacity(capacity_ref))
+        component.retrofitted_capacity_track[period_index(component)] = component.retrofitted_capacity
+    end
+
+    return nothing
+end
+
+function populate_planning_results!(storage::LongDurationStorage, refs::StorageRefs, values_by_ref::Dict)
+    populate_capacity_planning_results!(storage, refs, values_by_ref)
+    storage.storage_initial = Dict(
+        r => solution_value(values_by_ref, refs.storage_initial[r])
+        for r in modeled_subperiods(storage)
+    )
+    storage.storage_change = Dict(
+        w => solution_value(values_by_ref, refs.storage_change[w])
+        for w in subperiod_indices(storage)
+    )
+    return nothing
+end
+
+solution_value(::Dict, value::Number) = Float64(value)
+solution_value(values_by_ref::Dict, value) = JuMP.value(ref -> values_by_ref[ref], value)
+solution_value(::Dict, ::Nothing) = 0.0
