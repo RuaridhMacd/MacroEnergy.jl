@@ -10,7 +10,7 @@ import MacroEnergy:
     Problem,
     run_case
 
-const CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case")
+const CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_monolithic")
 const TOL = 1.0e-6
 
 function result_number(name::AbstractString)
