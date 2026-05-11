@@ -238,14 +238,27 @@ function test_min_supply_is_enforced_in_operation_model()
     model[:vREF] = @variable(model, base_name="vREF")
     model[:eVariableCost] = AffExpr(0.0)
 
-    MacroEnergy.operation_model!(node, model)
+    node_key = MacroEnergy.ComponentRefKey(
+        period_index=MacroEnergy.period_index(node),
+        field=:nodes,
+        index=1,
+    )
+    spec = MacroEnergy.ProblemSpec(
+        id=:supply_node_test,
+        node_keys=[node_key],
+        time_indices=collect(MacroEnergy.time_interval(node)),
+    )
+    problem = MacroEnergy.Problem(spec; model)
+    refs = problem.refs.nodes[node_key]
+
+    MacroEnergy.operation_model!(node, refs, problem)
     @objective(model, Min, model[:eVariableCost])
     set_silent(model)
     optimize!(model)
 
     @test is_solved_and_feasible(model)
-    @test value(MacroEnergy.supply_flow(node, 1, 1)) ≈ 2.0
-    @test value(MacroEnergy.supply_flow(node, 1, 2)) ≈ 2.0
+    @test value(refs.supply_flow[1, 1]) ≈ 2.0
+    @test value(refs.supply_flow[1, 2]) ≈ 2.0
 end
 
 function test_multi_segment_price_supply_without_max_supply_errors()

@@ -5,6 +5,20 @@ function postprocess!(case::Case, solution::Any)
     return nothing
 end
 
+function postprocess!(case::Case, problem::AbstractProblem)
+    populate_results!(case, problem)
+    for system in get_periods(case)
+        postprocess!(system, problem)
+    end
+    return nothing
+end
+
+function postprocess!(system::System, problem::AbstractProblem)
+    populate_results!(system, problem)
+    postprocess!(system, model(problem))
+    return nothing
+end
+
 function postprocess!(system::System, solution::Any)
     for asset in system.assets
         postprocess!(asset, solution)
