@@ -69,19 +69,28 @@ end
 solved_capacity_value(x::Number) = Float64(x)
 solved_capacity_value(x) = value(x)
 
-function carry_over_solved_capacities!(y::Union{AbstractEdge,AbstractStorage},y_prev::Union{AbstractEdge,AbstractStorage})
-    if has_capacity(y_prev)
-        y.existing_capacity = solved_capacity_value(capacity(y_prev))
+function carry_over_solved_capacity!(
+    y::Union{AbstractEdge,AbstractStorage},
+    y_prev::Union{AbstractEdge,AbstractStorage},
+)
+    has_capacity(y_prev) || return nothing
 
-        for prev_period in keys(new_capacity_track(y_prev))
-            y.new_capacity_track[prev_period] = solved_capacity_value(new_capacity_track(y_prev,prev_period))
-            y.retired_capacity_track[prev_period] = solved_capacity_value(retired_capacity_track(y_prev,prev_period))
+    y.existing_capacity = solved_capacity_value(capacity(y_prev))
 
-            if isa(y, AbstractEdge)
-                y.retrofitted_capacity_track[prev_period] = solved_capacity_value(retrofitted_capacity_track(y_prev,prev_period))
-            end
+    for prev_period in keys(new_capacity_track(y_prev))
+        y.new_capacity_track[prev_period] = solved_capacity_value(new_capacity_track(y_prev, prev_period))
+        y.retired_capacity_track[prev_period] = solved_capacity_value(retired_capacity_track(y_prev, prev_period))
+
+        if isa(y, AbstractEdge)
+            y.retrofitted_capacity_track[prev_period] =
+                solved_capacity_value(retrofitted_capacity_track(y_prev, prev_period))
         end
     end
+    return nothing
+end
+
+function carry_over_solved_capacities!(y::Union{AbstractEdge,AbstractStorage},y_prev::Union{AbstractEdge,AbstractStorage})
+    carry_over_solved_capacity!(y, y_prev)
 end
 
 function carry_over_solved_capacities!(g::Transformation,g_prev::Transformation)

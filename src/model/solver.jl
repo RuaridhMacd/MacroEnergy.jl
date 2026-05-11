@@ -19,7 +19,7 @@ function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Opt
     return (case, model)
 end
 
-####### Myopic: one model for each period, capacity carry-over, and outputs #######
+####### Myopic: one Problem for each period, capacity carry-over, and outputs #######
 function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
     alg = solution_algorithm(case)
 
@@ -33,7 +33,7 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
      # Output path for writing results during iteration
     output_path = create_output_path(case.systems[1])
 
-    # Only allocate models vector if returning models is requested
+    # Only allocate a results vector if returning per-period Problems is requested.
     stored = return_results ? Vector{Any}(undef, length(periods)) : nothing
 
     if myopic_settings[:Restart][:enabled]
@@ -61,17 +61,17 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
             break
         end
 
-        # generate_model will dispatch on the solution algorithm (e.g., Monolithic or Benders) to generate the appropriate model structure for this period
-        model = generate_model(system, opt, settings, alg)
+        # generate_model dispatches on the solution algorithm to build the period optimization object.
+        problem = generate_model(system, opt, settings, alg)
 
-        optimize!(model)
-        populate_results!(system, model)
+        optimize!(problem)
+        populate_results!(system, problem)
 
         period_idx < length(periods) && carry_over_solved_capacities!(periods[period_idx+1], system)
 
-        write_outputs(output_path, case, model, system, period_idx)
+        write_outputs(output_path, case, problem, system, period_idx)
 
-        return_results ? (stored[period_idx] = model) : (model = nothing; GC.gc())
+        return_results ? (stored[period_idx] = problem) : (problem = nothing; GC.gc())
     end
 
     write_settings(case, joinpath(output_path, "settings.json"))

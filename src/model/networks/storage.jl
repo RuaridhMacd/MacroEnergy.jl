@@ -215,9 +215,7 @@ end
 function define_available_capacity!(g::AbstractStorage, refs::StorageRefs, model::Model)
 
     if has_capacity(g)
-        if isnothing(refs.existing_capacity)
-            refs.existing_capacity = existing_capacity(g)
-        end
+        initialize_capacity_refs!(g, refs)
 
         refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(g))_period$(period_index(g))")
 

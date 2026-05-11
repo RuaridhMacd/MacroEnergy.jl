@@ -398,9 +398,7 @@ function define_available_capacity!(
 )
 
     if has_capacity(e)
-        if isnothing(refs.existing_capacity)
-            refs.existing_capacity = existing_capacity(e)
-        end
+        initialize_capacity_refs!(e, refs)
 
         refs.new_units = @variable(model, lower_bound = 0.0, base_name = "vNEWUNIT_$(id(e))_period$(period_index(e))")
 

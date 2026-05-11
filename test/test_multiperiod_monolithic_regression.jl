@@ -7,10 +7,12 @@ using Test
 using MacroEnergy
 
 import MacroEnergy:
+    MyopicResults,
     Problem,
     run_case
 
-const CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_monolithic")
+const MONOLITHIC_CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_monolithic")
+const MYOPIC_CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_myopic")
 const TOL = 1.0e-6
 
 function result_number(name::AbstractString)
@@ -30,11 +32,18 @@ function latest_results_path(case_path::AbstractString)
     return last(sort(results; by=first)).second
 end
 
-function copy_case_to_temp()
+function copy_case_to_temp(case_source::AbstractString)
     temp_dir = mktempdir()
-    case_path = joinpath(temp_dir, basename(CASE_SOURCE))
-    cp(CASE_SOURCE, case_path)
+    case_path = joinpath(temp_dir, basename(case_source))
+    cp(case_source, case_path)
     return temp_dir, case_path
+end
+
+function copy_multiperiod_fixtures_to_temp(case_source::AbstractString)
+    temp_dir = mktempdir()
+    cp(MONOLITHIC_CASE_SOURCE, joinpath(temp_dir, basename(MONOLITHIC_CASE_SOURCE)))
+    cp(MYOPIC_CASE_SOURCE, joinpath(temp_dir, basename(MYOPIC_CASE_SOURCE)))
+    return temp_dir, joinpath(temp_dir, basename(case_source))
 end
 
 function numeric_value(df::DataFrame, id_column::Symbol, id_value::AbstractString, value_column::Symbol)
@@ -91,7 +100,7 @@ function assert_period_outputs(result_path::AbstractString, period::Int; demand:
 end
 
 @testset "Small multi-period monolithic regression" begin
-    temp_dir, case_path = copy_case_to_temp()
+    temp_dir, case_path = copy_case_to_temp(MONOLITHIC_CASE_SOURCE)
     try
         systems, problem = run_case(
             case_path;
@@ -108,6 +117,68 @@ end
 
         assert_period_outputs(result_path, 1; demand=10.0, new_capacity=10.0, existing_capacity=0.0)
         assert_period_outputs(result_path, 2; demand=15.0, new_capacity=5.0, existing_capacity=10.0)
+    finally
+        rm(temp_dir; recursive=true, force=true)
+    end
+end
+
+function write_myopic_return_models_settings!(case_path::AbstractString)
+    write(
+        joinpath(case_path, "settings", "case_settings.json"),
+        """
+        {
+            "PeriodLengths": [1, 1],
+            "DiscountRate": 0.05,
+            "SolutionAlgorithm": "Monolithic",
+            "ExpansionHorizon": "Myopic",
+            "MyopicSettings": {
+                "ReturnModels": true,
+                "WriteModelLP": false
+            }
+        }
+        """,
+    )
+    return nothing
+end
+
+function run_small_myopic_case(case_path::AbstractString)
+    return run_case(
+        case_path;
+        optimizer=HiGHS.Optimizer,
+        optimizer_attributes=("solver" => "ipm", "run_crossover" => "on"),
+        log_to_console=false,
+        log_to_file=false,
+    )
+end
+
+@testset "Small multi-period Myopic regression" begin
+    temp_dir, case_path = copy_multiperiod_fixtures_to_temp(MYOPIC_CASE_SOURCE)
+    try
+        systems, results = run_small_myopic_case(case_path)
+
+        @test results isa MyopicResults
+        @test isnothing(results.results)
+        @test length(systems) == 2
+
+        result_path = latest_results_path(case_path)
+
+        assert_period_outputs(result_path, 1; demand=10.0, new_capacity=10.0, existing_capacity=0.0)
+        assert_period_outputs(result_path, 2; demand=15.0, new_capacity=5.0, existing_capacity=10.0)
+    finally
+        rm(temp_dir; recursive=true, force=true)
+    end
+end
+
+@testset "Small multi-period Myopic ReturnModels" begin
+    temp_dir, case_path = copy_multiperiod_fixtures_to_temp(MYOPIC_CASE_SOURCE)
+    try
+        write_myopic_return_models_settings!(case_path)
+        systems, results = run_small_myopic_case(case_path)
+
+        @test results isa MyopicResults
+        @test length(systems) == 2
+        @test length(results.results) == 2
+        @test all(result -> result isa Problem, results.results)
     finally
         rm(temp_dir; recursive=true, force=true)
     end

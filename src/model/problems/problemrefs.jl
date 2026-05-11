@@ -204,6 +204,43 @@ function get_component_refs(refs::ProblemRefs, component)
     return get_component_refs(refs, component_ref_key(refs, component))
 end
 
+function initialize_capacity_track_refs!(
+    refs_track::Dict{Int64,Any},
+    component_track::Dict{Int64,<:Any},
+    current_period::Int,
+)
+    for (period, value) in component_track
+        period == current_period && continue
+        get!(refs_track, period, value)
+    end
+    return nothing
+end
+
+function initialize_capacity_refs!(
+    component::Union{AbstractEdge,AbstractStorage},
+    refs::Union{EdgeRefs,EdgeWithUCRefs,StorageRefs},
+)
+    current_period = period_index(component)
+
+    if isnothing(refs.existing_capacity)
+        refs.existing_capacity = existing_capacity(component)
+    end
+
+    initialize_capacity_track_refs!(refs.new_capacity_track, new_capacity_track(component), current_period)
+    initialize_capacity_track_refs!(refs.retired_capacity_track, retired_capacity_track(component), current_period)
+
+    if :retrofitted_capacity_track ∈ Base.fieldnames(typeof(refs)) &&
+       :retrofitted_capacity_track ∈ Base.fieldnames(typeof(component))
+        initialize_capacity_track_refs!(
+            refs.retrofitted_capacity_track,
+            retrofitted_capacity_track(component),
+            current_period,
+        )
+    end
+
+    return nothing
+end
+
 function has_component_ref(refs::ProblemRefs, key::ComponentRefKey)
     return haskey(getproperty(refs, key.field), key)
 end
