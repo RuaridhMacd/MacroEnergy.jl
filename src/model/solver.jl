@@ -101,23 +101,6 @@ function JuMP.optimize!(bp::BendersProblem)
     return nothing
 end
 
-####### optimize! for BendersModel #######
-function JuMP.optimize!(bm::BendersModel)
-    # call MESolvers.jl to solve the Benders decomposition problem
-    raw = MacroEnergySolvers.benders(
-        bm.planning_problem, bm.subproblems, bm.linking_variables_sub, Dict(pairs(bm.settings))
-    )
-
-    # update case or system with the best planning solution found by Benders
-    update_with_planning_solution!(bm.update_target, raw.planning_sol.values)
-
-    @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
-    bm.planning_sol = raw.planning_sol
-    bm.subop_sol = MacroEnergySolvers.solve_subproblems(bm.subproblems, raw.planning_sol, true)
-
-    bm.convergence = BendersConvergence(raw)
-end
-
 """
     ensure_duals_available!(model::Model)
 

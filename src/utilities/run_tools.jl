@@ -36,7 +36,7 @@ a complete Macro workflow.
 # Returns
 - `systems::Vector{System}`: Vector of solved system objects (one per period).
 - `solution`: The solution object (type depends on the solution algorithm: `Model` for 
-  Monolithic, `MyopicResults` for Myopic (both Monolithic and Benders), `BendersModel`
+  Monolithic, `MyopicResults` for Myopic (both Monolithic and Benders), `BendersProblem`
   for Perfect Foresight + Benders). `MyopicResults.results` holds a `Vector` of per-period
   results when `ReturnModels=true`, or `nothing` when `ReturnModels=false`.
 

@@ -8,7 +8,7 @@ function write_benders_convergence(case_path::AbstractString, conv::BendersConve
 end
 
 function prepare_costs_benders(system::System, 
-    bm::Union{BendersModel,BendersProblem},
+    bm::BendersProblem,
     subop_indices::Vector{Int64}, 
     settings::NamedTuple
 )
@@ -37,12 +37,7 @@ function prepare_costs_benders(system::System,
     )
 end
 
-benders_planning_model(bm::BendersModel) = bm.planning_problem
 benders_planning_model(bp::BendersProblem) = model(bp.planning)
-
-function benders_solution_value(bm::BendersModel, expression)
-    return value(x -> bm.planning_sol.values[name(x)], expression)
-end
 
 function benders_solution_value(bp::BendersProblem, expression)
     values_by_ref = benders_planning_values_by_ref(bp)

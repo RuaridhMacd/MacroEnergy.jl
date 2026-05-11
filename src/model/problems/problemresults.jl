@@ -229,9 +229,6 @@ function populate_results!(system::System, problem::BendersProblem)
     return populate_planning_results!(StaticSystem(system), problem)
 end
 
-populate_results!(::Case, ::BendersModel) = nothing
-populate_results!(::System, ::BendersModel) = nothing
-
 function populate_planning_results!(systems, problem::Problem, planning_sol::NamedTuple)
     values_by_ref = Dict(ref => planning_sol.values[key] for (key, ref) in planning_sol.refs)
     foreach_problem_component!(systems, problem) do component, refs
@@ -298,6 +295,7 @@ function populate_capacity_planning_results!(
     has_capacity(component) || return nothing
 
     component.capacity = solution_value(values_by_ref, capacity(capacity_ref))
+    component.existing_capacity = solution_value(values_by_ref, existing_capacity(capacity_ref))
     component.new_capacity = solution_value(values_by_ref, new_capacity(capacity_ref))
     component.retired_capacity = solution_value(values_by_ref, retired_capacity(capacity_ref))
     component.new_capacity_track[period_index(component)] = component.new_capacity

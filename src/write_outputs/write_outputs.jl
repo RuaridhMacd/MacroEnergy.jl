@@ -50,7 +50,7 @@ Write results when using Perfect Foresight + Benders as solution algorithm.
 function write_outputs(
     case_path::AbstractString,
     case::Case,
-    bm::Union{BendersModel,BendersProblem}
+    bm::BendersProblem
 )
     settings = get_settings(case);
     num_periods = number_of_periods(case);
@@ -89,12 +89,12 @@ end
 
 """
 Write results for a single period when using Myopic + Benders as solution algorithm.
-LP file writing is handled here using the planning problem stored in the BendersModel.
+LP file writing is handled here using the planning problem stored in the BendersProblem.
 """
 function write_outputs(
     output_path::AbstractString,
     case::Case,
-    bm::Union{BendersModel,BendersProblem},
+    bm::BendersProblem,
     system::System,
     period_idx::Int
 )
@@ -126,7 +126,7 @@ function write_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
-    bm::Union{BendersModel,BendersProblem},
+    bm::BendersProblem,
     settings::NamedTuple
 )
     period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
@@ -152,14 +152,13 @@ end
         balance_duals, settings)
 
 Internal helper: write all outputs for one Benders period given pre-collected subproblem
-data. Called by both `write_outputs(BendersModel)` (multi-period loop) and
-`write_period_outputs(BendersModel)` (Myopic+Benders single-period).
+data. Called by both multi-period Benders output and Myopic+Benders single-period output.
 """
 function _write_benders_period_outputs(
     results_dir::AbstractString,
     period_idx::Int,
     system::System,
-    bm::Union{BendersModel,BendersProblem},
+    bm::BendersProblem,
     subop_indices,
     subproblems_data,
     slack_vars,
