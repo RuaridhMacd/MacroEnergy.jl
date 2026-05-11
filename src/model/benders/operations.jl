@@ -1,6 +1,7 @@
 function generate_operation_subproblem(system::System, case_settings::NamedTuple, include_subproblem_slacks::Bool)
 
     model = Model()
+    set_string_names_on_creation(model, system.settings.EnableJuMPStringNames)
 
     @variable(model, vREF == 1)
 

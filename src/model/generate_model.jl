@@ -87,6 +87,7 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
     optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
     planning_model = Model()
     set_optimizer(planning_model, optimizer)
+    set_string_names_on_creation(planning_model, case.systems[1].settings.EnableJuMPStringNames)
     set_silent(planning_model)
     
     @info("Generating planning problem")
@@ -151,6 +152,7 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
     optimizer = create_optimizer(planning_optimizer[:solver], opt_env(planning_optimizer[:solver]), planning_optimizer[:attributes])
     model = Model()
     set_optimizer(model, optimizer)
+    set_string_names_on_creation(model, system.settings.EnableJuMPStringNames)
     set_silent(model)
     
     @info("Generating planning problem for period $(period_index(system))")
