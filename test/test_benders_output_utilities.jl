@@ -342,8 +342,8 @@ function test_benders_output_utilities()
             mock_system_2.locations = [mock_node_3, mock_node_4]
 
             # Create subproblems_local
-            subproblems_local_1 = [Dict{Any, Any}(:system_local => mock_system_1)]
-            subproblems_local_2 = [Dict{Any, Any}(:system_local => mock_system_2)]
+            subproblems_local_1 = [Dict{Any, Any}(:static_system => mock_system_1)]
+            subproblems_local_2 = [Dict{Any, Any}(:static_system => mock_system_2)]
             
             # Test collection
             result_1 = collect_local_slack_vars(subproblems_local_1)
@@ -446,7 +446,7 @@ function test_benders_output_utilities()
             mock_system.time_data = Dict(:Electricity => timedata_1, :NaturalGas => timedata_2)
             mock_system.locations = [node1, node2]
             
-            subproblems_local = [Dict{Any,Any}(:system_local => mock_system)]
+            subproblems_local = [Dict{Any,Any}(:static_system => mock_system)]
             
             result = collect_local_slack_vars(subproblems_local)
             
@@ -482,7 +482,7 @@ function test_benders_output_utilities()
             mock_system.time_data = Dict(:Electricity => timedata)
             mock_system.locations = [mock_node]
             
-            subproblems_local = [Dict{Any,Any}(:system_local => mock_system)]
+            subproblems_local = [Dict{Any,Any}(:static_system => mock_system)]
             
             result = collect_local_slack_vars(subproblems_local)
             
@@ -535,7 +535,7 @@ function test_benders_output_utilities()
             mock_system.time_data = Dict(:Electricity => timedata)
             mock_system.locations = [mock_node]
             
-            subproblems_local = [Dict(:system_local => mock_system)]
+            subproblems_local = [Dict(:static_system => mock_system)]
             
             # Test collection
             result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
@@ -589,7 +589,7 @@ function test_benders_output_utilities()
             mock_system.time_data = Dict(:Electricity => timedata)
             mock_system.locations = [mock_node]
             
-            subproblems_local = [Dict(:system_local => mock_system)]
+            subproblems_local = [Dict(:static_system => mock_system)]
             
             result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
             
@@ -619,7 +619,7 @@ function test_benders_output_utilities()
             mock_system.time_data = Dict(:Electricity => timedata)
             mock_system.locations = [mock_node]
             
-            subproblems_local = [Dict(:system_local => mock_system)]
+            subproblems_local = [Dict(:static_system => mock_system)]
             
             result = collect_local_constraint_duals(subproblems_local, BalanceConstraint)
             
@@ -787,8 +787,8 @@ function test_benders_output_utilities()
             
             # Collect
             subproblems_local = [
-                Dict{Any, Any}(:system_local => sub_system_1),
-                Dict{Any, Any}(:system_local => sub_system_2)
+                Dict{Any, Any}(:static_system => sub_system_1),
+                Dict{Any, Any}(:static_system => sub_system_2)
             ]
             collected = collect_local_slack_vars(subproblems_local)
             

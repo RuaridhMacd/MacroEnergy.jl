@@ -23,6 +23,7 @@ Base.@kwdef struct StaticSystem <: AbstractSystem
     long_duration_storages::Vector{LongDurationStorage} = LongDurationStorage[]
     assets::Vector{AbstractAsset} = AbstractAsset[]
     locations::Vector{Union{Node, Location}} = Union{Node, Location}[]
+    component_lookup::Dict{ComponentRefKey,Int} = Dict{ComponentRefKey,Int}()
 end
 
 function StaticSystem(system::System)
@@ -70,7 +71,9 @@ end
 function component(system::StaticSystem, key::ComponentRefKey)
     key.period_index == period_index(system) ||
         error("Component key period $(key.period_index) does not match StaticSystem period $(period_index(system))")
-    return getproperty(system, key.field)[key.index]
+    components = getproperty(system, key.field)
+    local_index = get(system.component_lookup, key, key.index)
+    return components[local_index]
 end
 
 function component(systems::AbstractVector{StaticSystem}, key::ComponentRefKey)

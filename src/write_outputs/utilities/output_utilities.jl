@@ -452,7 +452,7 @@ function get_local_expressions(optimal_getter::Function, subproblems_local::Vect
     n_local_subprob = length(subproblems_local)
     expr_df = Vector{DataFrame}(undef, n_local_subprob)
     for s in eachindex(subproblems_local)
-        expr_df[s] = optimal_getter(subproblems_local[s][:system_local])
+        expr_df[s] = optimal_getter(subproblems_local[s][:static_system])
     end
     return expr_df
 end

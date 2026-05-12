@@ -99,10 +99,10 @@ function collect_distributed_data(subproblems::Union{Vector{Dict{Any,Any}},Distr
             local_subproblems = DistributedArrays.localpart(subproblems)
             for sp in local_subproblems
                 if haskey(sp, :problem)
-                    populate_results!(sp[:system_local], sp[:problem])
+                    populate_results!(sp[:static_system], sp[:problem])
                 end
             end
-            [extract_subproblem_results(sp[:system_local]; scaling=scaling) for sp in local_subproblems]
+            [extract_subproblem_results(sp[:static_system]; scaling=scaling) for sp in local_subproblems]
         end
     end
 
@@ -120,9 +120,9 @@ function collect_local_data(subproblems::Union{Vector{Dict{Any,Any}},Distributed
 
     for i in eachindex(subproblems)
         if haskey(subproblems[i], :problem)
-            populate_results!(subproblems[i][:system_local], subproblems[i][:problem])
+            populate_results!(subproblems[i][:static_system], subproblems[i][:problem])
         end
-        system = subproblems[i][:system_local]
+        system = subproblems[i][:static_system]
         results[i] = extract_subproblem_results(system; scaling)
     end
 
@@ -225,7 +225,7 @@ Returns a NamedTuple containing:
 - `system::System`: The system to extract results from
 - `scaling::Float64=1.0`: Scaling factor for values
 """
-function extract_subproblem_results(system::System; scaling::Float64=1.0)
+function extract_subproblem_results(system::AbstractSystem; scaling::Float64=1.0)
     # Get edges and storages with their asset mappings
     edges, edge_asset_map = get_edges(system, return_ids_map=true)
     storages, storage_asset_map = get_storages(system, return_ids_map=true)
@@ -428,6 +428,18 @@ function get_benders_optimal_curtailment(system::System; scaling::Float64=1.0)
     isempty(edges) && return DataFrame()
 
     curtailment_df = reduce(vcat, [get_benders_optimal_curtailment(e, scaling, edge_asset_map) for e in edges])
+    return curtailment_df[!, (!isa).(eachcol(curtailment_df), Vector{Missing})]
+end
+
+function get_benders_optimal_curtailment(system::StaticSystem; scaling::Float64=1.0)
+    edges, edge_asset_map = get_edges(system, return_ids_map=true)
+    vre_edges = AbstractEdge[
+        edge for edge in edges
+        if haskey(edge_asset_map, id(edge)) && edge_asset_map[id(edge)][] isa VRE
+    ]
+    isempty(vre_edges) && return DataFrame()
+
+    curtailment_df = reduce(vcat, [get_benders_optimal_curtailment(e, scaling, edge_asset_map) for e in vre_edges])
     return curtailment_df[!, (!isa).(eachcol(curtailment_df), Vector{Missing})]
 end
 
@@ -682,9 +694,9 @@ from DenseAxisArray to dictionary format for distributed collection.
 function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
     slack_vars = Dict{Int64, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}}()
     for i in eachindex(subproblems_local)
-        system = subproblems_local[i][:system_local]
-        for node in filter(n -> n isa Node, system.locations)
-            period_index = system.time_data[:Electricity].period_index
+        system = subproblems_local[i][:static_system]
+        for node in get_nodes(system)
+            period_idx = period_index(system)
             for slack_vars_key in keys(policy_slack_vars(node))
                 # Create tuple key with (node_id, slack_vars_key) to keep track of the metadata
                 key = (node.id, slack_vars_key)
@@ -694,7 +706,7 @@ function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
                 axis_dict = densearray_to_dict(slack_array)
                 
                 # Ensure period_index dict exists
-                period_dict = get!(slack_vars, period_index, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}())
+                period_dict = get!(slack_vars, period_idx, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}())
                 
                 # Merge axis dictionaries (different subproblems have different time indices)
                 if haskey(period_dict, key)
@@ -849,10 +861,10 @@ function collect_local_constraint_duals(
     constraint_duals = Dict{Int64, Dict{Symbol, Dict{Symbol, Dict}}}()
     
     for i in eachindex(subproblems_local)
-        system = subproblems_local[i][:system_local]
-        period_index = system.time_data[:Electricity].period_index
+        system = subproblems_local[i][:static_system]
+        period_idx = period_index(system)
         
-        for node in filter(n -> n isa Node, system.locations)
+        for node in get_nodes(system)
             # Find BalanceConstraint on this node
             constraint = get_constraint_by_type(node, BalanceConstraint)
             isnothing(constraint) && continue
@@ -868,11 +880,11 @@ function collect_local_constraint_duals(
             ismissing(duals_dict) && continue
             
             # Ensure period and node dicts exist
-            if !haskey(constraint_duals, period_index)
-                constraint_duals[period_index] = Dict{Symbol, Dict{Symbol, Dict}}()
+            if !haskey(constraint_duals, period_idx)
+                constraint_duals[period_idx] = Dict{Symbol, Dict{Symbol, Dict}}()
             end
-            if !haskey(constraint_duals[period_index], node.id)
-                constraint_duals[period_index][node.id] = Dict{Symbol, Dict}()
+            if !haskey(constraint_duals[period_idx], node.id)
+                constraint_duals[period_idx][node.id] = Dict{Symbol, Dict}()
             end
             
             # For each balance equation, store duals as time_idx => value
@@ -882,10 +894,10 @@ function collect_local_constraint_duals(
                 dual_dict = Dict(time_indices[i] => dual_values[i] for i in eachindex(time_indices))
                 
                 # Merge time dictionaries (different subproblems have different time indices)
-                if haskey(constraint_duals[period_index][node.id], balance_id)
-                    merge!(constraint_duals[period_index][node.id][balance_id], dual_dict)
+                if haskey(constraint_duals[period_idx][node.id], balance_id)
+                    merge!(constraint_duals[period_idx][node.id][balance_id], dual_dict)
                 else
-                    constraint_duals[period_index][node.id][balance_id] = dual_dict
+                    constraint_duals[period_idx][node.id][balance_id] = dual_dict
                 end
             end
         end

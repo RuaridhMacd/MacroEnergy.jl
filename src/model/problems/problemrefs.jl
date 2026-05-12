@@ -149,6 +149,15 @@ component_key(refs::StorageRefs) = refs.component_key
 component_index(refs) = component_key(refs).index
 
 function component_ref_key(system, component)
+    if system isa StaticSystem && !isempty(system.component_lookup)
+        for (key, local_index) in system.component_lookup
+            components = getproperty(system, key.field)
+            if checkbounds(Bool, components, local_index) && components[local_index] === component
+                return key
+            end
+        end
+    end
+
     for field in (
         :nodes,
         :transformations,

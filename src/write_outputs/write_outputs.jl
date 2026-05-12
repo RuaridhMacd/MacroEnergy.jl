@@ -56,8 +56,6 @@ function write_outputs(
     num_periods = number_of_periods(case);
     periods = get_periods(case);
 
-    period_to_subproblem_map, _ = get_period_to_subproblem_mapping(periods)
-
     # Collect subproblem data (flows, NSD, storage levels, operational costs)
     @info "Collecting subproblem results..."
     subproblems_data = collect_data_from_subproblems(settings, bm.subproblems)
@@ -76,7 +74,7 @@ function write_outputs(
         results_dir = mkpath_for_period(case_path, num_periods, period_idx)
         _write_benders_period_outputs(
             results_dir, period_idx, period, bm,
-            period_to_subproblem_map[period_idx],
+            bm.period_to_subproblem_map[period_idx],
             subproblems_data, slack_vars, balance_duals, settings
         )
     end
@@ -129,8 +127,7 @@ function write_period_outputs(
     bm::BendersProblem,
     settings::NamedTuple
 )
-    period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
-    subop_indices = period_to_subproblem_map[period_idx]
+    subop_indices = bm.period_to_subproblem_map[period_idx]
 
     subproblems_data = collect_data_from_subproblems(settings, bm.subproblems)
     slack_vars    = collect_distributed_policy_slack_vars(bm.subproblems)

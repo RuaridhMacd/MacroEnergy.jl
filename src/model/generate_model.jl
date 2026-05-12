@@ -97,11 +97,11 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
     
     periods = get_periods(case)
     static_systems = StaticSystem.(periods)
+    subproblem_specs = temporal_benders_problem_specs(static_systems)
+    sliced_subproblem_systems = [slice_system(static_systems, spec) for spec in subproblem_specs]
     planning_problem = Problem(static_systems; id=:planning, model=planning_model)
     settings = get_settings(case)
     fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
-
-    periods_decomp = generate_decomposed_system(periods)
     
     for (i, (system, static_system)) in enumerate(zip(periods, static_systems))
         next = i < length(periods) ? periods[i+1] : nothing
@@ -118,7 +118,7 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
         )
     end
     
-    finalize_planning_model_objective!(planning_problem, periods, settings, fixed_cost, investment_cost, om_fixed_cost)
+    finalize_planning_model_objective!(planning_problem, periods, settings, fixed_cost, investment_cost, om_fixed_cost, length(subproblem_specs))
     planning_variables = benders_planning_variables(planning_problem)
     
     @info(" -- Planning problem generation complete, it took $(time() - start_time) seconds")
@@ -130,10 +130,10 @@ function generate_model(case::Case, opt::Dict{Symbol,Dict{Symbol,Any}}, ::Bender
     
     bd_setup = settings.BendersSettings
     subproblems, linking_variables_sub = generate_subproblems(
-        periods_decomp, opt[:subproblems], settings,
+        sliced_subproblem_systems, subproblem_specs, opt[:subproblems], settings,
         bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
     )
-    period_to_subproblem_map, _ = get_period_to_subproblem_mapping(periods)
+    period_to_subproblem_map, _ = get_period_to_subproblem_mapping(subproblem_specs)
 
     return BendersProblem(
         settings=bd_setup,
@@ -161,8 +161,9 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
     
     fixed_cost, investment_cost, om_fixed_cost = Dict(), Dict(), Dict()
     
-    period_decomp = generate_decomposed_system([system])
     static_system = StaticSystem(system)
+    subproblem_specs = temporal_benders_problem_specs([static_system])
+    sliced_subproblem_systems = [slice_system(static_system, spec) for spec in subproblem_specs]
     planning_problem = Problem(static_system; id=Symbol(:planning_period_, period_index(system)), model)
 
     add_period_to_planning_model!(
@@ -176,7 +177,7 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
         om_fixed_cost,
     )
     
-    finalize_planning_model_objective!(planning_problem, [system], settings, fixed_cost, investment_cost, om_fixed_cost)
+    finalize_planning_model_objective!(planning_problem, [system], settings, fixed_cost, investment_cost, om_fixed_cost, length(subproblem_specs))
     planning_variables = benders_planning_variables(planning_problem)
     
     if system.settings.ConstraintScaling
@@ -186,10 +187,10 @@ function generate_model(system::System, opt::Dict{Symbol,Dict{Symbol,Any}}, sett
     
     bd_setup = settings.BendersSettings
     subproblems, linking_variables_sub = generate_subproblems(
-        period_decomp, opt[:subproblems], settings,
+        sliced_subproblem_systems, subproblem_specs, opt[:subproblems], settings,
         bd_setup[:Distributed], bd_setup[:IncludeSubproblemSlacksAutomatically]
     )
-    period_to_subproblem_map, _ = get_period_to_subproblem_mapping([system])
+    period_to_subproblem_map, _ = get_period_to_subproblem_mapping(subproblem_specs)
 
     return BendersProblem(
         settings=bd_setup,

@@ -23,6 +23,7 @@ function finalize_planning_model_objective!(
     fixed_cost::Dict,
     investment_cost::Dict,
     om_fixed_cost::Dict,
+    number_of_subproblems::Int,
 )
     jump_model = model(problem)
     jump_model[:eAvailableCapacity] = available_capacity_refs(problem)
@@ -38,8 +39,7 @@ function finalize_planning_model_objective!(
     @expression(jump_model, eInvestmentFixedCostByPeriod[s in period_indices], discount_factor[s] * investment_cost[s])
     @expression(jump_model, eOMFixedCostByPeriod[s in period_indices], discount_factor[s] * om_fixed_cost[s])
 
-    _, number_of_subperiods = get_period_to_subproblem_mapping(periods)
-    @expression(jump_model, eLowerBoundOperatingCost[w in 1:number_of_subperiods], AffExpr(0.0))
+    @expression(jump_model, eLowerBoundOperatingCost[w in 1:number_of_subproblems], AffExpr(0.0))
 
     @objective(jump_model, Min, jump_model[:eFixedCost])
 
