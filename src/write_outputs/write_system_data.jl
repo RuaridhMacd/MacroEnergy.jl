@@ -23,7 +23,7 @@ Serialize a `System` or `Case` object to a JSON file.
 function write_to_json(system::System, file_path::AbstractString=""; compress::Bool=true)::Nothing
     system_data = prepare_to_json(system)
     file_path = file_path == "" ? joinpath(pwd(), "output_system_data.json") : file_path
-    println("Writing system data to JSON file at: ", file_path)
+    @info("Writing system data to JSON file at: ", file_path)
     write_json(file_path, system_data, compress)
     return nothing
 end
