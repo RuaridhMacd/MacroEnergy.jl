@@ -148,11 +148,18 @@ function initialize_dist_subproblems!(
 
     subproblems_all = distribute([Dict() for _ in 1:length(sliced_systems)])
 
-    @sync for p in workers()
+    # Pre-shard on the coordinator so each worker receives only its own slice,
+    # not the full vectors (avoids W×N all-to-all serialization overhead).
+    # subproblems_all.pids and .indices are coordinator-side arrays that map
+    # each chunk to its owning worker pid and index range.
+    @sync for w_idx in eachindex(subproblems_all.pids)
+        p = subproblems_all.pids[w_idx]
+        W_local = subproblems_all.indices[w_idx][1]  # index range for this chunk
+        systems_local = [sliced_systems[k] for k in W_local]
+        specs_local   = [subproblem_specs[k]  for k in W_local]
+        @debug("Sending $(length(systems_local)) subproblems to worker $p " *
+               "(≈$(round(Base.summarysize(systems_local) / 1024^2, digits=1)) MiB)")
         @async @spawnat p begin
-            W_local = localindices(subproblems_all)[1]
-            systems_local = [sliced_systems[k] for k in W_local]
-            specs_local = [subproblem_specs[k] for k in W_local]
             optimizer = create_optimizer(opt[:solver], opt_env(opt[:solver]), opt[:attributes])
             initialize_local_subproblems!(
                 systems_local,
