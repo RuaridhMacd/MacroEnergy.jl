@@ -27,6 +27,17 @@ macro AbstractVertexBaseAttributes()
 end
 
 """
+    Base.copy(c::T) where {T <: AbstractVertex}
+
+Create a shallow copy of any `AbstractVertex` subtype (Node, Transformation, Storage,
+LongDurationStorage). Every field is shared by reference with the original; the caller
+is responsible for resetting or replacing any mutable fields that should not be shared.
+"""
+function Base.copy(c::T) where {T <: AbstractVertex}
+    T(; (f => getfield(c, f) for f in Base.fieldnames(T))...)
+end
+
+"""
     id(v::AbstractVertex)
 
 Get the unique identifier (ID) of a vertex.

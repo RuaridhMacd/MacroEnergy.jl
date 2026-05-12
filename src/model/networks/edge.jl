@@ -160,6 +160,19 @@ function commodity_type(t::Type{Edge{<:T}}) where {T}
     return commodity_type(Edge{ub_type})
 end
 
+"""
+    Base.copy(c::T) where {T <: AbstractEdge}
+
+Create a shallow copy of any `AbstractEdge` subtype (UnidirectionalEdge, BidirectionalEdge,
+EdgeWithUC). Every field is shared by reference with the original; the caller is responsible
+for resetting or replacing any mutable fields that should not be shared. In particular,
+`start_vertex` and `end_vertex` are shared and must be rewired via `rewire_edge_endpoints!`
+before use in a sliced subproblem.
+"""
+function Base.copy(c::T) where {T <: AbstractEdge}
+    T(; (f => getfield(c, f) for f in Base.fieldnames(T))...)
+end
+
 function target_is_valid(commodity::Type{<:Commodity}, target::T) where T<:Union{Node, AbstractStorage}
     target_commodity = commodity_type(target)
     if (commodity === target_commodity) || (commodity <: target_commodity)

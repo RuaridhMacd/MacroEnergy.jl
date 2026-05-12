@@ -140,7 +140,18 @@ function reset_operational_result_fields!(component)
 end
 
 function copy_component_for_slice(component, sliced_time_data::AbstractDict{Symbol,<:TimeData})
-    component_copy = deepcopy(component)
+    component_copy = copy(component)
+    # Deep-copy the constraints vector so that subproblem model-building (which mutates
+    # constraint objects, e.g. setting constraint_ref / constraint_dual on BalanceConstraint)
+    # does not corrupt the source component's constraint state.
+    hasproperty(component_copy, :constraints) &&
+        setproperty!(component_copy, :constraints, deepcopy(getproperty(component_copy, :constraints)))
+    # Deep-copy the planning tracking dicts so that multi-period updates to the copy
+    # do not alias back to the source component's tracking state.
+    for f in (:new_capacity_track, :retired_capacity_track, :retrofitted_capacity_track)
+        hasproperty(component_copy, f) &&
+            setproperty!(component_copy, f, deepcopy(getproperty(component_copy, f)))
+    end
     setproperty!(component_copy, :timedata, component_time_data(component, sliced_time_data))
     reset_operational_result_fields!(component_copy)
     return component_copy
