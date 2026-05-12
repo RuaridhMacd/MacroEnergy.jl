@@ -7,12 +7,15 @@ using Test
 using MacroEnergy
 
 import MacroEnergy:
+    BendersProblem,
     MyopicResults,
     Problem,
     run_case
 
 const MONOLITHIC_CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_monolithic")
 const MYOPIC_CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_myopic")
+const BENDERS_SINGLE_PERIOD_CASE_SOURCE = joinpath(@__DIR__, "test_singleperiod_small_case_benders")
+const BENDERS_MULTIPERIOD_CASE_SOURCE = joinpath(@__DIR__, "test_multiperiod_small_case_benders")
 const TOL = 1.0e-6
 
 function result_number(name::AbstractString)
@@ -43,6 +46,8 @@ function copy_multiperiod_fixtures_to_temp(case_source::AbstractString)
     temp_dir = mktempdir()
     cp(MONOLITHIC_CASE_SOURCE, joinpath(temp_dir, basename(MONOLITHIC_CASE_SOURCE)))
     cp(MYOPIC_CASE_SOURCE, joinpath(temp_dir, basename(MYOPIC_CASE_SOURCE)))
+    cp(BENDERS_SINGLE_PERIOD_CASE_SOURCE, joinpath(temp_dir, basename(BENDERS_SINGLE_PERIOD_CASE_SOURCE)))
+    cp(BENDERS_MULTIPERIOD_CASE_SOURCE, joinpath(temp_dir, basename(BENDERS_MULTIPERIOD_CASE_SOURCE)))
     return temp_dir, joinpath(temp_dir, basename(case_source))
 end
 
@@ -52,26 +57,34 @@ function numeric_value(df::DataFrame, id_column::Symbol, id_value::AbstractStrin
 end
 
 function wide_value(df::DataFrame, column::AbstractString)
-    @test nrow(df) == 1
     @test column in names(df)
-    return Float64(df[1, column])
+    return maximum(Float64.(df[!, column]))
 end
 
 function max_abs_diff(path::AbstractString, expected::Dict{String,Float64})
     df = CSV.read(path, DataFrame)
     return maximum(expected; init=0.0) do (column, value)
-        abs(wide_value(df, column) - value)
+        @test column in names(df)
+        maximum(abs.(Float64.(df[!, column]) .- value))
     end
 end
 
-function assert_period_outputs(result_path::AbstractString, period::Int; demand::Float64, new_capacity::Float64, existing_capacity::Float64)
+function assert_period_outputs(
+    result_path::AbstractString,
+    period::Int;
+    demand::Float64,
+    capacity::Float64,
+    new_capacity::Float64,
+    existing_capacity::Float64,
+)
     period_path = joinpath(result_path, "results_period_$(period)")
-    capacity = CSV.read(joinpath(period_path, "capacity.csv"), DataFrame)
-    vre_capacity = numeric_value(capacity, :component_id, "cheap_vre_edge", :capacity)
-    vre_new_capacity = numeric_value(capacity, :component_id, "cheap_vre_edge", :new_capacity)
-    vre_existing_capacity = numeric_value(capacity, :component_id, "cheap_vre_edge", :existing_capacity)
+    isdir(period_path) || (period_path = joinpath(result_path, "results"))
+    capacity_df = CSV.read(joinpath(period_path, "capacity.csv"), DataFrame)
+    vre_capacity = numeric_value(capacity_df, :component_id, "cheap_vre_edge", :capacity)
+    vre_new_capacity = numeric_value(capacity_df, :component_id, "cheap_vre_edge", :new_capacity)
+    vre_existing_capacity = numeric_value(capacity_df, :component_id, "cheap_vre_edge", :existing_capacity)
 
-    @test vre_capacity ≈ demand atol=TOL
+    @test vre_capacity ≈ capacity atol=TOL
     @test vre_new_capacity ≈ new_capacity atol=TOL
     @test vre_existing_capacity ≈ existing_capacity atol=TOL
 
@@ -105,7 +118,7 @@ end
         systems, problem = run_case(
             case_path;
             optimizer=HiGHS.Optimizer,
-            optimizer_attributes=("solver" => "ipm", "run_crossover" => "on"),
+            optimizer_attributes=("solver" => "ipm", "run_crossover" => "on", "output_flag" => false),
             log_to_console=false,
             log_to_file=false,
         )
@@ -115,8 +128,8 @@ end
 
         result_path = latest_results_path(case_path)
 
-        assert_period_outputs(result_path, 1; demand=10.0, new_capacity=10.0, existing_capacity=0.0)
-        assert_period_outputs(result_path, 2; demand=15.0, new_capacity=5.0, existing_capacity=10.0)
+        assert_period_outputs(result_path, 1; demand=10.0, capacity=20.0, new_capacity=20.0, existing_capacity=0.0)
+        assert_period_outputs(result_path, 2; demand=15.0, capacity=30.0, new_capacity=10.0, existing_capacity=20.0)
     finally
         rm(temp_dir; recursive=true, force=true)
     end
@@ -145,7 +158,19 @@ function run_small_myopic_case(case_path::AbstractString)
     return run_case(
         case_path;
         optimizer=HiGHS.Optimizer,
-        optimizer_attributes=("solver" => "ipm", "run_crossover" => "on"),
+        optimizer_attributes=("solver" => "ipm", "run_crossover" => "on", "output_flag" => false),
+        log_to_console=false,
+        log_to_file=false,
+    )
+end
+
+function run_small_benders_case(case_path::AbstractString)
+    return run_case(
+        case_path;
+        planning_optimizer=HiGHS.Optimizer,
+        subproblem_optimizer=HiGHS.Optimizer,
+        planning_optimizer_attributes=("solver" => "ipm", "run_crossover" => "on", "output_flag" => false),
+        subproblem_optimizer_attributes=("solver" => "ipm", "run_crossover" => "on", "output_flag" => false),
         log_to_console=false,
         log_to_file=false,
     )
@@ -162,8 +187,8 @@ end
 
         result_path = latest_results_path(case_path)
 
-        assert_period_outputs(result_path, 1; demand=10.0, new_capacity=10.0, existing_capacity=0.0)
-        assert_period_outputs(result_path, 2; demand=15.0, new_capacity=5.0, existing_capacity=10.0)
+        assert_period_outputs(result_path, 1; demand=10.0, capacity=20.0, new_capacity=20.0, existing_capacity=0.0)
+        assert_period_outputs(result_path, 2; demand=15.0, capacity=30.0, new_capacity=10.0, existing_capacity=20.0)
     finally
         rm(temp_dir; recursive=true, force=true)
     end
@@ -179,6 +204,38 @@ end
         @test length(systems) == 2
         @test length(results.results) == 2
         @test all(result -> result isa Problem, results.results)
+    finally
+        rm(temp_dir; recursive=true, force=true)
+    end
+end
+
+@testset "Small single-period Benders regression" begin
+    temp_dir, case_path = copy_multiperiod_fixtures_to_temp(BENDERS_SINGLE_PERIOD_CASE_SOURCE)
+    try
+        systems, problem = run_small_benders_case(case_path)
+
+        @test problem isa BendersProblem
+        @test length(systems) == 1
+
+        result_path = latest_results_path(case_path)
+        assert_period_outputs(result_path, 1; demand=10.0, capacity=20.0, new_capacity=20.0, existing_capacity=0.0)
+    finally
+        rm(temp_dir; recursive=true, force=true)
+    end
+end
+
+@testset "Small multi-period Benders regression" begin
+    temp_dir, case_path = copy_multiperiod_fixtures_to_temp(BENDERS_MULTIPERIOD_CASE_SOURCE)
+    try
+        systems, problem = run_small_benders_case(case_path)
+
+        @test problem isa BendersProblem
+        @test length(systems) == 2
+
+        result_path = latest_results_path(case_path)
+
+        assert_period_outputs(result_path, 1; demand=10.0, capacity=20.0, new_capacity=20.0, existing_capacity=0.0)
+        assert_period_outputs(result_path, 2; demand=15.0, capacity=30.0, new_capacity=10.0, existing_capacity=20.0)
     finally
         rm(temp_dir; recursive=true, force=true)
     end

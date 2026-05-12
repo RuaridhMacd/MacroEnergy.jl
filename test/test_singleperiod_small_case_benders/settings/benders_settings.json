@@ -1,0 +1,11 @@
+{
+    "MaxIter": 20,
+    "MaxCpuTime": 300,
+    "ConvTol": 1e-6,
+    "StabParam": 0.0,
+    "StabDynamic": false,
+    "IntegerInvestment": false,
+    "Distributed": false,
+    "ExpectFeasibleSubproblems": true,
+    "IncludeSubproblemSlacksAutomatically": false
+}

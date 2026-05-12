@@ -4,7 +4,7 @@
     },
     "NumberOfSubperiods": 1,
     "HoursPerSubperiod": {
-        "Electricity": 1
+        "Electricity": 3
     },
-    "TotalHoursModeled": 1
+    "TotalHoursModeled": 3
 }

@@ -1,0 +1,27 @@
+{
+    "case": [
+        {
+            "commodities": {
+                "path": "../test_multiperiod_small_case_monolithic/system/commodities.json"
+            },
+            "locations": {
+                "path": "../test_multiperiod_small_case_monolithic/system/locations.json"
+            },
+            "settings": {
+                "path": "../test_multiperiod_small_case_monolithic/settings/macro_settings.json"
+            },
+            "nodes": {
+                "path": "../test_multiperiod_small_case_myopic/system/nodes_1.json"
+            },
+            "assets": {
+                "path": "../test_multiperiod_small_case_monolithic/assets/assets_1"
+            },
+            "time_data": {
+                "path": "../test_multiperiod_small_case_monolithic/system/time_data.json"
+            }
+        }
+    ],
+    "settings": {
+        "path": "settings/case_settings.json"
+    }
+}

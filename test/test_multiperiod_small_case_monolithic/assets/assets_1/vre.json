@@ -16,7 +16,7 @@
                     "investment_cost": 1,
                     "fixed_om_cost": 0,
                     "variable_om_cost": 0,
-                    "availability": [1],
+                    "availability": [0.5, 1, 0.5],
                     "existing_capacity": 0,
                     "constraints": {
                         "CapacityConstraint": true
