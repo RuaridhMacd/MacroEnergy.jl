@@ -12,7 +12,6 @@ function generate_operation_subproblem(system::System, case_settings::NamedTuple
 
     add_linking_variables!(static_system, problem)
 
-    linking_variables = collect(values(benders_link_variables(problem)))
     linking_variables = [
         MacroEnergySolvers.BendersVariable(key, ref)
         for (key, ref) in benders_link_variables(problem)

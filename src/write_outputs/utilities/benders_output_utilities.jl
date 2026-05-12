@@ -691,9 +691,7 @@ function collect_local_slack_vars(subproblems_local::Vector{Dict{Any,Any}})
                 
                 # Convert DenseAxisArray to Dict before assigning to the period_dict
                 slack_array = policy_slack_vars(node)[slack_vars_key]
-                axis_dict = slack_array isa AbstractVector ?
-                    Dict(w => numeric_result_value(slack_array[i]) for (i, w) in enumerate(subperiod_indices(node)) if i <= length(slack_array)) :
-                    densearray_to_dict(slack_array)
+                axis_dict = densearray_to_dict(slack_array)
                 
                 # Ensure period_index dict exists
                 period_dict = get!(slack_vars, period_index, Dict{Tuple{Symbol, Symbol}, Dict{Int64, Float64}}())

@@ -206,9 +206,6 @@ function populate_results!(systems::AbstractVector{StaticSystem}, problem::Probl
     return nothing
 end
 
-populate_results!(::StaticSystem, ::Model) = nothing
-populate_results!(::System, ::Model) = nothing
-
 function populate_results!(system::System, problem::Problem)
     return populate_results!(StaticSystem(system), problem)
 end
@@ -216,8 +213,6 @@ end
 function populate_results!(case::Case, problem::Problem)
     return populate_results!(StaticSystem.(get_periods(case)), problem)
 end
-
-populate_results!(::Case, ::Model) = nothing
 
 function populate_results!(case::Case, problem::BendersProblem)
     isnothing(problem.planning_sol) && return nothing
