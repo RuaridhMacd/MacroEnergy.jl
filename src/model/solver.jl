@@ -74,7 +74,7 @@ function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Di
 
     write_settings(case, joinpath(output_path, "settings.json"))
 
-    return (case, MyopicResults(stored))
+    return (case, MyopicResults(stored,output_path))
 end
 
 ####### optimize! for BendersModel #######

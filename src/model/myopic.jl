@@ -1,5 +1,6 @@
 struct MyopicResults
     results::Union{Vector, Nothing}
+    output_path::String
 end
 
 function load_previous_capacity_results(path::AbstractString)

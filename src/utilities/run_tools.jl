@@ -143,7 +143,7 @@ function run_case(
         if isa(solution_algorithm(case), Benders)
             if case.settings.BendersSettings[:Distributed]
                 number_of_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
-                start_distributed_processes!(number_of_subproblems, case_path)
+                start_distributed_processes!(case_path, number_of_subproblems)
             end
         end
 
@@ -151,12 +151,16 @@ function run_case(
 
         postprocess!(case, solution)
 
-        # Myopic outputs are written during iteration, so we don't need to write them here
-        if !isa(expansion_horizon(case), Myopic)
-            if length(case.systems) ≥ 1
-                case_path = create_output_path(case.systems[1], case_path)
-            end
-            write_outputs(case_path, case, solution)
+        if isa(solution, MyopicResults)
+            # Outputs already written per-period during iteration; just retrieve the output path for log file copying
+            output_path = solution.output_path
+        else
+            output_path = length(case.systems) ≥ 1 ? create_output_path(case.systems[1], case_path) : case_path
+            write_outputs(output_path, case, solution)
+        end
+
+        if log_to_file && isfile(log_file_path)
+            cp(log_file_path, joinpath(output_path, basename(log_file_path)); force=true)
         end
 
         # If Benders, delete processes
