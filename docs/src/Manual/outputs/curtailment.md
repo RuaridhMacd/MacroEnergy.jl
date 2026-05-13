@@ -60,9 +60,9 @@ The `max(0, ...)` ensures curtailment is always non-negative. In practice, the o
 ## [Assumptions](@id manual-outputs-curtailment-assumptions)
 
 - **VRE assets only.** Only assets of type `VRE` are included. Other asset types (e.g., `ThermalPower`, `Battery`) do not produce curtailment rows.
-- **Requires `has_capacity = true` (true by default).** Curtailment is only meaningful when the VRE edge has capacity limits enabled. If the user sets `has_capacity = false`, the availability × capacity term is zero and curtailment will be `0.0`.
+- **Requires `has_capacity = true` (true by default).** Curtailment is only meaningful when the VRE edge has capacity variables enabled. If the user sets `has_capacity = false`, the availability × capacity term is zero and curtailment will be `0.0`.
 - **Availability time series.** The availability (capacity factor) profile is typically specified in the VRE asset's input data as a time series of values in [0, 1] for each representative time step. Note that if no availability time series is provided, Macro defaults to full availability (1.0) at all time steps.
-- **File not written if empty.** If the system has no VRE assets (or all VRE assets have zero capacity), the `curtailment.csv` file will not be written.
+- **File not written if empty.** If the system has no VRE assets, or all VRE edges have `has_capacity = false`, the `curtailment.csv` file will not be written. Note: if VRE assets exist but the optimizer assigns them zero capacity, the file is still written (with all-zero values).
 
 ## [Examples](@id manual-outputs-curtailment-examples)
 

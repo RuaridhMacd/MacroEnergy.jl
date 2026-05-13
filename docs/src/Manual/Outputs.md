@@ -81,14 +81,14 @@ The following settings in `macro_settings.json` control the behavior of the outp
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `OutputLayout` | `String` or `NamedTuple` | `"long"` | Output layout for tabular files. `"long"` stacks all observations as rows; `"wide"` pivots time steps or variables to columns. Can be set globally (`"long"`) or per-file as a `NamedTuple` (see below). |
+| `OutputLayout` | `String` or `JSON Object` | `"long"` | Output layout for tabular files. `"long"` stacks all observations as rows; `"wide"` pivots time steps or variables to columns. Can be set globally with a single string, or per-file as a JSON object (see below). |
 | `OverwriteResults` | `Bool` | `false` | If `true`, overwrite the output directory on each run. If `false`, append `_001`, `_002`, … suffixes to avoid overwriting. |
 | `OutputDir` | `String` | `"results"` | Base name for the results directory. |
 | `DualExportsEnabled` | `Bool` | `true` | If `true`, write [`balance_duals.csv`](@ref "manual-outputs-duals-balance") and [`co2_cap_duals.csv`](@ref "manual-outputs-duals-co2"). |
 
 ### Per-File Layout Control
 
-`OutputLayout` can be a `NamedTuple` to control layout independently for each output type:
+Instead of a single string, `OutputLayout` can be a JSON object to control layout independently for each output type:
 
 ```json
 "OutputLayout": {
@@ -116,26 +116,32 @@ Supported keys: `Capacity`, `Costs`, `Flow`, `StorageLevel`, `Curtailment`, `Non
 
 The table below lists all output files produced by Macro. Click the file name to go to the detailed page for that output.
 
-| File | Description | Conditional? |
+!!! note "Written when column"
+    The **Written when** column indicates whether the file is always produced or only under specific conditions. There are three types of conditions:
+    - **Always** — written on every successful run.
+    - **System content** — written only when the system contains the relevant asset type or constraint (e.g., no curtailment file if there are no VRE assets).
+    - **Setting / algorithm** — written only when a particular setting is enabled or a specific solution algorithm is used.
+
+| File | Description | Written when |
 |---|---|---|
-| [`capacity.csv`](@ref "manual-outputs-capacity") | Optimal, new, retired, retrofitted, and existing capacity for every asset component | No |
-| [`costs.csv`](@ref "manual-outputs-costs-system") | Total discounted system costs (fixed, variable, total) | No |
-| [`undiscounted_costs.csv`](@ref "manual-outputs-costs-system") | Total undiscounted system costs | No |
-| [`costs_by_type.csv`](@ref "manual-outputs-costs-breakdown") | Discounted cost breakdown by asset type and cost category | No |
-| [`costs_by_zone.csv`](@ref "manual-outputs-costs-breakdown-zone") | Discounted cost breakdown by zone and cost category | No |
-| [`undiscounted_costs_by_type.csv`](@ref "manual-outputs-costs-breakdown") | Undiscounted cost breakdown by asset type and cost category | No |
-| [`undiscounted_costs_by_zone.csv`](@ref "manual-outputs-costs-breakdown-zone") | Undiscounted cost breakdown by zone and cost category | No |
-| [`flows.csv`](@ref "manual-outputs-flows") | Commodity flow for every edge at every representative time step | No |
-| [`storage_level.csv`](@ref "manual-outputs-storage-level") | State of charge for every storage component at every representative time step | No |
-| [`curtailment.csv`](@ref "manual-outputs-curtailment") | Curtailed generation for VRE assets at every representative time step | No |
-| [`non_served_demand.csv`](@ref "manual-outputs-nsd") | Non-served demand for every node with NSD variables at every representative time step | No |
-| [`time_weights.csv`](@ref "manual-outputs-time-weights") | Representative period weights mapping each time step to its full-year equivalent hours | No |
-| [`balance_duals.csv`](@ref "manual-outputs-duals-balance") | Shadow prices of commodity balance constraints (locational marginal prices) | `DualExportsEnabled = true` |
-| [`co2_cap_duals.csv`](@ref "manual-outputs-duals-co2") | Shadow prices of CO₂ cap constraints (carbon prices) | `DualExportsEnabled = true` |
-| [`full_time_series/`](@ref "manual-outputs-full-timeseries") | Expanded time-series outputs covering all `TotalHoursModeled` hours | `WriteFullTimeseries = true` and TDR used |
-| [`benders_convergence.csv`](@ref "manual-outputs-benders") | Benders decomposition convergence metrics per iteration | Benders solver only |
-| [`settings.json`](@ref "manual-outputs-settings-output") | Snapshot of all case and system settings used for the run | No |
+| [`capacity.csv`](@ref "manual-outputs-capacity") | Optimal, new, retired, retrofitted, and existing capacity for every asset component | Always |
+| [`costs.csv`](@ref "manual-outputs-costs-system") | Total discounted system costs (fixed, variable, total) | Always |
+| [`undiscounted_costs.csv`](@ref "manual-outputs-costs-system") | Total undiscounted system costs | Always |
+| [`costs_by_type.csv`](@ref "manual-outputs-costs-breakdown") | Discounted cost breakdown by asset type and cost category | Always |
+| [`costs_by_zone.csv`](@ref "manual-outputs-costs-breakdown-zone") | Discounted cost breakdown by zone and cost category | Always |
+| [`undiscounted_costs_by_type.csv`](@ref "manual-outputs-costs-breakdown") | Undiscounted cost breakdown by asset type and cost category | Always |
+| [`undiscounted_costs_by_zone.csv`](@ref "manual-outputs-costs-breakdown-zone") | Undiscounted cost breakdown by zone and cost category | Always |
+| [`flows.csv`](@ref "manual-outputs-flows") | Commodity flow for every edge at every representative time step | Always |
+| [`time_weights.csv`](@ref "manual-outputs-time-weights") | Representative period weights mapping each time step to its full-year equivalent hours | Always |
+| [`settings.json`](@ref "manual-outputs-settings-output") | Snapshot of all case and system settings used for the run | Always |
+| [`storage_level.csv`](@ref "manual-outputs-storage-level") | State of charge for every storage component at every representative time step | System has storage assets |
+| [`curtailment.csv`](@ref "manual-outputs-curtailment") | Curtailed generation for VRE assets at every representative time step | System has VRE assets with `has_capacity = true` |
+| [`non_served_demand.csv`](@ref "manual-outputs-nsd") | Non-served demand for every node with NSD variables at every representative time step | System has nodes with NSD variables |
+| [`balance_duals.csv`](@ref "manual-outputs-duals-balance") | Shadow prices of commodity balance constraints (locational marginal prices) | `DualExportsEnabled = true` (default) |
+| [`co2_cap_duals.csv`](@ref "manual-outputs-duals-co2") | Shadow prices of CO₂ cap constraints (carbon prices) | `DualExportsEnabled = true` (default) |
 | [`<case_name>.log`](@ref "manual-outputs-log-file") | Plain-text log of all messages emitted during the run | `log_to_file = true` (default) |
+| [`full_time_series/`](@ref "manual-outputs-full-timeseries") | Expanded time-series outputs covering all `TotalHoursModeled` hours | `WriteFullTimeseries = true` and TDR used |
+| [`benders_convergence.csv`](@ref "manual-outputs-benders") | Benders decomposition convergence metrics per iteration | Benders algorithm only |
 
 
 ## [MacroEnergy API](@id manual-outputs-api)

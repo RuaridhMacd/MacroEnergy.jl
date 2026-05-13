@@ -85,7 +85,7 @@ In `case_settings.json`:
 using CSV, DataFrames
 
 # Read long-format flows
-flows_full = CSV.read("results/full_time_series/flows.csv", DataFrame)
+flows_full = CSV.read("results/full_time_series/flows.csv.gz", DataFrame)
 # flows_full has 8760 × n_components rows (one per (component, hour) pair)
 
 # Annual electricity generation per component
