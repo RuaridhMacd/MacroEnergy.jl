@@ -47,7 +47,7 @@ For more information about the available solvers and their settings, please refe
 
 By default, Macro solves the model with perfect foresight (either monolithically or applying Benders decomposition). When the `SolutionAlgorithm` setting is set to `"Myopic"`, Macro will run a myopic algorithm where each planning period is optimized individually, and planning decisions are carried over from one period to to the next. Because of time or memory constraints, the user may choose to stop the myopic iterations after a certain period, and start them again at a later stage (for example, in a different job on a computer cluster). This is done by adding to the `case_settings.json` file:
 
-```julia
+```json
 "MyopicSettings": {
     "Restart": {
         "enabled": true,
@@ -56,20 +56,25 @@ By default, Macro solves the model with perfect foresight (either monolithically
     },
     "StopAfterPeriod": 3
 }
-```julia
+```
 
 With the above settings, Macro will start the myopic iteration from period 2, loading planning solutions for period 1 from folder "results" and it will terminate the iterations after period 3 has been solved.
 
 ### Benders decomposition
 
+!!! note "Benders Decomposition in Macro"
+    For background on the Benders decomposition algorithm underlying Macro, see the following references:
+    - A. Jacobson, F. Pecci, N. Sepulveda, Q. Xu, and J. Jenkins (2024), “A computationally efficient benders decomposition for energy systems planning problems with detailed operations and time-coupling constraints,” INFORMS Journal on Optimization 6 (1), 32-45, doi: [10.1287/ijoo.2023.0005](https://doi.org/10.1287/ijoo.2023.0005).
+    - F. Pecci and J. D. Jenkins (2025), "Regularized Benders Decomposition for High Performance Capacity Expansion Models," in IEEE Transactions on Power Systems, doi: [10.1109/TPWRS.2025.3526413](https://doi.org/10.1109/TPWRS.2025.3526413).
+
 To run a case with Benders decomposition, you need to:
-1. Set `SolutionAlgorithm` to `"Benders"` in `case_settings.json` (by convention at `settings/case_settings.json`, with the path defined in `system_data.json`).
+1. Set `SolutionAlgorithm` to `"Benders"` in `case_settings.json` (by convention at `settings/case_settings.json`, with the path defined in `system_data.json` — see [System Data File Structure](@ref "manual-system-data-structure")).
 2. Optionally, configure the Benders algorithm settings (defaults are used if omitted): either create a `settings/benders_settings.json` file, embed them directly in `case_settings.json` under a `"BendersSettings"` key, or point to a custom file path (see examples below).
 3. Specify the optimizers for the planning problem and the subproblems in your `run.jl` script.
 
 #### Step 1: Configure `case_settings.json`
 
-The path to `case_settings.json` is defined under the top-level `"settings"` key in `system_data.json`. By convention this is `settings/case_settings.json`. Add/modify the `SolutionAlgorithm` key to specify that you want to use Benders decomposition:
+The path to `case_settings.json` is defined under the top-level `"settings"` key in `system_data.json` (see [System Data File Structure](@ref "manual-system-data-structure")). By convention this is `settings/case_settings.json`. Add/modify the `SolutionAlgorithm` key to specify that you want to use Benders decomposition:
 
 ```json
 {
