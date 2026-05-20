@@ -1,4 +1,4 @@
-# Output functions
+# [Output functions](@id reference-output-functions)
 
 ```@index
 Pages = ["4_writing_output.md"]

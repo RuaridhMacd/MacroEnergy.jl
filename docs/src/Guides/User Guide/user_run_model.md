@@ -546,5 +546,5 @@ For more information about how to interact with the system components, see the [
 
 - [Debugging and Testing a Macro Model](@ref) - Useful functions for debugging and testing a Macro model
 - [Configuring Settings](@ref) - Configure model settings
-- [Writing Results to Files](@ref) - Detailed output options
+- [Writing Results to Files](@ref "user-write-results") - Detailed output options
 - [Creating a new System](@ref) - Setting up input data
