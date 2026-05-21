@@ -124,6 +124,7 @@ const pages = [
         "Multi-Period Accounting" => "Manual/Multi_period_accounting.md"
     ],
     "How to contribute" => "how_to_contribute.md",
+    "Changelog" => "changelog.md",
     "References" => [
         "Introduction" => "References/1_introduction.md",
         "Reading input data" => "References/2_reading_input.md",
@@ -175,5 +176,4 @@ deploydocs(;
     devurl="dev",
     push_preview=true,
 )
-
 
