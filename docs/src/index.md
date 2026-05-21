@@ -79,6 +79,7 @@ The documentation contains five main sections:
 
 For the full release history, see [the changelog](@ref Changelog).
 <!-- END GENERATED RECENT CHANGES -->
+
 ## Macro development strategy
 
 Macro is a very flexible tool for modelling energy systems. However, that flexibility also means the core architecture and functions are complex and difficult to use correctly.

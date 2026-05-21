@@ -85,6 +85,7 @@ If you wish to make additons to Macro, please follow the installation instructio
 
 For the full release history, see [CHANGELOG.md](CHANGELOG.md).
 <!-- END GENERATED RECENT CHANGES -->
+
 ## Learning to use Macro
 
 ### Documentation

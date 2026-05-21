@@ -36,7 +36,7 @@ end
 
 function replace_or_insert_section(content::String, section_heading::String, section_body::String, after_heading::String)
     lines = split(chomp(content), "\n"; keepempty=true)
-    new_section = split(chomp(section_heading * "\n\n" * section_body), "\n"; keepempty=true)
+    new_section = split(chomp(section_heading * "\n\n" * section_body) * "\n", "\n"; keepempty=true)
 
     existing_bounds = section_bounds(lines, section_heading)
     if !isnothing(existing_bounds)
