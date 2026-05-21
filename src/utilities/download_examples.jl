@@ -160,7 +160,7 @@ or a `GitHub.UsernamePassAuth` or `GitHub.JWTAuth` object created using the GitH
 """
 function download_example(example_name::String, target_dir::String = pwd(); branch=nothing, version=nothing, auth=nothing)
     auth_kwargs = check_auth(auth)
-    (example_dir, examples_repo, ref) = find_example_with_ref(example_name; branch=branch, version=version, auth_kwargs...)
+    (example_dir, examples_repo, ref) = find_example_with_ref(example_name; branch=branch, version=version, auth_kwargs=auth_kwargs)
     if isnothing(example_dir)
         return nothing
     end
