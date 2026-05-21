@@ -93,7 +93,7 @@ The second way to contribute to MacroEnergy.jl is to open a [pull request](https
    - Use `update_node_supply_inputs(...)` to help convert existing cases.
    ```
 
-   You do not need to update the generated recent-changes sections in `README.md` or `docs/src/index.md` by hand. They are generated from `CHANGELOG.md` by `scripts/update_changelog.jl`.
+   You do not need to update the generated recent-changes sections in README.md or docs/src/index.md by hand. They are generated from CHANGELOG.md by scripts/update_changelog.jl, which runs automatically in GitHub Actions. You may also run it locally before opening a PR if you want the generated files included in your branch.
 
 8. **Push to your fork**:
 
