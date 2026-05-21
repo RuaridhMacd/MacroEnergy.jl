@@ -1,4 +1,4 @@
-<!-- This file is generated from CHANGELOG.md by scripts/update_changelog.jl. -->
+<!-- This file is generated from CHANGELOG.md by docs/scripts/update_changelog.jl. -->
 
 # Changelog
 
