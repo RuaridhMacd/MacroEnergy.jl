@@ -1,4 +1,4 @@
-const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
+const REPO_ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 const CHANGELOG_PATH = joinpath(REPO_ROOT, "CHANGELOG.md")
 const README_PATH = joinpath(REPO_ROOT, "README.md")
 const DOCS_INDEX_PATH = joinpath(REPO_ROOT, "docs", "src", "index.md")
@@ -6,7 +6,7 @@ const DOCS_CHANGELOG_PATH = joinpath(REPO_ROOT, "docs", "src", "changelog.md")
 
 const GENERATED_BEGIN = "<!-- BEGIN GENERATED RECENT CHANGES -->"
 const GENERATED_END = "<!-- END GENERATED RECENT CHANGES -->"
-const GENERATED_NOTICE = "<!-- This file is generated from CHANGELOG.md by scripts/update_changelog.jl. -->"
+const GENERATED_NOTICE = "<!-- This file is generated from CHANGELOG.md by docs/scripts/update_changelog.jl. -->"
 
 function heading_level(line::AbstractString)
     startswith(line, "#") || return 0

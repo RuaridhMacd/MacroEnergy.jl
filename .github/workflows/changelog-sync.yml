@@ -6,7 +6,7 @@ on:
       - gh-pages
     paths:
       - CHANGELOG.md
-      - scripts/update_changelog.jl
+      - docs/scripts/update_changelog.jl
       - .github/workflows/changelog-sync.yml
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
       - name: Update generated changelog outputs
-        run: julia scripts/update_changelog.jl
+        run: julia docs/scripts/update_changelog.jl
       - name: Commit generated changelog outputs
         run: |
           if [[ -n "$(git status --porcelain README.md docs/src/index.md docs/src/changelog.md)" ]]; then
