@@ -35,6 +35,16 @@ and this project follows Julia package versioning through `Project.toml` release
 - Improved Benders output parity and cost handling by performing a final operational solve for the selected planning solution.
 - Fixed and improved transmission, storage, dual, cost, and documentation behavior across the release.
 
+### Migration guide
+
+- Update node supply inputs to the named `supply` dictionary format. Each supply segment should define `price`, `min`, and `max` values. Legacy `price_supply` and `max_supply` inputs are still handled, and `update_node_supply_inputs(...)` can help convert existing cases.
+- Review any cases using automatically generated supply segment names. Segment names now use `segment1`, `segment2`, and so on.
+- Review transmission assets. `TransmissionLink` is now bidirectional by default; use `OneWayTransmissionLink` when directionality matters.
+- Update any direct use of edge types to the explicit unidirectional and bidirectional edge forms.
+- Update output-processing scripts that relied on the legacy unified output code. Use the expanded `write_*` output functions instead.
+- Review models that assumed nodes did not include balance constraints by default. Nodes now have `BalanceConstraint` enabled by default.
+- Prefer the renamed emissions assets `UpstreamEmissions` and `DownstreamEmissions`. Compatibility aliases remain for older names, including `FossilFuelsUpstream` and `FuelsEndUse`.
+
 ## [0.0.3] - 2025-11-21
 
 ### Added
