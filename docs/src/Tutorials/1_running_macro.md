@@ -35,7 +35,7 @@ The simplest way to run a Macro case is using the `run_case` function, which han
 using MacroEnergy
 using HiGHS
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     "one_zone_electricity_only",
     optimizer=HiGHS.Optimizer,
     optimizer_attributes=("solver" => "ipm", "ipm_optimality_tolerance" => 1e-3, "run_crossover" => "off")
@@ -43,8 +43,8 @@ using HiGHS
 ```
 
 This returns:
-- `systems`: A vector of solved `System` objects (one per period)
-- `solution`: The model object
+- `case`: A `Case` object containing a vector of solved `System` objects (one per period)
+- `solution`: The solution object (a `Model` for Monolithic, `MyopicResults` for Myopic, or `BendersResults` for Benders)
 
 You can customize the optimizer and other settings:
 
@@ -52,7 +52,7 @@ You can customize the optimizer and other settings:
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     "one_zone_electricity_only";
     optimizer=Gurobi.Optimizer,
     optimizer_attributes=("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3)
@@ -198,7 +198,7 @@ Open file `one_zone_electricity_only/system/nodes.json`, go to the bottom of the
 **Quick approach using `run_case`:**
 
 ```julia
-(systems, solution) = run_case("one_zone_electricity_only");
+(case, solution) = run_case("one_zone_electricity_only");
 ```
 
 **Manual approach for more control:**

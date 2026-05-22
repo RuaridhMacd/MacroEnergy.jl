@@ -13,7 +13,7 @@ Create a file called `run.jl` in your case directory with the following content:
 ```julia
 using MacroEnergy
 
-(systems, solution) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 The `@__DIR__` macro automatically expands to the directory containing the script, making the script portable.
@@ -34,7 +34,7 @@ By default, `run_case` uses the HiGHS optimizer. To use a different solver like 
 using MacroEnergy
 using Gurobi # or CPLEX, etc.
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     optimizer=Gurobi.Optimizer, # Optimizer Constructor
     optimizer_attributes=("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3), # Optimizer Settings
@@ -145,7 +145,7 @@ Create a file called `run.jl` in your case directory with the following content 
 using MacroEnergy
 using HiGHS
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer=HiGHS.Optimizer, # Optimizer Constructor for the planning problem
     subproblem_optimizer=HiGHS.Optimizer, # Optimizer Constructor for the subproblems
@@ -159,7 +159,7 @@ For Gurobi:
 using MacroEnergy
 using Gurobi # or HiGHS, CPLEX, etc.
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer=Gurobi.Optimizer, # Optimizer Constructor for the planning problem
     subproblem_optimizer=Gurobi.Optimizer, # Optimizer Constructor for the subproblems
@@ -293,7 +293,7 @@ case_paths = [
 for case_path in case_paths
     println("Running case: $case_path")
     
-    (systems, solution) = run_case(
+    (case, solution) = run_case(
         case_path;
         optimizer=HiGHS.Optimizer
     )
@@ -512,10 +512,10 @@ When running many cases, be mindful of memory usage:
 ```julia
 for case_path in case_paths
     # Run case
-    (systems, _) = run_case(case_path)
+    (case, _) = run_case(case_path)
     
     # Extract and save only what you need
-    save_key_results(systems, case_path);
+    save_key_results(case, case_path);
 end
 ```
 
@@ -526,7 +526,7 @@ For batch runs, consider adjusting logging to avoid excessive output:
 ```julia
 using Logging
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     case_path;
     log_to_console=false,  # Suppress console output
     log_to_file=true,      # Keep file logging
@@ -541,7 +541,7 @@ Wrap runs in try-catch blocks for robustness when running multiple cases:
 ```julia
 for case_path in case_paths
     try
-        (systems, solution) = run_case(case_path)
+        (case, solution) = run_case(case_path)
         println("Successfully completed: $case_path")
     catch e
         println("Failed: $case_path")

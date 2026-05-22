@@ -177,7 +177,7 @@ The `run_HiGHS.jl` file should contain the following code:
 ```julia
 using MacroEnergy
 
-(system, model) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 which will run the case using the HiGHS solver. To use a different solver, you can pass the Optimizer object as an argument to `run_case` function. For example, to use Gurobi as the solver, you can use the following code (which is what the `run.jl` has):
@@ -186,7 +186,7 @@ which will run the case using the HiGHS solver. To use a different solver, you c
 using MacroEnergy
 using Gurobi
 
-(system, model) = run_case(@__DIR__; optimizer=Gurobi.Optimizer);
+(case, solution) = run_case(@__DIR__; optimizer=Gurobi.Optimizer);
 ```
 
 To run the case, open a terminal and run the following command:
