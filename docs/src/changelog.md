@@ -9,6 +9,11 @@ and this project follows Julia package versioning through `Project.toml` release
 
 ## [Unreleased]
 
+- CSV asset input files can now have their `Type` and `Id` columns in any position in the file, instead of needing to be in the first two columns. The `Type` and `Id` columns are still required.
+- `run_case` now returns `(case, solution)` as opposed to `(systems, solution)`. The `case` object contains the `systems` as well as `case`-level settings.
+- Outputs can now be written to a JSON file using the `write_to_json` method. This method writes to a compressed `.json.gz` but also supports regular `.json` outputs. It is not currently built into any of the run tools.
+- Improved JSON serialization coverage of commodities, storage, constraints, dual values, time data, solution algorithms, named tuples, JuMP containers, and special numeric values like Inf, -Inf, and NaN
+
 ## [0.1.0] - 2026-04-14
 
 ### Added
