@@ -4,8 +4,18 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - 'docs/src/**'
+      - 'docs/build/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/src/**'
+      - 'docs/build/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
 
 jobs:
   test:
