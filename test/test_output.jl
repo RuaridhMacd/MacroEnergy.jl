@@ -1124,7 +1124,12 @@ function test_writing_output()
             period_index=1
         )
         empty_sys.time_data = Dict(:Electricity => empty_timedata)
-        empty_settings = (PeriodLengths=[1], DiscountRate=0.0, SolutionAlgorithm=MacroEnergy.Monolithic())
+        empty_settings = (
+            PeriodLengths=[1],
+            DiscountRate=0.0,
+            SolutionAlgorithm=MacroEnergy.Monolithic(),
+            ExpansionHorizon=MacroEnergy.PerfectForesight(),
+        )
 
         costs_empty = get_detailed_costs(empty_sys, empty_settings)
         @test costs_empty.discounted isa DataFrame
@@ -1205,4 +1210,3 @@ end
 test_writing_output()
 
 end # module TestOutput
-

@@ -45,9 +45,10 @@ For more information about the available solvers and their settings, please refe
 
 ### Stop-and-go myopic iteration
 
-By default, Macro solves the model with perfect foresight (either monolithically or applying Benders decomposition). When the `SolutionAlgorithm` setting is set to `"Myopic"`, Macro will run a myopic algorithm where each planning period is optimized individually, and planning decisions are carried over from one period to to the next. Because of time or memory constraints, the user may choose to stop the myopic iterations after a certain period, and start them again at a later stage (for example, in a different job on a computer cluster). This is done by adding to the `case_settings.json` file:
+By default, Macro solves the model with perfect foresight (either monolithically or applying Benders decomposition). When `ExpansionHorizon` is set to `"Myopic"`, Macro will run a myopic algorithm where each planning period is optimized individually, and planning decisions are carried over from one period to the next. Because of time or memory constraints, the user may choose to stop the myopic iterations after a certain period, and start them again at a later stage (for example, in a different job on a computer cluster). This is done by adding to the `case_settings.json` file:
 
 ```json
+"ExpansionHorizon": "Myopic",
 "MyopicSettings": {
     "Restart": {
         "enabled": true,

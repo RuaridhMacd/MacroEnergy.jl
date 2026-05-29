@@ -97,6 +97,7 @@ function case_settings()
         PeriodLengths = [1],
         DiscountRate = 0.0,
         SolutionAlgorithm = MacroEnergy.Monolithic(),
+        ExpansionHorizon = MacroEnergy.PerfectForesight(),
     )
 end
 

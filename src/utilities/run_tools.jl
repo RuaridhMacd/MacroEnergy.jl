@@ -132,6 +132,8 @@ function run_case(
             _run_case_impl,
             case_path,
             lazy_load,
+            log_to_file,
+            log_file_path,
             optimizer,
             optimizer_env,
             optimizer_attributes,
@@ -150,6 +152,8 @@ end
 function _run_case_impl(
     case_path::AbstractString,
     lazy_load::Bool,
+    log_to_file::Bool,
+    log_file_path::AbstractString,
     optimizer::DataType,
     optimizer_env,
     optimizer_attributes::Tuple,
@@ -161,7 +165,7 @@ function _run_case_impl(
     case = load_case(case_path; lazy_load=lazy_load)
 
     # Create optimizer based on solution algorithm
-    optimizer = if isa(solution_algorithm(case), Monolithic)
+    optimizer_instance = if isa(solution_algorithm(case), Monolithic)
         create_optimizer(optimizer, optimizer_env, optimizer_attributes)
     elseif isa(solution_algorithm(case), Benders)
         create_optimizer_benders(planning_optimizer, subproblem_optimizer,
@@ -170,12 +174,11 @@ function _run_case_impl(
         error("Unknown solution algorithm. Please check `SolutionAlgorithm` in `settings/case_settings.json`. Valid values are \"Monolithic\" and \"Benders\".")
     end
 
+    # If Benders, create processes for subproblems optimization
     if isa(solution_algorithm(case), Benders)
         if case.settings.BendersSettings[:Distributed]
-            number_of_subproblems = sum(
-                length(system.time_data[:Electricity].subperiods) for system in case.systems
-            )
-            start_distributed_processes!(number_of_subproblems, case_path)
+            number_of_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
+            start_distributed_processes!(case_path, number_of_subproblems)
         end
     end
 
@@ -201,7 +204,7 @@ function _run_case_impl(
         end
     end
 
-    return case.systems, solution
+    return case, solution
 end
 
 function case_cleanup()
