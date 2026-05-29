@@ -13,7 +13,7 @@ Create a file called `run.jl` in your case directory with the following content:
 ```julia
 using MacroEnergy
 
-(systems, solution) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 The `@__DIR__` macro automatically expands to the directory containing the script, making the script portable.
@@ -34,7 +34,7 @@ By default, `run_case` uses the HiGHS optimizer. To use a different solver like 
 using MacroEnergy
 using Gurobi # or CPLEX, etc.
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     optimizer=Gurobi.Optimizer, # Optimizer Constructor
     optimizer_attributes=("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3), # Optimizer Settings
@@ -47,22 +47,97 @@ For more information about the available solvers and their settings, please refe
 
 By default, Macro solves the model with perfect foresight (either monolithically or applying Benders decomposition). When the `SolutionAlgorithm` setting is set to `"Myopic"`, Macro will run a myopic algorithm where each planning period is optimized individually, and planning decisions are carried over from one period to to the next. Because of time or memory constraints, the user may choose to stop the myopic iterations after a certain period, and start them again at a later stage (for example, in a different job on a computer cluster). This is done by adding to the `case_settings.json` file:
 
-```julia
+```json
 "MyopicSettings": {
-        "Restart": {
-            "enabled": true,
-            "folder": "results",
-            "from_period": 2
-        },
-        "StopAfterPeriod": 3
-    }
-```julia
+    "Restart": {
+        "enabled": true,
+        "folder": "results",
+        "from_period": 2
+    },
+    "StopAfterPeriod": 3
+}
+```
 
 With the above settings, Macro will start the myopic iteration from period 2, loading planning solutions for period 1 from folder "results" and it will terminate the iterations after period 3 has been solved.
 
 ### Benders decomposition
 
-To run a case with Benders decomposition, users need to specify the optimizer for the planning problem and the subproblems.
+!!! note "Benders Decomposition in Macro"
+    For background on the Benders decomposition algorithm underlying Macro, see the following references:
+    - A. Jacobson, F. Pecci, N. Sepulveda, Q. Xu, and J. Jenkins (2024), “A computationally efficient benders decomposition for energy systems planning problems with detailed operations and time-coupling constraints,” INFORMS Journal on Optimization 6 (1), 32-45, doi: [10.1287/ijoo.2023.0005](https://doi.org/10.1287/ijoo.2023.0005).
+    - F. Pecci and J. D. Jenkins (2025), "Regularized Benders Decomposition for High Performance Capacity Expansion Models," in IEEE Transactions on Power Systems, doi: [10.1109/TPWRS.2025.3526413](https://doi.org/10.1109/TPWRS.2025.3526413).
+
+To run a case with Benders decomposition, you need to:
+1. Set `SolutionAlgorithm` to `"Benders"` in `case_settings.json` (by convention at `settings/case_settings.json`, with the path defined in `system_data.json` — see [System Data File Structure](@ref "manual-system-data-structure")).
+2. Optionally, configure the Benders algorithm settings (defaults are used if omitted): either create a `settings/benders_settings.json` file, embed them directly in `case_settings.json` under a `"BendersSettings"` key, or point to a custom file path (see examples below).
+3. Specify the optimizers for the planning problem and the subproblems in your `run.jl` script.
+
+#### Step 1: Configure `case_settings.json`
+
+The path to `case_settings.json` is defined under the top-level `"settings"` key in `system_data.json` (see [System Data File Structure](@ref "manual-system-data-structure")). By convention this is `settings/case_settings.json`. Add/modify the `SolutionAlgorithm` key to specify that you want to use Benders decomposition:
+
+```json
+{
+    "SolutionAlgorithm": "Benders"
+}
+```
+
+#### Step 2: Configure `benders_settings.json` (optional)
+
+By default, Macro uses the following Benders settings:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `MaxIter` | `50` | Maximum number of Benders iterations |
+| `MaxCpuTime` | `7200` | Maximum CPU time in seconds |
+| `ConvTol` | `1e-3` | Convergence tolerance (relative gap between upper and lower bound) |
+| `StabParam` | `0.0` | Stabilization parameter (set > 0 to enable stabilization) |
+| `StabDynamic` | `false` | Enable dynamic stabilization |
+| `IntegerInvestment` | `false` | Use integer investment decisions in the master problem |
+| `Distributed` | `false` | Solve subproblems in parallel using Julia's distributed computing. When enabled, `run_case` automatically spawns and cleans up the required worker processes. |
+| `ExpectFeasibleSubproblems` | `false` | Skip feasibility cuts (use only if subproblems are always feasible) |
+| `IncludeSubproblemSlacksAutomatically` | `false` | Automatically add slack variables to subproblems |
+
+!!! tip "Distributed Computing with Benders Decomposition"
+    When `Distributed` is set to `true`, Macro solves subproblems in parallel using Julia's distributed computing. `run_case` automatically spawns and cleans up the required worker processes.
+
+    The number of workers is determined automatically:
+    - **Locally**: Macro spawns up to `min(number_of_subproblems, Sys.CPU_THREADS)` workers. For instance, if you have 10 subproblems and your machine has 16 CPU threads, Macro will spawn 10 workers. If you have 20 subproblems and your machine has 16 CPU threads, Macro will spawn 16 workers.
+    - **On a SLURM cluster**: Macro detects the `SLURM_NTASKS` environment variable and uses a `SlurmManager` to spawn workers. The number of workers equals `--ntasks` from your SLURM job script, so set it to the number of subproblems you want to solve in parallel. If `SLURM_CPUS_PER_TASK` is set, each worker is launched with that many threads (`-t` flag).
+
+To override any of these, create a file at `settings/benders_settings.json`. For example:
+
+```json
+{
+    "MaxIter": 100,
+    "ConvTol": 1e-4,
+    "MaxCpuTime": 14400
+}
+```
+
+Alternatively, you can embed the Benders settings directly in `case_settings.json` (Note: don't include a `benders_settings.json` file if you use this approach, as it will have higher priority and the settings in the `case_settings.json` file will be ignored):
+
+```json
+{
+    "SolutionAlgorithm": "Benders",
+    "BendersSettings": {
+        "MaxIter": 100,
+        "ConvTol": 1e-4
+    }
+}
+```
+
+Or point to a custom settings file path (high priority, even if a `benders_settings.json` file exists):
+```json
+{
+    "SolutionAlgorithm": "Benders",
+    "BendersSettings": {
+        "path": "settings/my_benders_settings.json"
+    }
+}
+```
+
+#### Step 3: Create the `run.jl` script
 
 Create a file called `run.jl` in your case directory with the following content (for HiGHS with IPM solver):
 
@@ -70,7 +145,7 @@ Create a file called `run.jl` in your case directory with the following content 
 using MacroEnergy
 using HiGHS
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer=HiGHS.Optimizer, # Optimizer Constructor for the planning problem
     subproblem_optimizer=HiGHS.Optimizer, # Optimizer Constructor for the subproblems
@@ -84,7 +159,7 @@ For Gurobi:
 using MacroEnergy
 using Gurobi # or HiGHS, CPLEX, etc.
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer=Gurobi.Optimizer, # Optimizer Constructor for the planning problem
     subproblem_optimizer=Gurobi.Optimizer, # Optimizer Constructor for the subproblems
@@ -218,7 +293,7 @@ case_paths = [
 for case_path in case_paths
     println("Running case: $case_path")
     
-    (systems, solution) = run_case(
+    (case, solution) = run_case(
         case_path;
         optimizer=HiGHS.Optimizer
     )
@@ -437,10 +512,10 @@ When running many cases, be mindful of memory usage:
 ```julia
 for case_path in case_paths
     # Run case
-    (systems, _) = run_case(case_path)
+    (case, _) = run_case(case_path)
     
     # Extract and save only what you need
-    save_key_results(systems, case_path);
+    save_key_results(case, case_path);
 end
 ```
 
@@ -451,7 +526,7 @@ For batch runs, consider adjusting logging to avoid excessive output:
 ```julia
 using Logging
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     case_path;
     log_to_console=false,  # Suppress console output
     log_to_file=true,      # Keep file logging
@@ -466,7 +541,7 @@ Wrap runs in try-catch blocks for robustness when running multiple cases:
 ```julia
 for case_path in case_paths
     try
-        (systems, solution) = run_case(case_path)
+        (case, solution) = run_case(case_path)
         println("Successfully completed: $case_path")
     catch e
         println("Failed: $case_path")
@@ -546,5 +621,5 @@ For more information about how to interact with the system components, see the [
 
 - [Debugging and Testing a Macro Model](@ref) - Useful functions for debugging and testing a Macro model
 - [Configuring Settings](@ref) - Configure model settings
-- [Writing Results to Files](@ref) - Detailed output options
+- [Writing Results to Files](@ref "user-write-results") - Detailed output options
 - [Creating a new System](@ref) - Setting up input data

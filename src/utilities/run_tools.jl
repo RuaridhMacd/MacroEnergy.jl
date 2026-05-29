@@ -1,5 +1,5 @@
 """
-    run_case(case_path; kwargs...) -> (systems::Vector{System}, solution::Any)
+    run_case(case_path; kwargs...) -> (case::Case, solution::Any)
 
 Load, solve, and write results for a Macro case. This is the main entry point for running 
 a complete Macro workflow.
@@ -34,9 +34,11 @@ a complete Macro workflow.
 - `subproblem_optimizer_attributes::Tuple`: Solver settings for the subproblems.
 
 # Returns
-- `systems::Vector{System}`: Vector of solved system objects (one per period).
+- `case::Case`: A case object containing a vector of solved system objects (one per period) and the case settings
 - `solution`: The solution object (type depends on the solution algorithm: `Model` for 
-  Monolithic, `MyopicResults` for Myopic, `BendersResults` for Benders).
+  Monolithic, `MyopicResults` for Myopic (both Monolithic and Benders), `BendersModel`
+  for Perfect Foresight + Benders). `MyopicResults.results` holds a `Vector` of per-period
+  results when `ReturnModels=true`, or `nothing` when `ReturnModels=false`.
 
 # Examples
 
@@ -44,7 +46,7 @@ a complete Macro workflow.
 ```julia
 using MacroEnergy
 
-(systems, solution) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 ## Using Gurobi optimizer
@@ -52,7 +54,7 @@ using MacroEnergy
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     optimizer=Gurobi.Optimizer,
     optimizer_attributes=("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3)
@@ -64,7 +66,7 @@ using Gurobi
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer=Gurobi.Optimizer,
     subproblem_optimizer=Gurobi.Optimizer,
@@ -78,7 +80,7 @@ using Gurobi
 using MacroEnergy
 using Logging
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     case_path;
     log_to_console=false,
     log_level=Logging.Warn
@@ -158,17 +160,14 @@ function _run_case_impl(
 )
     case = load_case(case_path; lazy_load=lazy_load)
 
-    optimizer_instance = if isa(solution_algorithm(case), Monolithic) || isa(solution_algorithm(case), Myopic)
+    # Create optimizer based on solution algorithm
+    optimizer = if isa(solution_algorithm(case), Monolithic)
         create_optimizer(optimizer, optimizer_env, optimizer_attributes)
     elseif isa(solution_algorithm(case), Benders)
-        create_optimizer_benders(
-            planning_optimizer,
-            subproblem_optimizer,
-            planning_optimizer_attributes,
-            subproblem_optimizer_attributes,
-        )
+        create_optimizer_benders(planning_optimizer, subproblem_optimizer,
+            planning_optimizer_attributes, subproblem_optimizer_attributes)
     else
-        error("The solution algorithm is not Monolithic, Myopic, or Benders. Please double check the `SolutionAlgorithm` in the `settings/case_settings.json` file.")
+        error("Unknown solution algorithm. Please check `SolutionAlgorithm` in `settings/case_settings.json`. Valid values are \"Monolithic\" and \"Benders\".")
     end
 
     if isa(solution_algorithm(case), Benders)

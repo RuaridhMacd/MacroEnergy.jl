@@ -3,6 +3,7 @@ struct Case
     settings::Union{NamedTuple,Nothing}
 end
 solution_algorithm(case::Case) = solution_algorithm(case.settings[:SolutionAlgorithm])
+expansion_horizon(case::Case) = expansion_horizon(case.settings[:ExpansionHorizon])
 number_of_periods(case::Case) = length(case.systems)
 get_periods(case::Case) = case.systems
 get_settings(case::Case) = case.settings

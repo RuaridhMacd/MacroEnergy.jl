@@ -41,6 +41,7 @@ import MacroEnergy:
     compute_undiscounted_costs!,
     get_optimal_discounted_costs,
     get_optimal_undiscounted_costs,
+    solution_algorithm,
     write_capacity,
     write_costs,
     write_undiscounted_costs,
@@ -283,7 +284,8 @@ function test_model_generation_and_optimization()
     case = load_case(test_path)
     @test case.settings.WriteFullTimeseries
     optimizer = create_optimizer(optim)
-    model = generate_model(case,optimizer)
+    alg = solution_algorithm(case)
+    model = generate_model(case,optimizer,alg)
     optimize!(model)
     postprocess!(case, model)
     macro_objval = objective_value(model)

@@ -35,6 +35,7 @@ const pages = [
             "Adding Assets constraints" => "Guides/User Guide/user_asset_constraints.md",
             "Configuring Settings" => "Guides/User Guide/user_settings.md",
             "Running Models" => "Guides/User Guide/user_run_model.md",
+            "Solution Modes" => "Guides/User Guide/user_solution_modes.md",
             "Writing Results" => "Guides/User Guide/user_write_results.md",
             "Using Multi-Period Models" => "Guides/User Guide/user_multiperiod.md",
             "Exploring the Asset library" => "Guides/User Guide/user_using_asset_libary.md",
@@ -61,7 +62,21 @@ const pages = [
         "Inputs" => "Manual/Inputs.md",
         "Time Data" => "Manual/TimeData.md",
         "Timeseries" => "Manual/Timeseries.md",
-        "Outputs" => "Manual/Outputs.md",
+        "Outputs" => [
+            "Overview" => "Manual/Outputs.md",
+            "Capacity" => "Manual/outputs/capacity.md",
+            "Costs" => "Manual/outputs/costs.md",
+            "Flows" => "Manual/outputs/flows.md",
+            "Storage Level" => "Manual/outputs/storage_level.md",
+            "Curtailment" => "Manual/outputs/curtailment.md",
+            "Non-Served Demand" => "Manual/outputs/non_served_demand.md",
+            "Time Weights" => "Manual/outputs/time_weights.md",
+            "Duals" => "Manual/outputs/duals.md",
+            "Full Time Series" => "Manual/outputs/full_timeseries.md",
+            "Benders Convergence" => "Manual/outputs/benders.md",
+            "Settings" => "Manual/outputs/settings_output.md",
+            "Log File" => "Manual/outputs/log_file.md",
+        ],
         "System" => "Manual/System.md",
         "Model" => "Manual/Model.md",
         "Sectors" => "Manual/Sectors.md",
@@ -110,6 +125,8 @@ const pages = [
         "Multi-Period Accounting" => "Manual/Multi_period_accounting.md"
     ],
     "How to contribute" => "how_to_contribute.md",
+    hide("Maintainers guide" => "maintainers.md"),
+    "Changelog" => "changelog.md",
     "References" => [
         "Introduction" => "References/1_introduction.md",
         "Reading input data" => "References/2_reading_input.md",
@@ -162,5 +179,3 @@ deploydocs(;
     devurl="dev",
     push_preview=true,
 )
-
-

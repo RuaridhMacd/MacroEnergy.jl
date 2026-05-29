@@ -1,4 +1,4 @@
-# Writing Results to Files
+# [Writing Results to Files](@id user-write-results)
 
 Currently, Macro supports the following types of outputs:
 
@@ -344,3 +344,41 @@ write_capacity(joinpath(output_path, "capacity.csv"), system) # Creates /path/to
 ```
 
 In this case, the function creates a directory named according to the `OutputDir` setting (e.g., `results`) within your specified path (e.g., `path/to/output/results`).
+
+## Exporting System Data to JSON
+
+To serialize a solved `System` or `Case` object back to a JSON file, use the [`write_to_json`](@ref) function. This is useful for saving the full system state — including all asset parameters, solved variable values, and constraint duals — so it can be inspected or reloaded later.
+
+### Writing a single system
+
+```julia
+write_to_json(system, "output/system_data.json")
+```
+
+### Writing a full case (all periods + settings)
+
+```julia
+write_to_json(case, "output/case_data.json")
+```
+
+When writing a `Case`, the output contains two top-level keys:
+- `case`: an array of per-period system data objects
+- `settings`: the case-level settings
+
+### Compression
+
+By default, output is gzip-compressed. If the provided file path does not end in `.gz`, the extension is appended automatically:
+
+```julia
+# Both of these write to output/case_data.json.gz
+write_to_json(case, "output/case_data.json")
+write_to_json(case, "output/case_data.json.gz")
+```
+
+To write uncompressed JSON, pass `compress=false`:
+
+```julia
+write_to_json(case, "output/case_data.json"; compress=false)
+```
+
+If `file_path` is omitted entirely, the output is written to `output_system_data.json` (or `.gz`) in the current working directory.

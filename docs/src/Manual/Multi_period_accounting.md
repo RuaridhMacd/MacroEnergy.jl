@@ -1,4 +1,4 @@
-# General assumptions made by Macro
+# [General assumptions made by Macro](@id manual-multi-period-accounting-general-assumptions)
 
 **Planning periods** (also referred to as "periods") can include multiple years. The number of years can vary between planning periods. (This has implications for how to aggregate variable and O&M costs within a period, see below.)
 

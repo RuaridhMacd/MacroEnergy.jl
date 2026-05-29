@@ -86,14 +86,14 @@ The most straightforward way of adding a new Node is to use the template functio
 You can add one or more Node by providing the Nodes file as an argument. In these examples, we will assume your have created a system called `ExampleSystems/template_example` and that you have created an `assets` folder in that directory.
 
 ```julia
-julia> template_location("ExampleSystems/template_example/system/nodes.json", Electricity)
-julia> template_location("ExampleSystems/template_example/system/nodes.json", [Electricity, Hydrogen])
+julia> template_node("ExampleSystems/template_example/system/nodes.json", Electricity)
+julia> template_node("ExampleSystems/template_example/system/nodes.json", [Electricity, Hydrogen])
 ```
 
 Or by providing the associated System:
 
 ```julia
-julia> template_location(system, [Electricity, Hydrogen])
+julia> template_node(system, [Electricity, Hydrogen])
 ```
 
 [You can learn how to create or load the System here.](@ref "Creating a new System")

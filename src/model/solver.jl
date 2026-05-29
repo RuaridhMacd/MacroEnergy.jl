@@ -1,58 +1,97 @@
+####### Entry point: dispatch on ExpansionHorizon then SolutionAlgorithm #######
 function solve_case(case::Case, opt::O) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
-    solve_case(case, opt, solution_algorithm(case))
+    solve_case(case, opt, expansion_horizon(case))
 end
 
-function solve_case(case::Case, opt::Optimizer, ::Monolithic)
+####### Perfect foresight: generate a single model + optimize! #######
+function solve_case(case::Case, opt::O, ::PerfectForesight) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
+    alg = solution_algorithm(case)
 
-    @info("*** Running simulation with monolithic solver ***")
+    @info("*** Running simulation with Perfect Foresight expansion horizon and $(nameof(typeof(alg))) solution algorithm ***")
 
-    model = generate_model(case, opt)
-
-    # For monolithic solution there is only one model
-    # scale constraints if the flag is true in the first system
-    if case.systems[1].settings.ConstraintScaling
-        @info "Scaling constraints and RHS"
-        scale_constraints!(model)
-    end
+    # For Perfect Foresight, we generate a single model for the entire case (planning periods) and solve it once
+    # generate_model will dispatch on the solution algorithm (e.g., Monolithic or Benders) to generate the appropriate model structure
+    model = generate_model(case, opt, alg)
 
     optimize!(model)
 
     return (case, model)
 end
 
-####### myopic expansion #######
-function solve_case(case::Case, opt::Optimizer, ::Myopic)
+####### Myopic: one model for each period, capacity carry-over, and outputs #######
+function solve_case(case::Case, opt::O, ::Myopic) where O <: Union{Optimizer, Dict{Symbol, Dict{Symbol, Any}}}
+    alg = solution_algorithm(case)
 
-    @info("*** Running simulation with myopic iteration ***")
-    
-    myopic_results = run_myopic_iteration!(case,opt)
+    @info("*** Running simulation with Myopic expansion horizon and $(nameof(typeof(alg))) solution algorithm ***")
 
-    return (case, myopic_results)
+    periods = get_periods(case)
+    settings = get_settings(case)
+    myopic_settings = settings.MyopicSettings
+    return_results = myopic_settings[:ReturnModels]
+
+     # Output path for writing results during iteration
+    output_path = create_output_path(case.systems[1])
+
+    # Only allocate models vector if returning models is requested
+    stored = return_results ? Vector{Any}(undef, length(periods)) : nothing
+
+    if myopic_settings[:Restart][:enabled]
+        if myopic_settings[:Restart][:from_period] == 1
+            @warn("Restarting from the first period; no previous period to load, proceeding with normal iteration.")
+        else
+            restart_folder = joinpath(case.systems[1].data_dirpath, myopic_settings[:Restart][:folder])
+            restart_period_idx = myopic_settings[:Restart][:from_period]
+            @info("Restarting myopic iteration from period $(restart_period_idx) using capacities in $(restart_folder)")
+            capacity_results = Dict{Int,DataFrame}()
+            for period_idx in 1:restart_period_idx-1
+                capacity_results[period_idx] = load_previous_capacity_results(
+                    joinpath(restart_folder, "results_period_$(period_idx)", "capacity.csv")
+                )
+            end
+            carry_over_capacities!(periods[restart_period_idx], capacity_results, restart_period_idx-1)
+        end
+    end
+
+    for (period_idx, system) in enumerate(periods)
+        myopic_settings[:Restart][:enabled] && (period_idx < myopic_settings[:Restart][:from_period]) && continue
+
+        if period_idx > myopic_settings[:StopAfterPeriod]
+            @info("Reached specified period termination at period $(myopic_settings[:StopAfterPeriod]). Ending myopic iteration.")
+            break
+        end
+
+        # generate_model will dispatch on the solution algorithm (e.g., Monolithic or Benders) to generate the appropriate model structure for this period
+        model = generate_model(system, opt, settings, alg)
+
+        optimize!(model)
+
+        period_idx < length(periods) && carry_over_capacities!(periods[period_idx+1], system, perfect_foresight=false)
+
+        write_outputs(output_path, case, model, system, period_idx)
+
+        return_results ? (stored[period_idx] = model) : (model = nothing; GC.gc())
+    end
+
+    write_settings(case, joinpath(output_path, "settings.json"))
+
+    return (case, MyopicResults(stored,output_path))
 end
 
-####### Benders decomposition algorithm #######
-function solve_case(case::Case, opt::Dict{Symbol, Dict{Symbol, Any}}, ::Benders)
+####### optimize! for BendersModel #######
+function JuMP.optimize!(bm::BendersModel)
+    # call MESolvers.jl to solve the Benders decomposition problem
+    raw = MacroEnergySolvers.benders(
+        bm.planning_problem, bm.subproblems, bm.linking_variables_sub, Dict(pairs(bm.settings))
+    )
 
-    @info("*** Running simulation with Benders decomposition ***")
-    bd_setup = get_settings(case).BendersSettings
-    periods = get_periods(case);
-
-    # Decomposed system
-    periods_decomp = generate_decomposed_system(periods);
-
-    planning_problem = initialize_planning_problem!(case,opt[:planning])
-
-    subproblems, linking_variables_sub = initialize_subproblems!(periods_decomp, opt[:subproblems], get_settings(case), bd_setup[:Distributed],bd_setup[:IncludeSubproblemSlacksAutomatically])
-
-    results = MacroEnergySolvers.benders(planning_problem, subproblems, linking_variables_sub, Dict(pairs(bd_setup)))
-
-    update_with_planning_solution!(case, results.planning_sol.values)
+    # update case or system with the best planning solution found by Benders
+    update_with_planning_solution!(bm.update_target, raw.planning_sol.values)
 
     @info "Perform a final solve of the subproblems to extract the operational decisions corresponding to the best planning solution."
+    bm.planning_sol = raw.planning_sol
+    bm.subop_sol = MacroEnergySolvers.solve_subproblems(bm.subproblems, raw.planning_sol, true)
 
-    update_with_subproblem_solutions!(subproblems, results)
-
-    return (case, BendersResults(results, subproblems))
+    bm.convergence = BendersConvergence(raw)
 end
 
 """
