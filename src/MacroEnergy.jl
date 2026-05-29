@@ -23,7 +23,7 @@ using Logging
 using LoggingExtras
 
 import MacroEnergyScaling: scale_constraints!
-import JuMP: set_optimizer, set_optimizer_attributes
+import JuMP: set_optimizer, set_optimizer_attributes, optimize!
 
 import Base: /, push!, merge!
 
@@ -83,11 +83,18 @@ abstract type PlanningConstraint <: AbstractTypeConstraint end
 abstract type AbstractSolutionAlgorithm end
 struct Benders <: AbstractSolutionAlgorithm end
 struct Monolithic <: AbstractSolutionAlgorithm end
-struct Myopic <: AbstractSolutionAlgorithm end
 solution_algorithm(::AbstractSolutionAlgorithm) = Monolithic() # default to monolithic
 solution_algorithm(::Benders) = Benders()
 solution_algorithm(::Monolithic) = Monolithic()
-solution_algorithm(::Myopic) = Myopic()
+
+## Expansion horizons
+
+abstract type AbstractExpansionHorizon end
+struct PerfectForesight <: AbstractExpansionHorizon end
+struct Myopic <: AbstractExpansionHorizon end
+expansion_horizon(::AbstractExpansionHorizon) = PerfectForesight() # default to perfect foresight
+expansion_horizon(::PerfectForesight) = PerfectForesight()
+expansion_horizon(::Myopic) = Myopic()
 
 # global constants
 const ME_DEPOT_PATH = joinpath(homedir(), ".macroenergy")
@@ -174,10 +181,10 @@ include("model/optimizer.jl")
 include("model/generate_model.jl")
 include("model/retrofit.jl")
 include("model/scaling.jl")
-include("model/solver.jl")
 include("model/myopic.jl")
 include_all_in_folder("model/constraints")
 include_all_in_folder("model/benders")
+include("model/solver.jl")
 
 include("utilities/postprocessing.jl")
 

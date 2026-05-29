@@ -64,6 +64,11 @@ MacroEnergy.get_optimal_undiscounted_costs
 MacroEnergy.write_balance_duals
 ```
 
+## `write_benders_period_outputs!`
+```@docs
+MacroEnergy._write_benders_period_outputs
+```
+
 ## `write_capacity`
 
 ```@docs
@@ -130,6 +135,11 @@ MacroEnergy.write_balance_duals_full_timeseries
 MacroEnergy.write_non_served_demand
 ```
 
+## `write_objective_value`
+```@docs
+MacroEnergy.write_objective_value
+```
+
 ## `write_settings`
 
 ```@docs
@@ -166,11 +176,6 @@ MacroEnergy.write_to_json
 ## `MacroEnergy.write_outputs`
 ```@docs
 MacroEnergy.MacroEnergy.write_outputs
-```
-
-## `MacroEnergy.write_outputs_myopic`
-```@docs
-MacroEnergy.write_outputs_myopic
 ```
 
 ## `MacroEnergy.write_period_outputs`

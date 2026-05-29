@@ -356,8 +356,9 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
     
     unregister(model,:eDiscountedFixedCost)
 
-    if isa(solution_algorithm(settings[:SolutionAlgorithm]), Myopic)
-
+    if isa(settings[:ExpansionHorizon], Myopic)
+        # Both Myopic+Monolithic and Myopic+Benders: add back investment payments beyond
+        # the myopic window (not seen by the solver) so reported costs are complete.
         unregister(model,:eDiscountedInvestmentFixedCost)
         add_costs_not_seen_by_myopic!(system, settings)
         unregister(model,:eInvestmentFixedCost)
@@ -368,14 +369,12 @@ function create_discounted_cost_expressions!(model::Model, system::System, setti
         
         model[:eDiscountedFixedCost] = model[:eDiscountedInvestmentFixedCost] + model[:eOMFixedCostByPeriod][period_index]
 
-    elseif isa(solution_algorithm(settings[:SolutionAlgorithm]), Monolithic) || isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders)
-        # Perfect foresight  cases (applies to both Monolithic and Benders)
-        model[:eDiscountedFixedCost] = model[:eFixedCostByPeriod][period_index]
     else
-        nothing
+        # Perfect foresight (Monolithic or Benders): full horizon costs already in model
+        model[:eDiscountedFixedCost] = model[:eFixedCostByPeriod][period_index]
     end
 
-    if !isa(solution_algorithm(settings[:SolutionAlgorithm]), Benders)
+    if !isa(settings[:SolutionAlgorithm], Benders)
         ### For Benders, variable costs are discounted within the subproblems
         unregister(model,:eDiscountedVariableCost)
         model[:eDiscountedVariableCost] = model[:eVariableCostByPeriod][period_index]
