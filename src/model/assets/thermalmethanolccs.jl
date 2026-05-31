@@ -273,25 +273,26 @@ function make(asset_type::Type{ThermalMethanolCCS}, data::AbstractDict{Symbol,An
         co2_captured_end_node,
     )
 
-    thermalmethanolccs_transform.balance_data = Dict(
-        :energy => Dict(
-            ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
-            fuel_edge.id => 1.0,
-        ),
-        :electricity => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => 1.0,
-        ),
-        :capture => Dict(
-            fuel_edge.id => get(transform_data, :capture_rate, 0.0),
-            co2_captured_edge.id => 1.0,
-        ),
+    @add_balance(
+        thermalmethanolccs_transform,
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 0.0) * flow(ch3oh_edge)
     )
- 
+    @add_balance(
+        thermalmethanolccs_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(ch3oh_edge)
+    )
+    @add_balance(
+        thermalmethanolccs_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
+    )
+    @add_balance(
+        thermalmethanolccs_transform,
+        :capture,
+        get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
+    )
 
     return ThermalMethanolCCS(id, thermalmethanolccs_transform, ch3oh_edge, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
-end 
+end

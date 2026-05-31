@@ -49,7 +49,7 @@ Because all periods are linked in one model, the solver sees the full intertempo
 ```julia
 using MacroEnergy
 
-(systems, solution) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 The returned `solution` is a JuMP `Model` object. The HiGHS optimizer is used by default. To use a different solver:
@@ -58,7 +58,7 @@ The returned `solution` is a JuMP `Model` object. The HiGHS optimizer is used by
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     optimizer            = Gurobi.Optimizer,
     optimizer_attributes = ("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3)
@@ -115,7 +115,7 @@ Macro automatically loads this file from `settings/benders_settings.json` inside
 using MacroEnergy
 using HiGHS
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer              = HiGHS.Optimizer,
     subproblem_optimizer            = HiGHS.Optimizer,
@@ -135,7 +135,7 @@ To run the case with Gurobi instead of HiGHS, change the optimizers and attribut
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer              = Gurobi.Optimizer,
     subproblem_optimizer            = Gurobi.Optimizer,
@@ -190,7 +190,7 @@ With the Monolithic algorithm each period's model is solved as a single LP or MI
 ```julia
 using MacroEnergy
 
-(systems, solution) = run_case(@__DIR__);
+(case, solution) = run_case(@__DIR__);
 ```
 
 As before, the HiGHS optimizer is used by default. The returned `solution` is a `MyopicResults` object. When `ReturnModels` is `true`, `solution.results` holds a `Vector` of per-period JuMP `Model` objects; otherwise it is `nothing`. Results for each period are written immediately after that period is solved into subfolders `results_period_1/`, `results_period_2/`, etc.
@@ -201,7 +201,7 @@ To use a different solver, specify it in `run.jl`:
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     optimizer            = Gurobi.Optimizer,
     optimizer_attributes = ("Method" => 2, "Crossover" => 0, "BarConvTol" => 1e-3)
@@ -283,7 +283,7 @@ This is the most memory-efficient mode: it handles both a long planning horizon 
 using MacroEnergy
 using HiGHS
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer              = HiGHS.Optimizer,
     subproblem_optimizer            = HiGHS.Optimizer,
@@ -303,7 +303,7 @@ As before, to run with Gurobi instead of HiGHS, change the optimizers and attrib
 using MacroEnergy
 using Gurobi
 
-(systems, solution) = run_case(
+(case, solution) = run_case(
     @__DIR__;
     planning_optimizer              = Gurobi.Optimizer,
     subproblem_optimizer            = Gurobi.Optimizer,

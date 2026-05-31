@@ -234,11 +234,14 @@ function make(asset_type::Type{Battery}, data::AbstractDict{Symbol,Any}, system:
             (charge_edge_data, :charge_efficiency),
             (charge_edge_data, :efficiency)
         ], 1.0)
-    battery_storage.balance_data = Dict(
-        :storage => Dict(
-            battery_discharge.id => 1 / discharge_efficiency,
-            battery_charge.id => charge_efficiency,
-        ),
+
+    @add_to_storage_balance(
+        battery_storage,
+        1 / discharge_efficiency * flow(battery_discharge),
+    )
+    @add_to_storage_balance(
+        battery_storage,
+        charge_efficiency * flow(battery_charge),
     )
 
     return Battery(id, battery_storage, battery_discharge, battery_charge)

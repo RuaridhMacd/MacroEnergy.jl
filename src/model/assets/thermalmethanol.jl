@@ -241,21 +241,21 @@ function make(asset_type::Type{ThermalMethanol}, data::AbstractDict{Symbol,Any},
         co2_end_node,
     )
 
-    thermalmethanol_transform.balance_data = Dict(
-        :energy => Dict(
-            ch3oh_edge.id => get(transform_data, :fuel_consumption, 0.0),
-            fuel_edge.id => 1.0,
-        ),
-        :electricity => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => 1.0,
-        ),
+    @add_balance(
+        thermalmethanol_transform,
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 0.0) * flow(ch3oh_edge)
     )
- 
+    @add_balance(
+        thermalmethanol_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(ch3oh_edge)
+    )
+    @add_balance(
+        thermalmethanol_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
+    )
 
     return ThermalMethanol(id, thermalmethanol_transform, ch3oh_edge, elec_edge, fuel_edge, co2_edge)
-end 
+end

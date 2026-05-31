@@ -266,47 +266,44 @@ make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any}, system
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data (without CCS)
+### Stoichiometric balance data (without CCS)
 
 ```julia
-thermalammonia_transform.balance_data = Dict(
-    :energy => Dict(
-        nh3_edge.id => get(transform_data, :fuel_consumption, 0.0),
-        fuel_edge.id => 1.0,
-    ),
-    :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
-        elec_edge.id => 1.0
-    ),
-    :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-        co2_edge.id => 1.0,
-    ),
+emission_per_nh3 = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
+
+@add_stoichiometric_balance(
+    thermalammonia_transform,
+    :ammonia_production,
+    get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+    + get(transform_data, :fuel_consumption, 0.0) * flow(fuel_edge)
+    -->
+    flow(nh3_edge)
+    + emission_per_nh3 * flow(co2_edge),
+    flow(nh3_edge),
 )
 ```
 
 ### Stoichiometry balance data (with CCS)
 
 ```julia
-thermalammoniaccs_transform.balance_data = Dict(
-    :energy => Dict(
-        nh3_edge.id => get(transform_data, :fuel_consumption, 0.0),
-        fuel_edge.id => 1.0,
-    ),
-    :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
-        elec_edge.id => 1.0
-    ),
-    :emissions => Dict(
-        fuel_edge.id => get(transform_data, :emission_rate, 0.0),
-        co2_edge.id => 1.0,
-    ),
-    :capture => Dict(
-        fuel_edge.id => get(transform_data, :capture_rate, 0.0),
-        co2_captured_edge.id => 1.0,
-    ),
+emissions_per_nh3 = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
+capture_per_nh3 = get(transform_data, :capture_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
+
+@add_stoichiometric_balance(
+    thermalammoniaccs_transform,
+    :nh3_production,
+    get(transform_data, :fuel_consumption, 0.0) * flow(fuel_edge)
+    + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+    -->
+    flow(nh3_edge)
+    + emissions_per_nh3 * flow(co2_edge)
+    + capture_per_nh3 * flow(co2_captured_edge),
+    flow(nh3_edge),
 )
 ```
+
+!!! note "Common basis conversion"
+    The emissions and capture rates are specified per unit of fuel, but the balances above are written on an ammonia basis. Both coefficients are therefore converted before they are used.
 
 !!! warning "Dictionary keys must match"
     In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:fuel_consumption` or `:capture_rate`.

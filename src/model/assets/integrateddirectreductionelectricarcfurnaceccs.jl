@@ -29,7 +29,8 @@ function full_default_data(::Type{DirectReductionElectricArcFurnaceCCS}, id=miss
             :ironore_consumption => 0.0,
             :electricity_consumption => 0.0,
             :reductant_consumption => 0.0,
-            :emission_rate => 0.0
+            :emission_rate => 0.0,
+            :capture_rate => 0.0,
         ),
         :edges => Dict{Symbol,Any}(
             :crudesteel_edge => @edge_data(
@@ -71,7 +72,8 @@ function simple_default_data(::Type{DirectReductionElectricArcFurnaceCCS}, id=mi
         :ironore_consumption => 0.0,
         :electricity_consumption => 0.0,
         :reductant_consumption => 0.0,
-        :emission_rate => 0.0
+        :emission_rate => 0.0,
+        :capture_rate => 0.0,
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
         :variable_om_cost => 0.0,
@@ -150,7 +152,7 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
             (data, Symbol("elec_", key)),
         ]
     )
-    @end_vertex(
+    @start_vertex(
         elec_start_node,
         elec_edge_data,
         Electricity,
@@ -285,27 +287,30 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
         ]
     )
 
-    dreafccs_transform.balance_data = Dict(
-        :ironore_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
-            ironore_edge.id => 1.0
-        ),
-        :electricity_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :reductant_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :reductant_consumption, 0.0),
-            reductant_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0,
-        ),
-        :capture => Dict(
-            crudesteel_edge.id => get(transform_data, :capture_rate, 0.0),
-            co2_captured_edge.id => -1.0,
-        )
+    @add_balance(
+        dreafccs_transform,
+        :ironore_consumption,
+        flow(ironore_edge) == get(transform_data, :ironore_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :electricity_consumption,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :reductant_consumption,
+        flow(reductant_edge) == get(transform_data, :reductant_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :emissions,
+        flow(co2_edge) == get(transform_data, :emission_rate, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :capture,
+        flow(co2_captured_edge) == get(transform_data, :capture_rate, 0.0) * flow(crudesteel_edge)
     )
 
     return DirectReductionElectricArcFurnaceCCS(id,

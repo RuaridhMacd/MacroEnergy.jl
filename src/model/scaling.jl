@@ -18,9 +18,13 @@ function scaling!(system::System)
 
     @info("Scaling system data to GWh | ktons | M\$")
 
-    scaling!.(system.locations)
+    for location in system.locations
+        scaling!(location)
+    end
 
-    scaling!.(system.assets)
+    for asset in system.assets
+        scaling!(asset)
+    end
 
     return nothing
 end

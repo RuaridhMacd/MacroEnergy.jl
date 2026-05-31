@@ -198,28 +198,28 @@ make(asset_type::Type{SyntheticMethanol}, data::AbstractDict{Symbol,Any}, system
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data
+### Stoichiometric balance data
 
 ```julia
-synthetic_methanol_transform.balance_data = Dict(
-    :co2_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :co2_consumption, 0.0),
-        co2_captured_edge.id => 1.0,
-    ),
-    :elec_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
-        elec_edge.id => 1.0,
-    ),
-    :h2_consumption => Dict(
-        ch3oh_edge.id => get(transform_data, :h2_consumption, 0.0),
-        h2_edge.id => 1.0,
-    ),
-    :emissions => Dict(
-        co2_captured_edge.id => get(transform_data, :emission_rate, 0.0),
-        co2_emission_edge.id => 1.0
-    )
+co2_consumed_per_ch3oh = get(transform_data, :co2_consumption, 0.0)
+co2_leakage_fraction = get(transform_data, :emission_rate, 0.0)
+emission_rate_per_ch3oh = co2_consumed_per_ch3oh * co2_leakage_fraction
+
+@add_stoichiometric_balance(
+    synthetic_methanol_transform,
+    :ch3oh_production,
+    get(transform_data, :co2_consumption, 0.0) * flow(co2_captured_edge)
+    + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+    + get(transform_data, :h2_consumption, 0.0) * flow(h2_edge)
+    -->
+    flow(ch3oh_edge)
+    + emission_rate_per_ch3oh * flow(co2_emission_edge),
+    flow(ch3oh_edge),
 )
 ```
+
+!!! note "Common basis conversion"
+    `emission_rate` is stored as a leakage fraction of captured CO₂. It is converted to a methanol basis before it is included in the stoichiometric balance.
 
 !!! warning "Dictionary keys must match"
     In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:h2_consumption` or `:co2_consumption`.
@@ -320,4 +320,3 @@ This example illustrates a basic Synthetic Methanol configuration in JSON format
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Thermal Methanol](@ref thermalmethanol_overview) - Thermal methanol production without CCS
 - [Thermal Methanol](@ref thermalmethanol_overview) - Thermal methanol production (with and without CCS)
-

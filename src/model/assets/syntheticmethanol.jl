@@ -235,24 +235,26 @@ function make(asset_type::Type{SyntheticMethanol}, data::AbstractDict{Symbol,Any
         co2_emission_end_node,
     )
 
-    synthetic_methanol_transform.balance_data = Dict(
-        :co2_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :co2_consumption, 0.0),
-            co2_captured_edge.id => 1.0,
-        ),
-        :elec_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0,
-        ),
-        :h2_consumption => Dict(
-            ch3oh_edge.id => get(transform_data, :h2_consumption, 0.0),
-            h2_edge.id => 1.0,
-        ),
-        :emissions => Dict(
-            co2_captured_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_emission_edge.id => 1.0
-        )
+    @add_balance(
+        synthetic_methanol_transform,
+        :co2_consumption,
+        flow(co2_captured_edge) == get(transform_data, :co2_consumption, 0.0) * flow(ch3oh_edge)
+    )
+    @add_balance(
+        synthetic_methanol_transform,
+        :elec_consumption,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(ch3oh_edge)
+    )
+    @add_balance(
+        synthetic_methanol_transform,
+        :h2_consumption,
+        flow(h2_edge) == get(transform_data, :h2_consumption, 0.0) * flow(ch3oh_edge)
+    )
+    @add_balance(
+        synthetic_methanol_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(co2_captured_edge) == flow(co2_emission_edge)
     )
 
     return SyntheticMethanol(id, synthetic_methanol_transform, co2_captured_edge, ch3oh_edge, elec_edge, h2_edge, co2_emission_edge) 
-end 
+end

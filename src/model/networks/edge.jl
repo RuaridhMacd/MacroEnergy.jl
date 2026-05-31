@@ -741,14 +741,46 @@ function edges(assets::Vector{AbstractAsset})
     return edges
 end
 
-function balance_data(e::AbstractEdge, v::AbstractVertex, i::Symbol)
-    if isempty(balance_data(v, i))
-        return 1.0
-    elseif id(e) ∈ keys(balance_data(v, i))
-        return balance_data(v, i)[id(e)]
-    else
-        return 0.0
+function balance_term_matches(term::BalanceTerm, e::AbstractEdge, var::Symbol)
+    if term.var != var
+        return false
+    elseif term.obj === e
+        return true
+    elseif term.obj isa Symbol
+        return term.obj == id(e)
+    elseif term.obj isa AbstractEdge
+        return id(term.obj) == id(e)
     end
+    return false
+end
+
+function balance_time_index(y::Union{AbstractVertex,AbstractEdge}, t::Int64)
+    time_idx = findfirst(isequal(t), time_interval(y))
+    isnothing(time_idx) && error("Time $t is not in the time interval for $(id(y))")
+    return time_idx
+end
+
+function balance_term_coefficient(
+    data::BalanceData,
+    e::AbstractEdge,
+    v::AbstractVertex,
+    t::Int64,
+    var::Symbol = :flow,
+)
+    time_index = balance_time_index(v, t)
+    coeff = sum(
+        (
+            resolve_balance_coeff(term, v, time_index) for term in data.terms
+            if balance_term_matches(term, e, var)
+        );
+        init = 0.0,
+    )
+    if coeff != 0.0
+        return coeff
+    elseif isempty(data.terms) && data.constant == 0.0
+        return 1.0
+    end
+    return 0.0
 end
 
 function lossy_edge(e::AbstractEdge)
@@ -780,7 +812,7 @@ function update_startup_fuel_balance!(e::EdgeWithUC)
 
     i = startup_fuel_balance_id(e)
 
-    if i ∈ balance_ids(v) && startup_fuel_consumption(e) > 0
+    if haskey(v.balance_data, i) && startup_fuel_consumption(e) > 0
         balance_coeff = -1 * startup_fuel_consumption(e) * capacity_size(e)
         balance_expr = get_balance(v,i)
         for t in time_interval(e)
@@ -799,13 +831,56 @@ function add_flow_to_vertex_balances!(e::AbstractEdge, v::AbstractVertex, effect
     else
         flow_dir = 1.0
     end
-    for i in balance_ids(v)
-        balance_coeff = flow_dir * balance_data(e, v, i)
-        if balance_coeff != 0.0
-            balance_expr = get_balance(v,i)
+    for i in keys(v.balance_data)
+        data = balance_data(v, i)
+        if isempty(data.terms) && data.constant == 0.0
+            balance_expr = get_balance(v, i)
+            for t in time_interval(e)
+                add_to_expression!(balance_expr[t], flow_dir, effective_flow[t])
+            end
+            continue
+        end
+        scalar_coeff = 0.0
+        has_matching_flow_term = false
+        has_time_varying_coeff = false
+        for term in data.terms
+            if balance_term_matches(term, e, :flow)
+                has_matching_flow_term = true
+                if term.coeff isa Float64
+                    scalar_coeff += term.coeff
+                else
+                    has_time_varying_coeff = true
+                end
+            end
+        end
+        if !has_matching_flow_term
+            continue
+        end
+
+        balance_expr = get_balance(v, i)
+        if !has_time_varying_coeff
+            balance_coeff = flow_dir * scalar_coeff
+            if balance_coeff == 0.0
+                continue
+            end
             for t in time_interval(e)
                 add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
             end
+            continue
+        end
+
+        for (time_index, t) in enumerate(time_interval(e))
+            balance_coeff = scalar_coeff
+            for term in data.terms
+                if balance_term_matches(term, e, :flow) && !(term.coeff isa Float64)
+                    balance_coeff += resolve_balance_coeff(term, v, time_index)
+                end
+            end
+            balance_coeff *= flow_dir
+            if balance_coeff == 0.0
+                continue
+            end
+            add_to_expression!(balance_expr[t], balance_coeff, effective_flow[t])
         end
     end
 end

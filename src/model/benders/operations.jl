@@ -224,9 +224,9 @@ function get_ldes_constraints_to_relax(system::System)
                 for c in g.constraints
                     if isa(c, BalanceConstraint)
                         STARTS = [first(sp) for sp in subperiods(g)];
-                        for i in balance_ids(g)
+                        for i in keys(g.balance_data)
                             for t in STARTS
-                                push!(balance_constraints, c.constraint_ref[i,t])
+                                push!(balance_constraints, c.constraint_ref[i][t])
                             end
                         end
                     end

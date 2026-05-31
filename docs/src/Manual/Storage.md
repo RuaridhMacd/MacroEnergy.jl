@@ -114,7 +114,7 @@ While single period cycles are fine for storage which usually discharge within t
 
 | Field                    | Type                      | Description                           | Units    | Default |
 |--------------------------|---------------------------|---------------------------------------|----------|---------|
-| `balance_data`           | Dict{Symbol,Dict{Symbol,Float64}} | Balance equation coefficients | -    | Dict{Symbol,Dict{Symbol,Float64}}() |
+| `balance_data`           | Dict{Symbol,Any} | Balance definitions, normalized internally to `BalanceData` | -    | Dict{Symbol,Any}() |
 | `constraints`            | Vector{AbstractTypeConstraint} | Additional constraints        | -        | Vector{AbstractTypeConstraint}() |
 | `operation_expr`         | Dict                      | Operational JuMP expressions          | -        | Dict() |
 
@@ -679,34 +679,34 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
     gas_storage.discharge_edge = gas_storage_discharge
     gas_storage.charge_edge = gas_storage_charge
     
-    # Set the gas balance across the gas storage, including any losses.
-    gas_storage.balance_data = Dict(
-        :storage => Dict(
-            gas_storage_discharge.id => 1 / get(discharge_edge_data, :efficiency, 1.0),
-            gas_storage_charge.id => get(charge_edge_data, :efficiency, 1.0),
-        )
+    # Add charge and discharge terms to the built-in storage balance.
+    @add_to_storage_balance(
+        gas_storage,
+        (1 / get(discharge_edge_data, :efficiency, 1.0)) * flow(gas_storage_discharge),
+    )
+    @add_to_storage_balance(
+        gas_storage,
+        get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge),
     )
 
-    # Set the charging and discharging balances on the pump transformation.
-    pump_transform.balance_data = Dict(
-        :charge_electricity_consumption => Dict(
-            #This is multiplied by -1 because they are both edges that enters storage, 
-            #so we need to get one of them on the right side of the equality balance constraint    
-            charge_elec_edge.id => -1.0,
-            external_charge_edge.id => get(transform_data, :charge_electricity_consumption, 0.0), 
-        ),
-        :discharge_electricity_consumption => Dict(
-            discharge_elec_edge.id => 1.0,
-            external_discharge_edge.id => get(transform_data, :discharge_electricity_consumption, 0.0),
-        ),
-        :external_charge_balance => Dict(
-            external_charge_edge.id => 1.0,
-            gas_storage_charge.id => 1.0,
-        ),
-        :external_discharge_balance => Dict(
-            external_discharge_edge.id => 1.0,
-            gas_storage_discharge.id => 1.0,
-        ),
+    # Set the charging and discharging recipes on the pump transformation.
+    @add_stoichiometric_balance(
+        pump_transform,
+        :gasstorage_charging,
+        flow(external_charge_edge) +
+        get(transform_data, :charge_electricity_consumption, 0.0) * flow(charge_elec_edge)
+        -->
+        flow(gas_storage_charge),
+        flow(external_charge_edge),
+    )
+    @add_stoichiometric_balance(
+        pump_transform,
+        :gasstorage_discharging,
+        flow(gas_storage_discharge) +
+        get(transform_data, :discharge_electricity_consumption, 0.0) * flow(discharge_elec_edge)
+        -->
+        flow(external_discharge_edge),
+        flow(external_discharge_edge),
     )
 
     # Create the GasStorage Asset using the constructed components

@@ -3,6 +3,37 @@
 Currently, Macro includes the following constraints:
 
 ## [Balance constraint](@id balance_constraint_ref)
+`BalanceConstraint` enforces the balance definitions attached to a `Node`, `Transformation`, or `Storage`.
+
+Balances are usually created in asset code with `@add_balance` or `@add_stoichiometric_balance`. A balance can now:
+
+- use `flow(...)` terms with algebraic coefficients
+- use `==`, `<=`, or `>=`
+- use scalar or time-varying coefficients
+
+`@add_balance` expects linear terms: write each variable as a coefficient
+multiplied by `flow(...)`. For example, use `(1 / efficiency) * flow(edge)`;
+`c / flow(edge)` is nonlinear because it divides by a decision variable.
+
+For example, a modeler can define:
+
+```julia
+@add_balance(transform, :energy, flow(fuel_edge) == heat_rate * flow(elec_edge))
+@add_balance(
+    transform,
+    :energy_lb,
+    flow(fuel_edge) >= min_heat_rate * flow(elec_edge),
+)
+@add_stoichiometric_balance(
+    transform,
+    :conversion,
+    fuel_rate * flow(fuel_edge) --> flow(elec_edge) + emission_rate * flow(co2_edge),
+    flow(fuel_edge),
+)
+```
+
+When the `BalanceConstraint` is active on that component, Macro converts each named balance into the corresponding equality or inequality at every time step.
+
 ```@docs
 MacroEnergy.add_model_constraint!(ct::BalanceConstraint, v::MacroEnergy.AbstractVertex, model::Model)
 ```

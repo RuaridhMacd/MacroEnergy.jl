@@ -207,34 +207,28 @@ make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, system::Sys
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data
+### Stoichiometric balance data
 
 ```julia
-aluminaplant_transform.balance_data = Dict(
-    :elec_to_alumina => Dict(
-        elec_edge.id => 1.0,
-        fuel_edge.id => 0.0,
-        bauxite_edge.id => 0.0,
-        alumina_edge.id => get(transform_data, :elec_alumina_rate, 0.0)
-        ),
-        :bauxite_to_alumina => Dict(
-            elec_edge.id => 0.0,
-            fuel_edge.id => 0.0,
-            bauxite_edge.id => 1.0,
-            alumina_edge.id => get(transform_data, :bauxite_alumina_rate, 0.0)
-        ),
-        :fuel_to_alumina => Dict(
-            elec_edge.id => 0.0,
-            fuel_edge.id => 1.0,
-            bauxite_edge.id => 0.0,
-            alumina_edge.id => get(transform_data, :fuel_alumina_rate, 0.0)
-        ),
-        :emissions => Dict(
-            fuel_edge.id => get(transform_data, :fuel_emissions_rate, 0.0),
-        co2_edge.id => 1.0
-    )
+fuel_per_alumina = get(transform_data, :fuel_alumina_rate, 0.0)
+emissions_per_fuel = get(transform_data, :fuel_emissions_rate, 1.0)
+emission_per_alumina = fuel_per_alumina * emissions_per_fuel
+
+@add_stoichiometric_balance(
+    aluminaplant_transform,
+    :alumina_production,
+    get(transform_data, :elec_alumina_rate, 0.0) * flow(elec_edge)
+    + get(transform_data, :bauxite_alumina_rate, 0.0) * flow(bauxite_edge)
+    + fuel_per_alumina * flow(fuel_edge)
+    -->
+    flow(alumina_edge)
+    + emission_per_alumina * flow(co2_edge),
+    flow(alumina_edge),
 )
 ```
+
+!!! note "Common basis conversion"
+    `fuel_emissions_rate` is naturally specified in `CO₂ / fuel`, but the stoichiometric balance above is written on an alumina basis. The emissions coefficient is therefore converted to `CO₂ / alumina` before it is used.
 
 !!! warning "Dictionary keys must match"
     In the code above, each `get` function call looks up a parameter in the `transform_data` dictionary using a symbolic key such as `:elec_alumina_rate` or `:fuel_emissions_rate`.
@@ -335,4 +329,3 @@ This example illustrates a basic Alumina Plant configuration in JSON format:
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Aluminum Smelting](@ref aluminumsmelting_overview) - Primary energy-intensive aluminum production process
 - [Aluminum Refining](@ref aluminumrefining_overview) - Aluminum refining from scrap
-

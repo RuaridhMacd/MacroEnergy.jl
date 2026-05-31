@@ -45,16 +45,16 @@ const optim = HiGHS.Optimizer
 # Global variables for true results
 const balance_duals_describe_true = DataFrame(
     variable = [:elec_MA, :elec_CT, :elec_ME],
-    mean = [76.74351137701892, 52.287, 47.5399],
+    mean = [76.74351137701903, 52.287, 47.5399],
     min = [0.1, 0.1, 0.1],
     median = [0.44536862003780714, 0.1, 0.1],
-    max = [322.0473244450625, 288.732, 322.047],
+    max = [322.04732444506243, 288.732, 322.047],
     nmissing = [0, 0, 0],
     eltype = [Float64, Float64, Float64]
 )
 const balance_duals_sum_true = DataFrame(
     variable = [:elec_MA, :elec_CT, :elec_ME],
-    sum = [5525.532819145362, 3764.6638182861698, 3422.871922377889]
+    sum = [5525.53281914537, 3764.6638182861698, 3422.871922377889]
 )
 
 # Set logger to Error level
@@ -190,7 +190,8 @@ function test_write_balance_duals(case, model)
             # Verify that the duals are consistent with the "true results"
             balance_duals_true = CSV.read(joinpath(test_path, "results", "balance_duals_true.csv"), DataFrame)
             @test isapprox(df, balance_duals_true, atol=1e-10)
-            
+            # Save the balance duals for debugging
+            CSV.write(joinpath(test_path, "results", "balance_duals_test.csv"), df)
         finally
             # Cleanup
             rm(temp_dir, recursive=true)
@@ -225,6 +226,9 @@ function test_write_co2_cap_duals(case, model)
                 co2_cap_duals_true = CSV.read(joinpath(test_path, "results", "co2_cap_duals_true.csv"), DataFrame)
                 @test df.Node == co2_cap_duals_true.Node
                 @test isapprox(df[:, Not(:Node, :CO2_Slack)], co2_cap_duals_true[:, Not(:Node, :CO2_Slack)], atol=1e-10)
+
+                # Save the CO2 cap duals for debugging
+                CSV.write(joinpath(test_path, "results", "co2_cap_duals_test.csv"), df)
 
                 @test "Node" in names(df)
                 @test "CO2_Shadow_Price" in names(df)

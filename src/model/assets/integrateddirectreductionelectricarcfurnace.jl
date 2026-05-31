@@ -72,7 +72,7 @@ function simple_default_data(::Type{DirectReductionElectricArcFurnace}, id=missi
         :electricity_consumption => 0.0,
         :reductant_consumption => 0.0,
         :carbonsource_consumption => 0.0,
-        :emission_rate => 0.0
+        :emission_rate => 0.0,
         :investment_cost => 0.0,
         :fixed_om_cost => 0.0,
         :variable_om_cost => 0.0,
@@ -293,27 +293,30 @@ function make(asset_type::Type{DirectReductionElectricArcFurnace}, data::Abstrac
             CapacityConstraint()
         ])
 
-    dreaf_transform.balance_data = Dict(
-        :ironore_consumption=> Dict(
-            crudesteel_edge.id => get(transform_data, :ironore_consumption, 0.0),
-            ironore_edge.id => 1.0
-        ),
-        :electricity_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :electricity_consumption, 0.0),
-            elec_edge.id => 1.0
-        ),
-        :reductant_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :reductant_consumption, 0.0),
-            reductant_edge.id => 1.0
-        ),
-        :carbonsource_consumption => Dict(
-            crudesteel_edge.id => get(transform_data, :carbonsource_consumption, 0.0),
-            carbonsource_edge.id => 1.0
-        ),
-        :emissions => Dict(
-            crudesteel_edge.id => get(transform_data, :emission_rate, 0.0),
-            co2_edge.id => -1.0, 
-        ),
+    @add_balance(
+        dreaf_transform,
+        :ironore_consumption,
+        flow(ironore_edge) == get(transform_data, :ironore_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreaf_transform,
+        :electricity_consumption,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreaf_transform,
+        :reductant_consumption,
+        flow(reductant_edge) == get(transform_data, :reductant_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreaf_transform,
+        :carbonsource_consumption,
+        flow(carbonsource_edge) == get(transform_data, :carbonsource_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreaf_transform,
+        :emissions,
+        flow(co2_edge) == get(transform_data, :emission_rate, 0.0) * flow(crudesteel_edge)
     )
 
     return DirectReductionElectricArcFurnace(id,

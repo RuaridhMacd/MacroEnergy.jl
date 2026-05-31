@@ -124,58 +124,87 @@ function run_case(
     try 
         @info("Running case at $(case_path)")
 
-        create_user_additions_module(case_path)
+        setup_user_additions(case_path)
         load_user_additions(case_path)
+        refresh_user_type_registries!()
 
-        case = load_case(case_path; lazy_load=lazy_load)
-
-        # Create optimizer based on solution algorithm
-        optimizer = if isa(solution_algorithm(case), Monolithic)
-            create_optimizer(optimizer, optimizer_env, optimizer_attributes)
-        elseif isa(solution_algorithm(case), Benders)
-            create_optimizer_benders(planning_optimizer, subproblem_optimizer,
-                planning_optimizer_attributes, subproblem_optimizer_attributes)
-        else
-            error("Unknown solution algorithm. Please check `SolutionAlgorithm` in `settings/case_settings.json`. Valid values are \"Monolithic\" and \"Benders\".")
-        end
-
-        # If Benders, create processes for subproblems optimization
-        if isa(solution_algorithm(case), Benders)
-            if case.settings.BendersSettings[:Distributed]
-                number_of_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
-                start_distributed_processes!(case_path, number_of_subproblems)
-            end
-        end
-
-        (case, solution) = solve_case(case, optimizer)
-
-        postprocess!(case, solution)
-
-        if isa(solution, MyopicResults)
-            # Outputs already written per-period during iteration; just retrieve the output path for log file copying
-            output_path = solution.output_path
-        else
-            output_path = length(case.systems) ≥ 1 ? create_output_path(case.systems[1], case_path) : case_path
-            write_outputs(output_path, case, solution)
-        end
-
-        if log_to_file && isfile(log_file_path)
-            cp(log_file_path, joinpath(output_path, basename(log_file_path)); force=true)
-        end
-
-        # If Benders, delete processes
-        if isa(solution_algorithm(case), Benders)
-            if case.settings.BendersSettings[:Distributed] && nprocs() > 1
-                rmprocs(workers())
-            end
-        end
-
-        return case, solution
+        return Base.invokelatest(
+            _run_case_impl,
+            case_path,
+            lazy_load,
+            log_to_file,
+            log_file_path,
+            optimizer,
+            optimizer_env,
+            optimizer_attributes,
+            planning_optimizer,
+            subproblem_optimizer,
+            planning_optimizer_attributes,
+            subproblem_optimizer_attributes,
+        )
     catch e
         rethrow(e)
     finally
         case_cleanup()  # Ensure all processes are removed
     end
+end
+
+function _run_case_impl(
+    case_path::AbstractString,
+    lazy_load::Bool,
+    log_to_file::Bool,
+    log_file_path::AbstractString,
+    optimizer::DataType,
+    optimizer_env,
+    optimizer_attributes::Tuple,
+    planning_optimizer::DataType,
+    subproblem_optimizer::DataType,
+    planning_optimizer_attributes::Tuple,
+    subproblem_optimizer_attributes::Tuple,
+)
+    case = load_case(case_path; lazy_load=lazy_load)
+
+    # Create optimizer based on solution algorithm
+    optimizer_instance = if isa(solution_algorithm(case), Monolithic)
+        create_optimizer(optimizer, optimizer_env, optimizer_attributes)
+    elseif isa(solution_algorithm(case), Benders)
+        create_optimizer_benders(planning_optimizer, subproblem_optimizer,
+            planning_optimizer_attributes, subproblem_optimizer_attributes)
+    else
+        error("Unknown solution algorithm. Please check `SolutionAlgorithm` in `settings/case_settings.json`. Valid values are \"Monolithic\" and \"Benders\".")
+    end
+
+    # If Benders, create processes for subproblems optimization
+    if isa(solution_algorithm(case), Benders)
+        if case.settings.BendersSettings[:Distributed]
+            number_of_subproblems = sum(length(system.time_data[:Electricity].subperiods) for system in case.systems)
+            start_distributed_processes!(case_path, number_of_subproblems)
+        end
+    end
+
+    case, solution = solve_case(case, optimizer_instance)
+
+    postprocess!(case, solution)
+
+    if isa(solution, MyopicResults)
+        # Outputs already written per-period during iteration; just retrieve the output path for log file copying
+        output_path = solution.output_path
+    else
+        output_path = length(case.systems) ≥ 1 ? create_output_path(case.systems[1], case_path) : case_path
+        write_outputs(output_path, case, solution)
+    end
+
+    if log_to_file && isfile(log_file_path)
+        cp(log_file_path, joinpath(output_path, basename(log_file_path)); force=true)
+    end
+
+    if isa(solution_algorithm(case), Benders)
+        if case.settings.BendersSettings[:Distributed] && nprocs() > 1
+            rmprocs(workers())
+        end
+    end
+
+    return case, solution
 end
 
 function case_cleanup()

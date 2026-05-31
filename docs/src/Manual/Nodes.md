@@ -94,7 +94,7 @@ For example, a city Location might contain `Node{Electricity}`, `Node{NaturalGas
 
 | Field            | Type                               | Description                    | Units | Default                                |
 |------------------|------------------------------------|--------------------------------|-------|----------------------------------------|
-| `balance_data`   | `Dict{Symbol,Dict{Symbol,Float64}}` | Balance equation coefficients | `-`   | `Dict{Symbol,Dict{Symbol,Float64}}()` |
+| `balance_data`   | `Dict{Symbol,Any}` | Balance definitions, normalized internally to `BalanceData` | `-`   | `Dict{Symbol,Any}()` |
 | `constraints`    | `Vector{AbstractTypeConstraint}`   | Additional constraints         | `-`   | `Vector{AbstractTypeConstraint}()`     |
 | `operation_expr` | `Dict`                             | Operational JuMP expressions   | `-`   | `Dict()`                               |
 

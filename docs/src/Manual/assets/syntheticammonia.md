@@ -190,22 +190,18 @@ make(asset_type::Type{SyntheticAmmonia}, data::AbstractDict{Symbol,Any}, system:
 | `data` | `AbstractDict{Symbol,Any}` | Dictionary containing the input data for the asset |
 | `system` | `System` | System to which the asset belongs |
 
-### Stoichiometry balance data
+### Stoichiometric balance data
 
 ```julia
-synthetic_ammonia_transform.balance_data = Dict(
-    :hydrogen => Dict(
-        nh3_edge.id => get(transform_data, :h2_consumption, 0.0),
-        h2_edge.id => 1.0,
-    ),
-    :nitrogen => Dict(
-        nh3_edge.id => get(transform_data, :n2_consumption, 0.0),
-        n2_edge.id => 1.0,
-    ),
-    :electricity => Dict(
-        nh3_edge.id => get(transform_data, :electricity_consumption, 0.0),
-        elec_edge.id => 1.0
-    ),
+@add_stoichiometric_balance(
+    synthetic_ammonia_transform,
+    :nh3_production,
+    get(transform_data, :h2_consumption, 0.0) * flow(h2_edge)
+    + get(transform_data, :n2_consumption, 0.0) * flow(n2_edge)
+    + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
+    -->
+    flow(nh3_edge),
+    flow(nh3_edge),
 )
 ```
 
@@ -298,4 +294,3 @@ This example illustrates a basic Synthetic Ammonia configuration in JSON format:
 - [Constraints](@ref) - Additional constraints for Storage and other components
 - [Thermal Ammonia](@ref thermalammonia_overview) - Thermal ammonia production without CCS
 - [Thermal Ammonia](@ref thermalammonia_overview) - Thermal ammonia production (with and without CCS)
-
