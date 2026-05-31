@@ -197,16 +197,21 @@ function make(asset_type::Type{SyntheticAmmonia}, data::AbstractDict{Symbol,Any}
         nh3_end_node,
     )
 
-    @add_stoichiometric_balance(
+    @add_balance(
         synthetic_ammonia_transform,
-        :nh3_production,
-        get(transform_data, :h2_consumption, 0.0) * flow(h2_edge) 
-        + get(transform_data, :n2_consumption, 0.0) * flow(n2_edge) 
-        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        -->
-        flow(nh3_edge),
-        flow(nh3_edge)
+        :hydrogen,
+        flow(h2_edge) == get(transform_data, :h2_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        synthetic_ammonia_transform,
+        :nitrogen,
+        flow(n2_edge) == get(transform_data, :n2_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        synthetic_ammonia_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(nh3_edge)
     )
 
     return SyntheticAmmonia(id, synthetic_ammonia_transform, h2_edge, n2_edge, elec_edge, nh3_edge)
-end 
+end

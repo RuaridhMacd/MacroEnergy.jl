@@ -160,11 +160,10 @@ function make(asset_type::Type{ElectricHeating}, data::AbstractDict{Symbol,Any},
         elec_end_node,
     )
 
-    @add_stoichiometric_balance(
+    @add_balance(
         heating_transform,
         :energy,
-        get(transform_data, :elec_consumption, 1.0) * flow(elec_edge) --> flow(heat_edge),
-        flow(heat_edge)
+        flow(elec_edge) == get(transform_data, :elec_consumption, 1.0) * flow(heat_edge)
     )
 
     return ElectricHeating(id, heating_transform, heat_edge, elec_edge)

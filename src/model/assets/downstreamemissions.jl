@@ -182,14 +182,15 @@ function make(asset_type::Type{DownstreamEmissions}, data::AbstractDict{Symbol,A
         co2_end_node,
     )
 
-    @add_stoichiometric_balance(
+    @add_balance(
         fuelsenduse_transform,
         :fuel_demand,
-        flow(fuel_edge) 
-        --> 
-        flow(fuel_demand_edge) 
-        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge),
-        flow(fuel_edge)
+        flow(fuel_edge) == flow(fuel_demand_edge)
+    )
+    @add_balance(
+        fuelsenduse_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
     return DownstreamEmissions(id, fuelsenduse_transform, fuel_edge, fuel_demand_edge, co2_edge) 

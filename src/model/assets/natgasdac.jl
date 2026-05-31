@@ -230,12 +230,11 @@ function make(asset_type::Type{NaturalGasDAC}, data::AbstractDict{Symbol,Any}, s
         co2_captured_end_node,
     )
 
-    # Leaving this with @add_balance as @add_stoichiometric_balance doesn't 
-    # currently support the 3-way capture balance
+    # The capture balance is a three-way algebraic relationship.
     @add_balance(
         natgasdac_transform,
         :elec_production,
-        flow(elec_edge) == get(transform_data, :electricity_production, 0.0) * flow(co2_edge)
+        get(transform_data, :electricity_production, 0.0) * flow(co2_edge) == flow(elec_edge)
     )
     @add_balance(
         natgasdac_transform,

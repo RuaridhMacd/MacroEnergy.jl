@@ -287,17 +287,30 @@ function make(asset_type::Type{DirectReductionElectricArcFurnaceCCS}, data::Abst
         ]
     )
 
-    @add_stoichiometric_balance(
+    @add_balance(
         dreafccs_transform,
-        :steel_production,
-        get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
-        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        + get(transform_data, :reductant_consumption, 0.0) * flow(reductant_edge)
-        -->
-        flow(crudesteel_edge)
-        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
-        + get(transform_data, :capture_rate, 0.0) * flow(co2_captured_edge),
-        flow(crudesteel_edge)
+        :ironore_consumption,
+        flow(ironore_edge) == get(transform_data, :ironore_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :electricity_consumption,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :reductant_consumption,
+        flow(reductant_edge) == get(transform_data, :reductant_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :emissions,
+        flow(co2_edge) == get(transform_data, :emission_rate, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        dreafccs_transform,
+        :capture,
+        flow(co2_captured_edge) == get(transform_data, :capture_rate, 0.0) * flow(crudesteel_edge)
     )
 
     return DirectReductionElectricArcFurnaceCCS(id,

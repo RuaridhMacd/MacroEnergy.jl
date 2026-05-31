@@ -291,19 +291,20 @@ function make(asset_type::Type{ThermalHydrogen}, data::AbstractDict{Symbol,Any},
         co2_end_node,
     )
 
-    # Calculate emissions per unit of H2 produced
-    # so that they can be included in the stoichiometric balance with the h2_edge
-    emissions_per_h2 = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
-    
-    @add_stoichiometric_balance(
+    @add_balance(
         thermalhydrogen_transform,
-        :h2_production,
-        get(transform_data, :fuel_consumption, 1.0) * flow(fuel_edge) 
-        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        -->
-        flow(h2_edge)
-        + emissions_per_h2 * flow(co2_edge),
-        flow(h2_edge)
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 1.0) * flow(h2_edge)
+    )
+    @add_balance(
+        thermalhydrogen_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(h2_edge)
+    )
+    @add_balance(
+        thermalhydrogen_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
     return ThermalHydrogen(id, thermalhydrogen_transform, h2_edge, elec_edge,fuel_edge, co2_edge)

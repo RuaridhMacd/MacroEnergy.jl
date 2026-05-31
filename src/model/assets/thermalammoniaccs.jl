@@ -273,22 +273,26 @@ function make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any
         co2_captured_end_node,
     )
 
-    # Calculate emissions and capture per unit of NH3 produced
-    # so that they can be included in the stoichiometric balance with the nh3_edge
-    emissions_per_nh3 = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
-    capture_per_nh3 = get(transform_data, :capture_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
-
-    @add_stoichiometric_balance(
+    @add_balance(
         thermalammoniaccs_transform,
-        :nh3_production,
-        get(transform_data, :fuel_consumption, 0.0) * flow(fuel_edge)
-        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        -->
-        flow(nh3_edge)
-        + emissions_per_nh3 * flow(co2_edge)
-        + capture_per_nh3 * flow(co2_captured_edge),
-        flow(nh3_edge)
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        thermalammoniaccs_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        thermalammoniaccs_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
+    )
+    @add_balance(
+        thermalammoniaccs_transform,
+        :capture,
+        get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
     )
 
     return ThermalAmmoniaCCS(id, thermalammoniaccs_transform, nh3_edge, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
-end 
+end

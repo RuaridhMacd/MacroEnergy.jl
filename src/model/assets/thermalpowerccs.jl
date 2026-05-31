@@ -249,19 +249,20 @@ function make(asset_type::Type{ThermalPowerCCS}, data::AbstractDict{Symbol,Any},
         co2_captured_end_node,
     )
 
-    # Calculate the electricity output per unit of fuel
-    # so it can be used in the stoichiometric balance with the fuel_edge base term
-    elec_per_fuel = 1.0 / get(transform_data, :fuel_consumption, 1.0)
-
-    @add_stoichiometric_balance(
+    @add_balance(
         thermalccs_transform,
-        :thermal_power_ccs,
-        flow(fuel_edge)
-        -->
-        elec_per_fuel * flow(elec_edge)
-        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
-        + get(transform_data, :capture_rate, 1.0) * flow(co2_captured_edge),
-        flow(fuel_edge)
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 1.0) * flow(elec_edge)
+    )
+    @add_balance(
+        thermalccs_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
+    )
+    @add_balance(
+        thermalccs_transform,
+        :capture,
+        get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
     )
 
     return ThermalPowerCCS(id, thermalccs_transform, elec_edge, fuel_edge, co2_edge, co2_captured_edge)

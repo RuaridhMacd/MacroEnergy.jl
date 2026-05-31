@@ -241,20 +241,21 @@ function make(asset_type::Type{ThermalAmmonia}, data::AbstractDict{Symbol,Any}, 
         co2_end_node,
     )
 
-    # Calculate emissions per unit of ammonia produced based on fuel consumption and emission rate
-    # so it can be used in the stoichiometric balance with the nh3_edge
-    emission_per_nh3 = get(transform_data, :emission_rate, 0.0) * get(transform_data, :fuel_consumption, 0.0)
-
-    @add_stoichiometric_balance(
+    @add_balance(
         thermalammonia_transform,
-        :ammonia_production,
-        get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        + get(transform_data, :fuel_consumption, 0.0) * flow(fuel_edge)
-        -->
-        flow(nh3_edge)
-        + emission_per_nh3 * flow(co2_edge),
-        flow(nh3_edge)
+        :energy,
+        flow(fuel_edge) == get(transform_data, :fuel_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        thermalammonia_transform,
+        :electricity,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(nh3_edge)
+    )
+    @add_balance(
+        thermalammonia_transform,
+        :emissions,
+        get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
     return ThermalAmmonia(id, thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
-end 
+end

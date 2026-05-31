@@ -159,11 +159,10 @@ function make(asset_type::Type{FuelCell}, data::AbstractDict{Symbol,Any}, system
         h2_end_node,
     )
 
-    @add_stoichiometric_balance(
+    @add_balance(
         fuelcell,
         :energy,
-        flow(h2_edge) --> get(transform_data, :efficiency_rate, 1.0) * flow(elec_edge),
-        flow(h2_edge)
+        get(transform_data, :efficiency_rate, 1.0) * flow(h2_edge) == flow(elec_edge)
     )
 
     return FuelCell(id, fuelcell, h2_edge, elec_edge)

@@ -389,21 +389,45 @@ function make(asset_type::Type{BlastFurnaceBasicOxygenFurnaceCCS}, data::Abstrac
         :constraints,
         [MustRunConstraint()])
     
-    # stochiometry
-    @add_stoichiometric_balance(
+    @add_balance(
         bfbofccs_transform,
-        :steel_production,
-        get(transform_data, :ironore_consumption, 0.0) * flow(ironore_edge)
-        + get(transform_data, :steelscrap_consumption, 0.0) * flow(steelscrap_edge)
-        + get(transform_data, :metcoal_consumption, 0.0) * flow(metcoal_edge)
-        + get(transform_data, :thermalcoal_consumption, 0.0) * flow(thermalcoal_edge)
-        + get(transform_data, :natgas_consumption, 0.0) * flow(natgas_edge)
-        + get(transform_data, :electricity_consumption, 0.0) * flow(elec_edge)
-        --> 
-        flow(crudesteel_edge)
-        + get(transform_data, :emission_rate, 0.0) * flow(co2_edge)
-        + get(transform_data, :capture_rate, 0.0) * flow(co2_captured_edge),
-        flow(crudesteel_edge)
+        :ironore_consumption,
+        flow(ironore_edge) == get(transform_data, :ironore_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :steelscrap_consumption,
+        flow(steelscrap_edge) == get(transform_data, :steelscrap_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :electricity_consumption,
+        flow(elec_edge) == get(transform_data, :electricity_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :metcoal_consumption,
+        flow(metcoal_edge) == get(transform_data, :metcoal_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :thermalcoal_consumption,
+        flow(thermalcoal_edge) == get(transform_data, :thermalcoal_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :natgas_consumption,
+        flow(natgas_edge) == get(transform_data, :natgas_consumption, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :emissions,
+        flow(co2_edge) == get(transform_data, :emission_rate, 0.0) * flow(crudesteel_edge)
+    )
+    @add_balance(
+        bfbofccs_transform,
+        :capture,
+        flow(co2_captured_edge) == get(transform_data, :capture_rate, 0.0) * flow(crudesteel_edge)
     )
 
     return BlastFurnaceBasicOxygenFurnaceCCS(id,

@@ -350,23 +350,25 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
         gas_storage,
         get(charge_edge_data, :efficiency, 1.0) * flow(gas_storage_charge),
     )
-    @add_stoichiometric_balance(
+    @add_balance(
         pump_transform,
-        :gasstorage_charging,
-        flow(external_charge_edge) 
-        + get(transform_data, :charge_electricity_consumption, 0.0) * flow(charge_elec_edge) 
-        --> 
-        flow(gas_storage_charge),
-        flow(external_charge_edge)
+        :charge_electricity_consumption,
+        get(transform_data, :charge_electricity_consumption, 0.0) * flow(external_charge_edge) == flow(charge_elec_edge)
     )
-    @add_stoichiometric_balance(
+    @add_balance(
         pump_transform,
-        :gasstorage_discharging,
-        flow(gas_storage_discharge) 
-        + get(transform_data, :discharge_electricity_consumption, 0.0) * flow(discharge_elec_edge)
-        --> 
-        flow(external_discharge_edge),
-        flow(external_discharge_edge)
+        :discharge_electricity_consumption,
+        flow(discharge_elec_edge) == get(transform_data, :discharge_electricity_consumption, 0.0) * flow(external_discharge_edge)
+    )
+    @add_balance(
+        pump_transform,
+        :external_charge_balance,
+        flow(external_charge_edge) == flow(gas_storage_charge)
+    )
+    @add_balance(
+        pump_transform,
+        :external_discharge_balance,
+        flow(gas_storage_discharge) == flow(external_discharge_edge)
     )
 
     return GasStorage(
