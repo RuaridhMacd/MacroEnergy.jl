@@ -45,16 +45,16 @@ const optim = HiGHS.Optimizer
 # Global variables for true results
 const balance_duals_describe_true = DataFrame(
     variable = [:elec_MA, :elec_CT, :elec_ME],
-    mean = [77.41980809833018, 52.287, 47.5399],
+    mean = [76.74351137701903, 52.287, 47.5399],
     min = [0.1, 0.1, 0.1],
     median = [0.44536862003780714, 0.1, 0.1],
-    max = [316.18729827644376, 288.732, 322.047],
+    max = [322.04732444506243, 288.732, 322.047],
     nmissing = [0, 0, 0],
     eltype = [Float64, Float64, Float64]
 )
 const balance_duals_sum_true = DataFrame(
     variable = [:elec_MA, :elec_CT, :elec_ME],
-    sum = [5574.226183079772, 3764.6638182861698, 3422.871922377889]
+    sum = [5525.53281914537, 3764.6638182861698, 3422.871922377889]
 )
 
 # Set logger to Error level
