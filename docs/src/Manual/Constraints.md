@@ -6,6 +6,12 @@ Macro constraints are attached to `Node`s, `Transformation`s, `Storage`s, and `E
 
 The main user-facing list of available constraints is the [Macro Constraint Library](@ref macro_constraint_library).
 
+## Inferred Constraints
+
+Some component input fields imply that a constraint should be active. When Macro processes input data, it may infer these constraints automatically so that the component's parameter values and `constraints` field remain consistent. Explicitly setting a constraint to `false` disables that inference for the component.
+
+Currently, inferred constraints are documented for edges in [Inferred Edge Constraints](@ref manual-edges-inferred-constraints).
+
 ## BalanceConstraint
 
 [`BalanceConstraint`](@ref balance_constraint_ref) deserves special attention because it now supports more than equality-only flow balances.

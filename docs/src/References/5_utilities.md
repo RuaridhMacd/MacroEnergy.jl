@@ -74,6 +74,19 @@ MacroEnergy.get_balance
 MacroEnergy.get_constraint_by_type
 ```
 
+## Edge Constraint Inference
+```@docs
+MacroEnergy.infer_edge_constraints!
+MacroEnergy.has_ramping_input
+MacroEnergy.has_minflow_input
+MacroEnergy.has_capacity_input
+MacroEnergy.has_max_capacity_input
+MacroEnergy.has_min_capacity_input
+MacroEnergy.has_max_new_capacity_input
+MacroEnergy.has_minuptime_input
+MacroEnergy.has_mindowntime_input
+```
+
 ## `get_component_by_fieldname`
 ```@docs
 MacroEnergy.get_component_by_fieldname

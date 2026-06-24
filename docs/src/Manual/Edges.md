@@ -314,6 +314,24 @@ Internal factory methods for creating edge components with data processing and v
 | `all_constraints_types(edge)` | Get constraint types | Vector{Type} |
 | `get_constraint_by_type(edge, type)` | Get specific constraint type | Union{AbstractTypeConstraint,Nothing} |
 
+### [Inferred Edge Constraints](@id manual-edges-inferred-constraints)
+
+!!! note "Inferred edge constraints"
+    Some edge constraints are inferred based on corresponding edge input fields. For example, inputting a ramping limit will automatically create the corresponding constraint unless explicity disabled by setting the constraint to `false`, e.g. `"RampingLimitConstraint": false`. 
+
+    The following edge constraints are inferred:
+
+    | Constraint | Trigger |
+    |------------|---------|
+    | `CapacityConstraint` | `has_capacity == true` |
+    | `RampingLimitConstraint` | `ramp_up_fraction < 1.0` or `ramp_down_fraction < 1.0` |
+    | `MinFlowConstraint` | `min_flow_fraction > 0.0` on a unidirectional edge |
+    | `MaxCapacityConstraint` | `max_capacity < Inf` |
+    | `MinCapacityConstraint` | `min_capacity > 0.0` |
+    | `MaxNewCapacityConstraint` | `max_new_capacity < Inf` |
+    | `MinUpTimeConstraint` | `uc == true` and `min_up_time > 0.0` |
+    | `MinDownTimeConstraint` | `uc == true` and `min_down_time > 0.0` |
+
 ### Utility Functions
 
 | Function | Description | Returns |
