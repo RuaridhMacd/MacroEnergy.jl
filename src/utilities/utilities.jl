@@ -248,8 +248,36 @@ Each inferred constraint should preserve an explicit `false` flag in `edge_data`
 function infer_edge_constraints!(edge_data::AbstractDict{Symbol,Any})
     constraints = get!(edge_data, :constraints, Dict{Symbol,Bool}())
 
+    is_unidirectional_edge = get(edge_data, :unidirectional, true)
+
     if has_ramping_input(edge_data) && get(constraints, :RampingLimitConstraint, true) != false
         constraints[:RampingLimitConstraint] = true
+    end
+    if has_minflow_input(edge_data) && is_unidirectional_edge && get(constraints, :MinFlowConstraint, true) != false
+        constraints[:MinFlowConstraint] = true
+    end
+    if has_capacity_input(edge_data) && get(constraints, :CapacityConstraint, true) != false
+        constraints[:CapacityConstraint] = true
+    end
+    if has_max_capacity_input(edge_data) && get(constraints, :MaxCapacityConstraint, true) != false
+        constraints[:MaxCapacityConstraint] = true
+    end
+    if has_min_capacity_input(edge_data) && get(constraints, :MinCapacityConstraint, true) != false
+        constraints[:MinCapacityConstraint] = true
+    end
+    if has_max_new_capacity_input(edge_data) && get(constraints, :MaxNewCapacityConstraint, true) != false
+        constraints[:MaxNewCapacityConstraint] = true
+    end
+
+    is_uc_edge = get(edge_data, :uc, false)
+
+    if is_uc_edge
+        if has_minuptime_input(edge_data) && get(constraints, :MinUpTimeConstraint, true) != false
+            constraints[:MinUpTimeConstraint] = true
+        end
+        if has_mindowntime_input(edge_data) && get(constraints, :MinDownTimeConstraint, true) != false
+            constraints[:MinDownTimeConstraint] = true
+        end
     end
 
     return nothing
@@ -268,4 +296,97 @@ function has_ramping_input(edge_data::AbstractDict{Symbol,Any})
     ramp_up_limit = get(edge_data, :ramp_up_fraction, 1.0)
     ramp_down_limit = get(edge_data, :ramp_down_fraction, 1.0)
     return (ramp_up_limit < 1.0) || (ramp_down_limit < 1.0)
+end
+
+"""
+    has_minflow_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding minimum flow fraction.
+
+A minimum flow is considered binding when `min_flow_fraction` is greater than `0.0`.
+Missing minimum flow fractions are treated as non-binding.
+"""
+function has_minflow_input(edge_data::AbstractDict{Symbol,Any})
+    min_flow_fraction = get(edge_data, :min_flow_fraction, 0.0)
+    return min_flow_fraction > 0.0
+end
+
+"""
+    has_capacity_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains capacity information.
+"""
+function has_capacity_input(edge_data::AbstractDict{Symbol,Any})
+    return get(edge_data, :has_capacity, false)
+end
+
+"""
+    has_max_capacity_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding maximum capacity.
+
+A maximum capacity is considered binding when `max_capacity` is less than `Inf`.
+Missing maximum capacities are treated as non-binding.
+"""
+function has_max_capacity_input(edge_data::AbstractDict{Symbol,Any})
+    max_capacity = get(edge_data, :max_capacity, Inf)
+    if max_capacity == "Inf"
+        return false
+    end
+    return max_capacity isa Real && max_capacity < Inf
+end
+
+"""
+    has_min_capacity_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding minimum capacity.
+
+A minimum capacity is considered binding when `min_capacity` is greater than `0.0`.
+Missing minimum capacities are treated as non-binding.
+"""
+function has_min_capacity_input(edge_data::AbstractDict{Symbol,Any})
+    min_capacity = get(edge_data, :min_capacity, 0.0)
+    return min_capacity > 0.0
+end
+
+"""
+    has_max_new_capacity_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding maximum new capacity.
+
+A maximum new capacity is considered binding when `max_new_capacity` is less than `Inf`.
+Missing maximum new capacities are treated as non-binding.
+"""
+function has_max_new_capacity_input(edge_data::AbstractDict{Symbol,Any})
+    max_new_capacity = get(edge_data, :max_new_capacity, Inf)
+    if max_new_capacity == "Inf"
+        return false
+    end
+    return max_new_capacity isa Real && max_new_capacity < Inf
+end
+
+"""
+    has_minuptime_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding minimum up time.
+
+A minimum up time is considered binding when `min_up_time` is greater than `0.0`.
+Missing minimum up times are treated as non-binding.
+"""
+function has_minuptime_input(edge_data::AbstractDict{Symbol,Any})
+    min_up_time = get(edge_data, :min_up_time, 0.0)
+    return min_up_time > 0.0
+end
+
+"""
+    has_mindowntime_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding minimum down time.
+
+A minimum down time is considered binding when `min_down_time` is greater than `0.0`.
+Missing minimum down times are treated as non-binding.
+"""
+function has_mindowntime_input(edge_data::AbstractDict{Symbol,Any})
+    min_down_time = get(edge_data, :min_down_time, 0.0)
+    return min_down_time > 0.0
 end
