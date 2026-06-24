@@ -237,6 +237,14 @@ macro end_vertex(name, data, commodity, get_from_tuples)
     end)
 end
 
+"""
+    infer_edge_constraints!(edge_data::AbstractDict{Symbol,Any})
+
+Infer constraint flags implied by edge input values. For example, setting a valid ramping fraction will enable the `RampingLimitConstraint` unless it has been explicitly set to `false`.
+
+This mutates `edge_data` before constraint flags are converted into constraint objects.
+Each inferred constraint should preserve an explicit `false` flag in `edge_data`.
+"""
 function infer_edge_constraints!(edge_data::AbstractDict{Symbol,Any})
     constraints = get!(edge_data, :constraints, Dict{Symbol,Bool}())
 
@@ -247,6 +255,15 @@ function infer_edge_constraints!(edge_data::AbstractDict{Symbol,Any})
     return nothing
 end
 
+"""
+    has_ramping_input(edge_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when edge input data contains a binding ramping limit.
+
+Ramping is considered binding when either `ramp_up_fraction` or
+`ramp_down_fraction` is less than `1.0`. Missing ramping fractions are treated as
+non-binding.
+"""
 function has_ramping_input(edge_data::AbstractDict{Symbol,Any})
     ramp_up_limit = get(edge_data, :ramp_up_fraction, 1.0)
     ramp_down_limit = get(edge_data, :ramp_down_fraction, 1.0)
