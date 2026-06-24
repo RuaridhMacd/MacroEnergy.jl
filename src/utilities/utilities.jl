@@ -200,7 +200,7 @@ macro process_data(name, data, get_from_tuples)
             $data[:constraints] = $defaults_name[:constraints]
         end
         merge!($defaults_name, $data)
-        infer_edge_constraints!($defaults_name)
+        infer_constraints!($defaults_name)
         $name = process_data($defaults_name)
     end)
 end
@@ -235,6 +235,32 @@ macro end_vertex(name, data, commodity, get_from_tuples)
         $data[:end_vertex] = vertex
         $name = find_node(system, Symbol(vertex), $commodity)
     end)
+end
+
+function infer_constraints!(component_data::AbstractDict{Symbol,Any})
+    component_type = infer_component_type(component_data)
+    if component_type == :edge
+        infer_edge_constraints!(component_data)
+    elseif component_type == :storage
+        infer_storage_constraints!(component_data)
+    elseif component_type == :transform
+        infer_transform_constraints!(component_data)
+    elseif component_type == :node
+        infer_node_constraints!(component_data)
+    end
+    return nothing
+end
+
+function infer_component_type(component_data::AbstractDict{Symbol,Any})
+    if haskey(component_data, :start_vertex)
+        return :edge
+    elseif haskey(component_data, :max_storage_level)
+        return :storage
+    elseif haskey(component_data, :demand)
+        return :node
+    else
+        return :transform
+    end
 end
 
 """
@@ -389,4 +415,121 @@ Missing minimum down times are treated as non-binding.
 function has_mindowntime_input(edge_data::AbstractDict{Symbol,Any})
     min_down_time = get(edge_data, :min_down_time, 0.0)
     return min_down_time > 0.0
+end
+
+function infer_storage_constraints!(storage_data::AbstractDict{Symbol,Any})
+    constraints = get!(storage_data, :constraints, Dict{Symbol,Any}())
+
+    if get(constraints, :StorageCapacityConstraint, true) != false
+        constraints[:StorageCapacityConstraint] = true
+    end
+    if has_max_capacity_input(storage_data) && get(constraints, :MaxCapacityConstraint, true) != false
+        constraints[:MaxCapacityConstraint] = true
+    end
+    if has_min_capacity_input(storage_data) && get(constraints, :MinCapacityConstraint, true) != false
+        constraints[:MinCapacityConstraint] = true
+    end
+    if has_max_new_capacity_input(storage_data) && get(constraints, :MaxNewCapacityConstraint, true) != false
+        constraints[:MaxNewCapacityConstraint] = true
+    end
+    if has_max_duration_input(storage_data) && get(constraints, :StorageMaxDurationConstraint, true) != false
+        constraints[:StorageMaxDurationConstraint] = true
+    end
+    if has_min_duration_input(storage_data) && get(constraints, :StorageMinDurationConstraint, true) != false
+        constraints[:StorageMinDurationConstraint] = true
+    end
+    if has_max_storage_level_input(storage_data) && get(constraints, :MaxStorageLevelConstraint, true) != false
+        constraints[:MaxStorageLevelConstraint] = true
+    end
+    if has_min_storage_level_input(storage_data) && get(constraints, :MinStorageLevelConstraint, true) != false
+        constraints[:MinStorageLevelConstraint] = true
+    end
+    if has_charge_discharge_input(storage_data) && get(constraints, :StorageChargeDischargeRatioConstraint, true) != false
+        constraints[:StorageChargeDischargeRatioConstraint] = true
+    end
+
+    is_long_duration = get(storage_data, :long_duration, false)
+    if is_long_duration
+        if get(constraints, :LongDurationStorageImplicitMinMaxConstraint, true) != false
+            constraints[:LongDurationStorageImplicitMinMaxConstraint] = true
+        end
+    end
+
+    return nothing
+end
+
+"""
+    has_max_duration_input(storage_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when storage input data contains a binding maximum duration.
+
+A maximum duration is considered binding when `max_duration` is less than `Inf`.
+Missing maximum durations are treated as non-binding.
+"""
+function has_max_duration_input(storage_data::AbstractDict{Symbol,Any})
+    max_duration = get(storage_data, :max_duration, Inf)
+    if max_duration == "Inf"
+        return false
+    end
+    return max_duration isa Real && max_duration < Inf
+end
+
+"""
+    has_min_duration_input(storage_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when storage input data contains a binding minimum duration.
+
+A minimum duration is considered binding when `min_duration` is greater than `0.0`.
+Missing minimum durations are treated as non-binding.
+"""
+function has_min_duration_input(storage_data::AbstractDict{Symbol,Any})
+    min_duration = get(storage_data, :min_duration, 0.0)
+    return min_duration > 0.0
+end
+
+"""
+    has_max_storage_level_input(storage_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when storage input data contains a binding maximum storage level.
+
+A maximum storage level is considered binding when `max_storage_level` is less than `1.0`.
+Missing maximum storage levels are treated as non-binding.
+"""
+function has_max_storage_level_input(storage_data::AbstractDict{Symbol,Any})
+    max_storage_level = get(storage_data, :max_storage_level, 1.0)
+    return max_storage_level < 1.0
+end
+
+"""
+    has_min_storage_level_input(storage_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when storage input data contains a binding minimum storage level.
+
+A minimum storage level is considered binding when `min_storage_level` is greater than `0.0`.
+Missing minimum storage levels are treated as non-binding.
+"""
+function has_min_storage_level_input(storage_data::AbstractDict{Symbol,Any})
+    min_storage_level = get(storage_data, :min_storage_level, 0.0)
+    return min_storage_level > 0.0
+end
+
+"""
+    has_charge_discharge_input(storage_data::AbstractDict{Symbol,Any}) -> Bool
+
+Return `true` when storage input data contains a binding charge-discharge ratio.
+
+A charge-discharge ratio is considered binding when `charge_discharge_ratio` is greater than `0.0`.
+Missing charge-discharge ratios are treated as non-binding.
+"""
+function has_charge_discharge_input(storage_data::AbstractDict{Symbol,Any})
+    charge_discharge_ratio = get(storage_data, :charge_discharge_ratio, 0.0)
+    return charge_discharge_ratio > 0.0
+end
+
+function infer_node_constraints!(node_data::AbstractDict{Symbol,Any})
+    return nothing
+end
+
+function infer_transform_constraints!(transform_data::AbstractDict{Symbol,Any})
+    return nothing
 end
