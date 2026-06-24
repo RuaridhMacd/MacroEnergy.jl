@@ -8,6 +8,11 @@ function inferred_constraints(data::Dict{Symbol,Any})
     return data[:constraints]
 end
 
+function inferred_storage_constraints(data::Dict{Symbol,Any})
+    MacroEnergy.infer_storage_constraints!(data)
+    return data[:constraints]
+end
+
 @testset "Inferred Edge Constraints" begin
     @test MacroEnergy.has_ramping_input(Dict{Symbol,Any}(:ramp_up_fraction => 0.75))
     @test MacroEnergy.has_ramping_input(Dict{Symbol,Any}(:ramp_down_fraction => 0.5))
@@ -64,6 +69,93 @@ end
         :constraints => Dict{Symbol,Bool}(:MinCapacityConstraint => false),
     )
     @test inferred_constraints(disabled_min_capacity_data)[:MinCapacityConstraint] == false
+end
+
+@testset "Inferred Storage Constraints" begin
+    @test inferred_storage_constraints(Dict{Symbol,Any}())[:StorageCapacityConstraint]
+
+    disabled_storage_capacity_data = Dict{Symbol,Any}(
+        :constraints => Dict{Symbol,Bool}(:StorageCapacityConstraint => false),
+    )
+    @test inferred_storage_constraints(disabled_storage_capacity_data)[:StorageCapacityConstraint] == false
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_capacity => 100),
+    )[:MaxCapacityConstraint]
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_capacity => 100.0),
+    )[:MaxCapacityConstraint]
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_capacity => "Inf")),
+        :MaxCapacityConstraint,
+    )
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_capacity => Inf)),
+        :MaxCapacityConstraint,
+    )
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:min_capacity => 1.0),
+    )[:MinCapacityConstraint]
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_new_capacity => 25),
+    )[:MaxNewCapacityConstraint]
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_new_capacity => "Inf")),
+        :MaxNewCapacityConstraint,
+    )
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_duration => 10),
+    )[:StorageMaxDurationConstraint]
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_duration => 10.0),
+    )[:StorageMaxDurationConstraint]
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_duration => "Inf")),
+        :StorageMaxDurationConstraint,
+    )
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_duration => Inf)),
+        :StorageMaxDurationConstraint,
+    )
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:min_duration => 2.0),
+    )[:StorageMinDurationConstraint]
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:max_storage_level => 0.9),
+    )[:MaxStorageLevelConstraint]
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:max_storage_level => 1.0)),
+        :MaxStorageLevelConstraint,
+    )
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:min_storage_level => 0.1),
+    )[:MinStorageLevelConstraint]
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:charge_discharge_ratio => 1.0),
+    )[:StorageChargeDischargeRatioConstraint]
+    @test !haskey(
+        inferred_storage_constraints(Dict{Symbol,Any}(:charge_discharge_ratio => 0.0)),
+        :StorageChargeDischargeRatioConstraint,
+    )
+
+    @test inferred_storage_constraints(
+        Dict{Symbol,Any}(:long_duration => true),
+    )[:LongDurationStorageImplicitMinMaxConstraint]
+    disabled_long_duration_data = Dict{Symbol,Any}(
+        :long_duration => true,
+        :constraints => Dict{Symbol,Bool}(:LongDurationStorageImplicitMinMaxConstraint => false),
+    )
+    @test inferred_storage_constraints(disabled_long_duration_data)[:LongDurationStorageImplicitMinMaxConstraint] == false
+
+    disabled_min_level_data = Dict{Symbol,Any}(
+        :min_storage_level => 0.1,
+        :constraints => Dict{Symbol,Bool}(:MinStorageLevelConstraint => false),
+    )
+    @test inferred_storage_constraints(disabled_min_level_data)[:MinStorageLevelConstraint] == false
 end
 
 end
