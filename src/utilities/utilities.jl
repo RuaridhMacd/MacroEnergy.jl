@@ -200,6 +200,7 @@ macro process_data(name, data, get_from_tuples)
             $data[:constraints] = $defaults_name[:constraints]
         end
         merge!($defaults_name, $data)
+        infer_edge_constraints!($defaults_name)
         $name = process_data($defaults_name)
     end)
 end
@@ -234,4 +235,20 @@ macro end_vertex(name, data, commodity, get_from_tuples)
         $data[:end_vertex] = vertex
         $name = find_node(system, Symbol(vertex), $commodity)
     end)
+end
+
+function infer_edge_constraints!(edge_data::AbstractDict{Symbol,Any})
+    constraints = get!(edge_data, :constraints, Dict{Symbol,Bool}())
+
+    if has_ramping_input(edge_data) && get(constraints, :RampingLimitConstraint, true) != false
+        constraints[:RampingLimitConstraint] = true
+    end
+
+    return nothing
+end
+
+function has_ramping_input(edge_data::AbstractDict{Symbol,Any})
+    ramp_up_limit = get(edge_data, :ramp_up_fraction, 1.0)
+    ramp_down_limit = get(edge_data, :ramp_down_fraction, 1.0)
+    return (ramp_up_limit < 1.0) || (ramp_down_limit < 1.0)
 end
