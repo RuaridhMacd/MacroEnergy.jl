@@ -1,3 +1,10 @@
+"""
+    MinCapacityConstraintConfig(groups)
+
+Typed payload for a system-wide or location-level `MinCapacityConstraint`. `groups` contains
+[`GroupConfig`](@ref) entries whose `value` is a lower bound on the sum of total capacity over the
+selected assets.
+"""
 struct MinCapacityConstraintConfig <: AbstractGroupedConstraintConfig
     groups::Vector{GroupConfig}
 end
@@ -9,6 +16,10 @@ Base.@kwdef mutable struct MinCapacityConstraint <: PlanningConstraint
     # System-wide / per-location payload, parsed from the `constraints` block at load time.
     config::Union{Missing,MinCapacityConstraintConfig} = missing
 end
+
+requires_constraint_config(::MinCapacityConstraint) = true
+required_constraint_config_type(::MinCapacityConstraint) = MinCapacityConstraintConfig
+constraint_config_is_missing(ct::MinCapacityConstraint) = ismissing(ct.config)
 
 function configure_constraint!(ct::MinCapacityConstraint, raw::AbstractDict)
     ct.config = parse_grouped_constraint_config(

@@ -1,3 +1,10 @@
+"""
+    MaxNewCapacityConstraintConfig(groups)
+
+Typed payload for a system-wide or location-level `MaxNewCapacityConstraint`. `groups` contains
+[`GroupConfig`](@ref) entries whose `value` is an upper bound on the sum of newly built capacity
+over the selected assets.
+"""
 struct MaxNewCapacityConstraintConfig <: AbstractGroupedConstraintConfig
     groups::Vector{GroupConfig}
 end
@@ -9,6 +16,10 @@ Base.@kwdef mutable struct MaxNewCapacityConstraint <: PlanningConstraint
     # System-wide / per-location payload, parsed from the `constraints` block at load time.
     config::Union{Missing,MaxNewCapacityConstraintConfig} = missing
 end
+
+requires_constraint_config(::MaxNewCapacityConstraint) = true
+required_constraint_config_type(::MaxNewCapacityConstraint) = MaxNewCapacityConstraintConfig
+constraint_config_is_missing(ct::MaxNewCapacityConstraint) = ismissing(ct.config)
 
 function configure_constraint!(ct::MaxNewCapacityConstraint, raw::AbstractDict)
     ct.config = parse_grouped_constraint_config(

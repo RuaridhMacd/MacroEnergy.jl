@@ -12,12 +12,32 @@ Only constraint types that support inline configuration define a method; the gen
 configure_constraint!(ct::AbstractTypeConstraint, cfg) =
     error("Constraint $(typeof(ct)) does not support inline configuration")
 
-# Typed configuration shared by constraints which group assets and constrain a capacity-like
-# quantity. Individual constraints define their own concrete config and group types, while this
-# abstract type provides the small interface needed by the shared builder below.
+"""
+    AbstractConstraintConfig
+
+Abstract supertype for typed, inline constraint configuration payloads. Constraint types that
+support object values in an input `constraints` block define a concrete subtype.
+"""
 abstract type AbstractConstraintConfig end
+
+"""
+    AbstractGroupedConstraintConfig <: AbstractConstraintConfig
+
+Abstract supertype for configurations that define one or more asset groups. Each group selects
+assets and constrains a capacity-like quantity on a named edge field.
+"""
 abstract type AbstractGroupedConstraintConfig <: AbstractConstraintConfig end
 
+"""
+    GroupConfig(selector, edge, value)
+
+One asset group in a grouped constraint configuration.
+
+- `selector`: asset-type selector, such as `:VRE`, `Symbol("ThermalPower{NaturalGas}")`, or
+  `Symbol("VRE*")`.
+- `edge`: field name of the constrained edge on every selected asset.
+- `value`: upper or lower bound, depending on the enclosing constraint.
+"""
 struct GroupConfig
     selector::Symbol
     edge::Symbol
@@ -28,6 +48,34 @@ constraint_groups(config::AbstractGroupedConstraintConfig) = config.groups
 group_selector(group) = group.selector
 group_edge(group) = group.edge
 group_value(group) = group.value
+
+requires_constraint_config(::AbstractTypeConstraint) = false
+required_constraint_config_type(::AbstractTypeConstraint) = nothing
+constraint_config_is_missing(::AbstractTypeConstraint) = false
+
+"""
+    validate_required_constraint_configs!(constraints, scope)
+
+Ensure constraints attached at `scope` have the configuration payload required by that scope.
+Component-level constraints remain compatible with their legacy Boolean form; grouped constraints
+at system and location scope require a typed object payload.
+"""
+function validate_required_constraint_configs!(
+    constraints::AbstractVector{<:AbstractTypeConstraint},
+    scope::AbstractString,
+)
+    for constraint in constraints
+        requires_constraint_config(constraint) || continue
+        constraint_config_is_missing(constraint) || continue
+        config_type = required_constraint_config_type(constraint)
+        constraint_name = nameof(typeof(constraint))
+        throw(ArgumentError(
+            "$constraint_name at $scope requires a $(config_type) configuration object. " *
+            "In input JSON, provide an object payload for `$constraint_name` rather than `true`.",
+        ))
+    end
+    return nothing
+end
 
 """
     parse_grouped_constraint_config(raw, group_type, config_type, constraint_name)
