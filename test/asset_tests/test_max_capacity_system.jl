@@ -133,6 +133,51 @@ function test_max_capacity()
             MacroEnergy.unscale!(system, 1000.0)
             @test only(ct.config.groups).value == 1000.0
         end
+
+        @testset "payload validation" begin
+            invalid_payloads = (
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:value => 1.0)),
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge")),
+                Dict{Symbol,Any}(:VRE => true),
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => 1, :value => 1.0)),
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => "one")),
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => NaN)),
+                Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => 1.0, :extra => true)),
+            )
+            for payload in invalid_payloads
+                data = Dict{Symbol,Any}(:constraints => Dict{Symbol,Any}(
+                    :MaxCapacityConstraint => payload,
+                ))
+                @test_throws ArgumentError MacroEnergy.check_and_convert_constraints!(data)
+            end
+
+            data = Dict{Symbol,Any}(:constraints => Dict{Symbol,Any}(
+                :MaxCapacityConstraint => true,
+            ))
+            MacroEnergy.check_and_convert_constraints!(data)
+            error = try
+                MacroEnergy.validate_required_constraint_configs!(
+                    data[:constraints],
+                    "system scope",
+                )
+                nothing
+            catch exception
+                exception
+            end
+            @test error isa ArgumentError
+            @test occursin("MaxCapacityConstraintConfig", sprint(showerror, error))
+
+            location_data = Any[Dict{Symbol,Any}(
+                :id => "SE",
+                :constraints => Dict{Symbol,Any}(:MaxCapacityConstraint => true),
+            )]
+            location_system = MacroEnergy.empty_system("location_config_required")
+            @test_throws ArgumentError MacroEnergy.load_locations!(
+                location_system,
+                "",
+                location_data,
+            )
+        end
     end
     return nothing
 end
