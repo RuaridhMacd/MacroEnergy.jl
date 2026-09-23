@@ -13,6 +13,8 @@ import MacroEnergy:
     VRE,
     Location,
     MinCapacityConstraint,
+    MinCapacityConstraintConfig,
+    GroupConfig,
     make,
     capacity,
     get_type,
@@ -48,7 +50,7 @@ function build_system()
     return system
 end
 
-vre_cfg(value) = Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => value))
+vre_cfg(value) = MinCapacityConstraintConfig([GroupConfig(:VRE, :edge, value)])
 nterms(cref) = length(JuMP.constraint_object(cref).func.terms)
 # A lower-bound constraint is stored with a GreaterThan set.
 is_geq(cref) = JuMP.constraint_object(cref).set isa MOI.GreaterThan
@@ -97,12 +99,12 @@ function test_min_capacity()
             S = 1000.0
             MacroEnergy.scale!(system, S)
             # Floor values are scaled by 1/S, like other capacity inputs.
-            @test ctsys.config[:VRE][:value] == 1.0
-            @test ctloc.config[:VRE][:value] == 0.3
+            @test only(ctsys.config.groups).value == 1.0
+            @test only(ctloc.config.groups).value == 0.3
 
             MacroEnergy.unscale!(system, S)
-            @test ctsys.config[:VRE][:value] == 1000.0
-            @test ctloc.config[:VRE][:value] == 300.0
+            @test only(ctsys.config.groups).value == 1000.0
+            @test only(ctloc.config.groups).value == 300.0
         end
     end
     return nothing

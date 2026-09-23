@@ -4,6 +4,7 @@ using Test
 using JuMP
 using HiGHS
 using MacroEnergy
+using JSON3
 
 include("asset_test_utilities.jl")
 using .AssetTestUtilities
@@ -13,6 +14,8 @@ import MacroEnergy:
     VRE,
     Location,
     MaxCapacityConstraint,
+    MaxCapacityConstraintConfig,
+    GroupConfig,
     make,
     capacity,
     get_type,
@@ -48,7 +51,7 @@ function build_system()
     return system
 end
 
-vre_cfg(value) = Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => value))
+vre_cfg(value) = MaxCapacityConstraintConfig([GroupConfig(:VRE, :edge, value)])
 nterms(cref) = length(JuMP.constraint_object(cref).func.terms)
 
 function test_max_capacity()
@@ -101,12 +104,34 @@ function test_max_capacity()
             S = 1000.0
             MacroEnergy.scale!(system, S)
             # Cap values are scaled by 1/S, like other capacity inputs.
-            @test ctsys.config[:VRE][:value] == 1.0
-            @test ctloc.config[:VRE][:value] == 0.3
+            @test only(ctsys.config.groups).value == 1.0
+            @test only(ctloc.config.groups).value == 0.3
 
             MacroEnergy.unscale!(system, S)
-            @test ctsys.config[:VRE][:value] == 1000.0
-            @test ctloc.config[:VRE][:value] == 300.0
+            @test only(ctsys.config.groups).value == 1000.0
+            @test only(ctloc.config.groups).value == 300.0
+        end
+
+        @testset "JSON payload scaling" begin
+            raw = JSON3.read("""
+            {
+              "MaxCapacityConstraint": {
+                "VRE": { "edge": "edge", "value": 1000.0 }
+              }
+            }
+            """)
+            data = Dict{Symbol,Any}(:constraints => raw)
+            MacroEnergy.check_and_convert_constraints!(data)
+            ct = only(data[:constraints])
+            @test ct.config isa MaxCapacityConstraintConfig
+            @test only(ct.config.groups).value == 1000.0
+
+            system = MacroEnergy.empty_system("json_payload_scaling")
+            push!(system.constraints, ct)
+            MacroEnergy.scale!(system, 1000.0)
+            @test only(ct.config.groups).value == 1.0
+            MacroEnergy.unscale!(system, 1000.0)
+            @test only(ct.config.groups).value == 1000.0
         end
     end
     return nothing
