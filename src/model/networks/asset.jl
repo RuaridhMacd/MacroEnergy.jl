@@ -17,6 +17,36 @@ asset_id = id(thermal_plant)  # Returns the ID of the thermal plant
 """
 id(asset::AbstractAsset) = asset.id
 
+const AssetTags = Union{Nothing,Vector{Symbol}}
+
+function normalize_tag(raw::Union{Symbol,AbstractString}, context::AbstractString)::Symbol
+    tag = strip(String(raw))
+    occursin(r"^[A-Za-z][A-Za-z0-9 _-]*$", tag) || throw(ArgumentError(
+        "Invalid tag `$raw` in $context. Tags must begin with a letter and contain only letters, numbers, spaces, underscores, or hyphens.",
+    ))
+    return Symbol(replace(lowercase(tag), r"[ _-]+" => "_"))
+end
+
+function asset_tags(data::AbstractDict{Symbol,Any})::AssetTags
+    haskey(data, :tags) || return nothing
+    raw_tags = data[:tags]
+    raw_tags isa AbstractVector || throw(ArgumentError("Asset tags must be an array."))
+    isempty(raw_tags) && return nothing
+    tags = Symbol[]
+    for raw_tag in raw_tags
+        raw_tag isa Union{AbstractString,Symbol} || throw(ArgumentError("Asset tags must be strings."))
+        push!(tags, normalize_tag(raw_tag, "asset tags"))
+    end
+    return sort!(unique!(tags))
+end
+
+# All asset structs keep `id` and optional `tags` as their first two fields. This fallback preserves
+# existing positional constructors for callers that do not provide tags explicitly.
+function (::Type{T})(args::Vararg{Any,N}) where {T<:AbstractAsset,N}
+    N == fieldcount(T) - 1 || throw(MethodError(T, args))
+    return T(args[1], nothing, args[2:end]...)
+end
+
 """
     struct_info(t::Type{T}) where T
 

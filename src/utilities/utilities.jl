@@ -33,7 +33,7 @@ end
 typesymbol(tag::Symbol) = tag
 
 function fieldnames(type::T) where {T<:Type{<:AbstractAsset}}
-    return filter(x -> x != :id, Base.fieldnames(type))
+    return filter(x -> x ∉ (:id, :tags), Base.fieldnames(type))
 end
 
 ###### ###### ###### ###### ###### ######
