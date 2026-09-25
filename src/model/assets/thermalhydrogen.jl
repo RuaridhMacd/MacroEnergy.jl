@@ -10,7 +10,11 @@ end
 
 ThermalHydrogen(id::AssetId, thermalhydrogen_transform::Transformation,h2_edge::Union{Edge{<:Hydrogen},EdgeWithUC{<:Hydrogen}}, elec_edge::Edge{<:Electricity},
 fuel_edge::Edge{T},co2_edge::Edge{<:CO2}) where T<:Commodity =
-    ThermalHydrogen{T}(id, thermalhydrogen_transform, h2_edge, elec_edge, fuel_edge, co2_edge)
+    ThermalHydrogen{T}(id, nothing, thermalhydrogen_transform, h2_edge, elec_edge, fuel_edge, co2_edge)
+
+ThermalHydrogen(id::AssetId, tags::AssetTags, thermalhydrogen_transform::Transformation,h2_edge::Union{Edge{<:Hydrogen},EdgeWithUC{<:Hydrogen}}, elec_edge::Edge{<:Electricity},
+fuel_edge::Edge{T},co2_edge::Edge{<:CO2}) where T<:Commodity =
+    ThermalHydrogen{T}(id, tags, thermalhydrogen_transform, h2_edge, elec_edge, fuel_edge, co2_edge)
 
 function default_data(t::Type{ThermalHydrogen}, id=missing, style="full")
     if style == "full"

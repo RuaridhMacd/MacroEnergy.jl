@@ -16,16 +16,36 @@ UpstreamEmissions(
     fuel_edge::Edge{<:T},
     co2_edge::Edge{<:CO2}
 ) where {T<:LiquidFuels} =
-    UpstreamEmissions{LiquidFuels}(id, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
+    UpstreamEmissions{LiquidFuels}(id, nothing,fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
 
-    UpstreamEmissions(
+UpstreamEmissions(
+    id::AssetId,
+    tags::AssetTags,
+    fossilfuelsupstream_transform::Transformation,
+    fossil_fuel_edge::Edge{<:T},
+    fuel_edge::Edge{<:T},
+    co2_edge::Edge{<:CO2}
+) where {T<:LiquidFuels} =
+    UpstreamEmissions{LiquidFuels}(id, tags, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
+
+UpstreamEmissions(
     id::AssetId,
     fossilfuelsupstream_transform::Transformation,
     fossil_fuel_edge::Edge{<:T},
     fuel_edge::Edge{T},
     co2_edge::Edge{<:CO2}
 ) where {T<:Commodity} =
-    UpstreamEmissions{T}(id, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
+    UpstreamEmissions{T}(id, nothing, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
+
+UpstreamEmissions(
+    id::AssetId,
+    tags::AssetTags,
+    fossilfuelsupstream_transform::Transformation,
+    fossil_fuel_edge::Edge{<:T},
+    fuel_edge::Edge{T},
+    co2_edge::Edge{<:CO2}
+) where {T<:Commodity} =
+    UpstreamEmissions{T}(id, tags, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
 
 function default_data(t::Type{UpstreamEmissions}, id=missing, style="full")
     if style == "full"

@@ -10,7 +10,10 @@ struct CementPlant{T} <: AbstractAsset
 end
 
 CementPlant(id::AssetId, cement_transform::Transformation, elec_edge::Union{Edge{Electricity},EdgeWithUC{Electricity}}, fuel_edge::Edge{T}, cement_edge::Edge{Cement}, co2_emissions_edge::Edge{CO2}, co2_captured_edge::Edge{CO2Captured}) where T<:Commodity =
-    CementPlant{T}(id, cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
+    CementPlant{T}(id, nothing, cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
+
+CementPlant(id::AssetId, tags::AssetTags, cement_transform::Transformation, elec_edge::Union{Edge{Electricity},EdgeWithUC{Electricity}}, fuel_edge::Edge{T}, cement_edge::Edge{Cement}, co2_emissions_edge::Edge{CO2}, co2_captured_edge::Edge{CO2Captured}) where T<:Commodity =
+    CementPlant{T}(id, tags, cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
 
 function default_data(t::Type{CementPlant}, id=missing, style="full")
     if style == "full"

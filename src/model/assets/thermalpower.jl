@@ -8,7 +8,10 @@ struct ThermalPower{T} <: AbstractAsset
 end
 
 ThermalPower(id::AssetId, thermal_transform::Transformation, elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    ThermalPower{T}(id, thermal_transform, elec_edge, fuel_edge, co2_edge)
+    ThermalPower{T}(id, nothing, thermal_transform, elec_edge, fuel_edge, co2_edge)
+
+ThermalPower(id::AssetId, tags::AssetTags, thermal_transform::Transformation, elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    ThermalPower{T}(id, tags, thermal_transform, elec_edge, fuel_edge, co2_edge)
 
 function default_data(t::Type{ThermalPower}, id=missing, style="full")
     if style == "full"
@@ -99,7 +102,6 @@ end
 """
     make(::Type{ThermalPower}, data::AbstractDict{Symbol, Any}, system::System) -> ThermalPower
 """
-
 function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, system::System)
     id = AssetId(data[:id])
     location = as_symbol_or_missing(get(data, :location, missing))

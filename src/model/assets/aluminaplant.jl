@@ -10,7 +10,10 @@ struct AluminaPlant{T} <: AbstractAsset
 end
 
 AluminaPlant(id::AssetId, aluminaplant_transform::Transformation, elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}, alumina_edge::Edge{<:Alumina}, bauxite_edge::Edge{<:Bauxite}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    AluminaPlant{T}(id, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
+    AluminaPlant{T}(id, nothing, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
+
+AluminaPlant(id::AssetId, tags::AssetTags, aluminaplant_transform::Transformation, elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}, alumina_edge::Edge{<:Alumina}, bauxite_edge::Edge{<:Bauxite}, fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    AluminaPlant{T}(id, tags, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
 
 function default_data(t::Type{AluminaPlant}, id=missing, style="full")
     if style == "full"

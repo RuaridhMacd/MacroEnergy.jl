@@ -10,7 +10,11 @@ end
 
 ThermalAmmonia(id::AssetId, thermalammonia_transform::Transformation, nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}}, elec_edge::Edge{<:Electricity},
 fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
-    ThermalAmmonia{T}(id, thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
+    ThermalAmmonia{T}(id, nothing, thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
+
+ThermalAmmonia(id::AssetId, tags::AssetTags, thermalammonia_transform::Transformation, nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}}, elec_edge::Edge{<:Electricity},
+fuel_edge::Edge{T}, co2_edge::Edge{<:CO2}) where T<:Commodity =
+    ThermalAmmonia{T}(id, tags, thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
 
 function default_data(t::Type{ThermalAmmonia}, id=missing, style="full")
     if style == "full"
