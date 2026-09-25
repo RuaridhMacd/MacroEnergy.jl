@@ -24,7 +24,6 @@ constraint_config_is_missing(ct::MaxNewCapacityConstraint) = ismissing(ct.config
 function configure_constraint!(ct::MaxNewCapacityConstraint, raw::AbstractDict)
     ct.config = parse_grouped_constraint_config(
         raw,
-        GroupConfig,
         MaxNewCapacityConstraintConfig,
         "MaxNewCapacityConstraint",
     )
