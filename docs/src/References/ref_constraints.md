@@ -26,13 +26,14 @@ MacroEnergy.var"@inspect_stoichiometric_balance"
 MacroEnergy.AbstractConstraintConfig
 MacroEnergy.AbstractGroupedConstraintConfig
 MacroEnergy.GroupConfig
+MacroEnergy.GroupSelector
 MacroEnergy.MaxCapacityConstraintConfig
 MacroEnergy.MinCapacityConstraintConfig
 MacroEnergy.MaxNewCapacityConstraintConfig
 MacroEnergy.configure_constraint!
 MacroEnergy.validate_required_constraint_configs!
 MacroEnergy.parse_grouped_constraint_config
-MacroEnergy.resolve_assets_by_type_key
+MacroEnergy.select_assets
 MacroEnergy.build_grouped_capacity_constraints
 ```
 

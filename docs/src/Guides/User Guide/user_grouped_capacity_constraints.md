@@ -14,12 +14,18 @@ Macro provides three grouped constraints:
 
 ## Configuration shape
 
-Each grouped constraint uses an object payload in a `constraints` block. The keys select asset
-types; each selected group specifies the asset edge field to aggregate and its limit.
+Each grouped constraint uses an object payload in a `constraints` block. Each named group specifies
+an asset selector, the asset edge field to aggregate, and its limit.
 
 ```json
 "<ConstraintName>": {
-  "<asset-type>": {
+  "<group-name>": {
+    "select": {
+      "asset_type": "<asset-type>",
+      "all": ["<required-tag>"],
+      "any": ["<alternative-tag>"],
+      "exclude": ["<excluded-tag>"]
+    },
     "edge": "<asset struct field>",
     "value": 1000.0
   }
@@ -27,7 +33,8 @@ types; each selected group specifies the asset edge field to aggregate and its l
 ```
 
 `edge` is a field name on every selected asset, such as `"edge"` for `VRE` or `"elec_edge"` for
-`ThermalPower`. The selected edge must have a capacity variable.
+`ThermalPower`. The selected edge must have a capacity variable. `asset_type`, `all`, `any`, and
+`exclude` are individually optional, but a selector must provide at least one of them.
 
 The object is parsed into the constraint's typed configuration object:
 [`MaxCapacityConstraintConfig`](@ref), [`MinCapacityConstraintConfig`](@ref), or
@@ -47,13 +54,25 @@ Put system-wide grouped constraints in the top-level `constraints` block of `sys
 {
   "constraints": {
     "MinCapacityConstraint": {
-      "VRE": { "edge": "edge", "value": 200.0 }
+      "renewable_vre": {
+        "select": { "asset_type": "VRE", "all": ["renewable"] },
+        "edge": "edge",
+        "value": 200.0
+      }
     },
     "MaxCapacityConstraint": {
-      "VRE": { "edge": "edge", "value": 1000.0 }
+      "renewable_vre": {
+        "select": { "asset_type": "VRE", "all": ["renewable"] },
+        "edge": "edge",
+        "value": 1000.0
+      }
     },
     "MaxNewCapacityConstraint": {
-      "VRE": { "edge": "edge", "value": 800.0 }
+      "renewable_vre": {
+        "select": { "asset_type": "VRE", "all": ["renewable"] },
+        "edge": "edge",
+        "value": 800.0
+      }
     }
   }
 }
@@ -75,7 +94,11 @@ Place the same payload below the location that should enforce it.
       "id": "SE",
       "constraints": {
         "MaxCapacityConstraint": {
-          "VRE": { "edge": "edge", "value": 300.0 }
+          "vre": {
+            "select": { "asset_type": "VRE" },
+            "edge": "edge",
+            "value": 300.0
+          }
         }
       }
     },
@@ -83,7 +106,11 @@ Place the same payload below the location that should enforce it.
       "id": "MIDAT",
       "constraints": {
         "MaxCapacityConstraint": {
-          "VRE": { "edge": "edge", "value": 500.0 }
+          "vre": {
+            "select": { "asset_type": "VRE" },
+            "edge": "edge",
+            "value": 500.0
+          }
         }
       }
     },
@@ -101,22 +128,42 @@ do not contribute to that group's expression.
 
 ## Selecting assets
 
-The group key selects assets by type. A defined Julia asset type uses subtype matching; exact
-parametric names and wildcard selectors use type-string matching.
+`asset_type` uses the Julia asset type hierarchy, so `"VRE"` selects every VRE variant and
+`"ThermalPower"` selects every commodity variant of thermal power. Tags refine or replace that
+structural selection. All selectors use the following logic:
 
-| Group key | Matches |
-|:--|:--|
-| `"VRE"` | all VRE technologies, including `VRE{Generic}` |
-| `"VRE{Solar}"` | only solar VRE assets |
-| `"ThermalPower"` | all commodity variants of `ThermalPower` |
-| `"ThermalPower{NaturalGas}"` | only natural-gas thermal-power assets |
-| `"Battery"` | Battery assets |
-| `"VRE*"` | asset types beginning with `VRE` |
+```text
+asset_type matches (when supplied)
+AND every `all` tag is present
+AND at least one `any` tag is present (when supplied)
+AND no `exclude` tag is present
+```
 
-An asset type that matches no assets produces a warning and no constraint for that group. A group
-that has no matching assets in a configured location is skipped. If a selected asset lacks the
-specified edge field, Macro reports an error; if the field has no capacity variable, that asset is
-skipped with a warning.
+For example, this selects active utility-scale or distributed solar VRE:
+
+```json
+"select": {
+  "asset_type": "VRE",
+  "all": ["solar"],
+  "any": ["utility_scale", "distributed"],
+  "exclude": ["retired"]
+}
+```
+
+Assets define `tags` in `global_data` and/or `instance_data`. Global and instance tags are combined;
+an instance can add tags but cannot remove a global tag. Tags are validated, normalized to lowercase
+snake-case symbols, and stored on the constructed asset. For example, `"Utility Scale"` and
+`"utility-scale"` both become `:utility_scale`.
+
+The prototype key form `"VRE{Solar}"` remains valid as a compatibility input. It is parsed as
+`asset_type = "VRE"` with `all = ["solar"]`; it does not invoke parametric-type matching. VRE
+assets automatically receive their normalized `technology` value as a tag, so existing
+`"technology": "Solar"` input works with that compatibility form.
+
+A group that matches no assets produces a warning and no constraint for that group. A group that has
+no matching assets in a configured location is skipped. If a selected asset lacks the specified edge
+field, Macro reports an error; if the field has no capacity variable, that asset is skipped with a
+warning.
 
 ## Parameter scaling
 
