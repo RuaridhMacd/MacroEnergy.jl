@@ -15,6 +15,7 @@ import MacroEnergy:
     MaxNewCapacityConstraint,
     MaxNewCapacityConstraintConfig,
     GroupConfig,
+    GroupSelector,
     make,
     new_capacity,
     get_type,
@@ -50,7 +51,9 @@ function build_system()
     return system
 end
 
-vre_cfg(value) = MaxNewCapacityConstraintConfig([GroupConfig(:VRE, :edge, value)])
+vre_cfg(value) = MaxNewCapacityConstraintConfig([
+    GroupConfig(:VRE, GroupSelector(:VRE), :edge, value),
+])
 nterms(cref) = length(JuMP.constraint_object(cref).func.terms)
 # An upper-bound constraint is stored with a LessThan set.
 is_leq(cref) = JuMP.constraint_object(cref).set isa MOI.LessThan

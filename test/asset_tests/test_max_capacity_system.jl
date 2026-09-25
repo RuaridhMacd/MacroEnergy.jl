@@ -16,6 +16,7 @@ import MacroEnergy:
     MaxCapacityConstraint,
     MaxCapacityConstraintConfig,
     GroupConfig,
+    GroupSelector,
     make,
     capacity,
     get_type,
@@ -23,12 +24,13 @@ import MacroEnergy:
     capped_edge_location
 
 # Build a VRE asset of a given technology tag, placed in a given location.
-function make_vre_asset(id, technology, location, system)
+function make_vre_asset(id, technology, location, system; tags = [technology])
     return make(
         VRE,
         Dict{Symbol,Any}(
             :id => id,
             :technology => technology,
+            :tags => tags,
             :location => location,
             :can_expand => true,
             :can_retire => false,
@@ -47,11 +49,13 @@ function build_system()
     sink = make_demand_node(Electricity, :sink, system.time_data[:Electricity], [2.0, 4.0, 1.0])
     push_locations!(system, sink)
     push!(system.assets, make_vre_asset(:solarA, "Solar", :A, system))
-    push!(system.assets, make_vre_asset(:windB, "Wind", :B, system))
+    push!(system.assets, make_vre_asset(:windB, "Wind", :B, system; tags = ["Renewable", "Wind", "Utility Scale", "Retired"]))
     return system
 end
 
-vre_cfg(value) = MaxCapacityConstraintConfig([GroupConfig(:VRE, :edge, value)])
+vre_cfg(value) = MaxCapacityConstraintConfig([
+    GroupConfig(:VRE, GroupSelector(:VRE), :edge, value),
+])
 nterms(cref) = length(JuMP.constraint_object(cref).func.terms)
 
 function test_max_capacity()
@@ -59,8 +63,73 @@ function test_max_capacity()
         @testset "asset location resolution" begin
             system = build_system()
             solarA, windB = system.assets
+            @test solarA.tags == [:solar]
+            @test windB.tags == [:renewable, :retired, :utility_scale, :wind]
             @test capped_edge_location(get_component_by_fieldname(solarA, :edge)) == :A
             @test capped_edge_location(get_component_by_fieldname(windB, :edge)) == :B
+        end
+
+        @testset "tag selectors" begin
+            @test MacroEnergy.asset_tags(Dict{Symbol,Any}()) === nothing
+            @test MacroEnergy.asset_tags(Dict{Symbol,Any}(:tags => String[])) === nothing
+            merged = only(MacroEnergy.merge_global_data(Dict{Symbol,Any}(
+                :type => "VRE",
+                :global_data => Dict{Symbol,Any}(:tags => ["Renewable", "Utility Scale"]),
+                :instance_data => [Dict{Symbol,Any}(:id => "solar", :tags => ["Solar-PV"])],
+            )))[:instance_data]
+            @test MacroEnergy.asset_tags(merged) == [:renewable, :solar_pv, :utility_scale]
+
+            system = build_system()
+            solarA, windB = system.assets
+            solarA = make_vre_asset(:solarA, "Solar", :A, system; tags = ["Renewable", "Solar", "Utility Scale"])
+            system.assets[1] = solarA
+            @test MacroEnergy.prepare_to_json(solarA)[:instance_data][:tags] == ["renewable", "solar", "utility_scale"]
+
+            selector = GroupSelector(:VRE, [:renewable], [:utility_scale, :distributed], [:retired])
+            ct = MaxCapacityConstraint(; config = MaxCapacityConstraintConfig([
+                GroupConfig(:solar_vre, selector, :edge, 5.0),
+            ]))
+            push!(system.constraints, ct)
+
+            build_test_model(system)
+            @test nterms(ct.constraint_ref[:solar_vre]) == 1
+            @test :retired in something(windB.tags, Symbol[])
+
+            technology_tagged = make_vre_asset(:technology_tagged, "Solar", :A, system; tags = String[])
+            @test technology_tagged.tags == [:solar]
+
+            legacy = Dict{Symbol,Any}(:constraints => Dict{Symbol,Any}(
+                :MaxCapacityConstraint => Dict{Symbol,Any}(
+                    Symbol("VRE{Solar}") => Dict{Symbol,Any}(:edge => "edge", :value => 5.0),
+                ),
+            ))
+            MacroEnergy.check_and_convert_constraints!(legacy)
+            legacy_selector = only(only(legacy[:constraints]).config.groups).selector
+            @test legacy_selector.asset_type == :VRE
+            @test legacy_selector.all == [:solar]
+            @test MacroEnergy.select_assets(system, legacy_selector) == [solarA]
+
+            explicit = Dict{Symbol,Any}(:constraints => Dict{Symbol,Any}(
+                :MaxCapacityConstraint => Dict{Symbol,Any}(
+                    :active_vre => Dict{Symbol,Any}(
+                        :select => Dict{Symbol,Any}(
+                            :asset_type => "VRE",
+                            :all => ["Renewable"],
+                            :any => ["Utility Scale", "Distributed"],
+                            :exclude => ["Retired"],
+                        ),
+                        :edge => "edge",
+                        :value => 5.0,
+                    ),
+                ),
+            ))
+            MacroEnergy.check_and_convert_constraints!(explicit)
+            parsed = only(only(explicit[:constraints]).config.groups)
+            @test parsed.name == :active_vre
+            @test parsed.selector.asset_type == selector.asset_type
+            @test parsed.selector.all == selector.all
+            @test parsed.selector.any == selector.any
+            @test parsed.selector.exclude == selector.exclude
         end
 
         @testset "system-wide scope" begin
@@ -143,6 +212,8 @@ function test_max_capacity()
                 Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => "one")),
                 Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => NaN)),
                 Dict{Symbol,Any}(:VRE => Dict{Symbol,Any}(:edge => "edge", :value => 1.0, :extra => true)),
+                Dict{Symbol,Any}(:solar => Dict{Symbol,Any}(:select => Dict{Symbol,Any}(:all => ["solar!"]), :edge => "edge", :value => 1.0)),
+                Dict{Symbol,Any}(:solar => Dict{Symbol,Any}(:select => Dict{Symbol,Any}(:any => "solar"), :edge => "edge", :value => 1.0)),
             )
             for payload in invalid_payloads
                 data = Dict{Symbol,Any}(:constraints => Dict{Symbol,Any}(
