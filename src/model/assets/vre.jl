@@ -3,6 +3,7 @@
 # purely from input data (`technology: "Solar"`) — no Julia code needed to add a new one.
 struct VRE{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     energy_transform::Transformation
     edge::Edge{<:Electricity}
 end
@@ -141,5 +142,7 @@ function make(asset_type::Type{<:VRE}, data::AbstractDict{Symbol,Any}, system::S
         elec_end_node,
     )
 
-    return VRE{technology}(id, vre_transform, elec_edge)
+    tags = something(asset_tags(data), Symbol[])
+    push!(tags, normalize_tag(technology, "VRE technology"))
+    return VRE{technology}(id, sort!(unique!(tags)), vre_transform, elec_edge)
 end

@@ -1,5 +1,6 @@
 struct GasStorage{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     pump_transform::Transformation
     gas_storage::AbstractStorage{<:T}
     charge_edge::Edge{<:T}
@@ -373,6 +374,7 @@ function make(asset_type::Type{GasStorage}, data::AbstractDict{Symbol,Any}, syst
 
     return GasStorage(
         id,
+        asset_tags(data),
         pump_transform,
         gas_storage,
         gas_storage_charge,

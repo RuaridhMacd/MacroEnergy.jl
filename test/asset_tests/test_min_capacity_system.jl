@@ -15,6 +15,7 @@ import MacroEnergy:
     MinCapacityConstraint,
     MinCapacityConstraintConfig,
     GroupConfig,
+    GroupSelector,
     make,
     capacity,
     get_type,
@@ -50,7 +51,9 @@ function build_system()
     return system
 end
 
-vre_cfg(value) = MinCapacityConstraintConfig([GroupConfig(:VRE, :edge, value)])
+vre_cfg(value) = MinCapacityConstraintConfig([
+    GroupConfig(:VRE, GroupSelector(:VRE), :edge, value),
+])
 nterms(cref) = length(JuMP.constraint_object(cref).func.terms)
 # A lower-bound constraint is stored with a GreaterThan set.
 is_geq(cref) = JuMP.constraint_object(cref).set isa MOI.GreaterThan

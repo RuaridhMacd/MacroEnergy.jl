@@ -1,5 +1,6 @@
 struct ThermalPower{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermal_transform::Transformation
     elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}
     fuel_edge::Edge{<:T}
@@ -228,5 +229,5 @@ function make(asset_type::Type{ThermalPower}, data::AbstractDict{Symbol,Any}, sy
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return ThermalPower(id, thermal_transform, elec_edge, fuel_edge, co2_edge)
+    return ThermalPower(id, asset_tags(data), thermal_transform, elec_edge, fuel_edge, co2_edge)
 end

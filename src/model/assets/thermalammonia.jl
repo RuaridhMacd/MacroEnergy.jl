@@ -1,5 +1,6 @@
 struct ThermalAmmonia{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalammonia_transform::Transformation
     nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}} ## MWh
     elec_edge::Edge{<:Electricity} ## MWh
@@ -257,5 +258,5 @@ function make(asset_type::Type{ThermalAmmonia}, data::AbstractDict{Symbol,Any}, 
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return ThermalAmmonia(id, thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
+    return ThermalAmmonia(id, asset_tags(data), thermalammonia_transform, nh3_edge, elec_edge, fuel_edge, co2_edge)
 end

@@ -1,5 +1,6 @@
 struct ThermalHydrogen{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalhydrogen_transform::Transformation
     h2_edge::Union{Edge{<:Hydrogen},EdgeWithUC{<:Hydrogen}}
     elec_edge::Edge{<:Electricity}
@@ -307,5 +308,5 @@ function make(asset_type::Type{ThermalHydrogen}, data::AbstractDict{Symbol,Any},
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return ThermalHydrogen(id, thermalhydrogen_transform, h2_edge, elec_edge,fuel_edge, co2_edge)
+    return ThermalHydrogen(id, asset_tags(data), thermalhydrogen_transform, h2_edge, elec_edge,fuel_edge, co2_edge)
 end

@@ -1,5 +1,6 @@
 struct CementPlant{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     cement_transform::Transformation
     elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}} # Electricity consumed
     fuel_edge::Edge{<:T} # Fuel consumed
@@ -280,5 +281,5 @@ function make(asset_type::Type{CementPlant}, data::AbstractDict{Symbol,Any}, sys
         flow(cement_edge)
     )
     
-    return CementPlant(id, cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
+    return CementPlant(id, asset_tags(data), cement_transform, elec_edge, fuel_edge, cement_edge, co2_emissions_edge, co2_captured_edge)
 end

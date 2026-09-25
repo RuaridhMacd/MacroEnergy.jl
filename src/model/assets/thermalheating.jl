@@ -1,5 +1,6 @@
 struct ThermalHeating{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     heating_transform::Transformation
     heat_edge::Union{Edge{<:Heat},EdgeWithUC{<:Heat}}
     fuel_edge::Edge{<:T}
@@ -226,5 +227,5 @@ function make(asset_type::Type{ThermalHeating}, data::AbstractDict{Symbol,Any}, 
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return ThermalHeating(id, heating_transform, heat_edge, fuel_edge, co2_edge)
+    return ThermalHeating(id, asset_tags(data), heating_transform, heat_edge, fuel_edge, co2_edge)
 end

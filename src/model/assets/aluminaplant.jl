@@ -1,5 +1,6 @@
 struct AluminaPlant{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     aluminaplant_transform::Transformation
     elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}
     alumina_edge::Edge{<:Alumina} # alumina input
@@ -271,5 +272,5 @@ function make(asset_type::Type{AluminaPlant}, data::AbstractDict{Symbol,Any}, sy
         get(transform_data, :fuel_emissions_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return AluminaPlant(id, aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
+    return AluminaPlant(id, asset_tags(data), aluminaplant_transform, elec_edge, alumina_edge, bauxite_edge, fuel_edge, co2_edge)
 end

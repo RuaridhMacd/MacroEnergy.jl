@@ -1,5 +1,6 @@
 struct ThermalPowerCCS{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalpowerccs_transform::Transformation
     elec_edge::Union{Edge{<:Electricity},EdgeWithUC{<:Electricity}}
     fuel_edge::Edge{<:T}
@@ -265,5 +266,5 @@ function make(asset_type::Type{ThermalPowerCCS}, data::AbstractDict{Symbol,Any},
         get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
     )
 
-    return ThermalPowerCCS(id, thermalccs_transform, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
+    return ThermalPowerCCS(id, asset_tags(data), thermalccs_transform, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
 end

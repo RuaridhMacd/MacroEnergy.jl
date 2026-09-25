@@ -1,5 +1,6 @@
 struct UpstreamEmissions{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     fossilfuelsupstream_transform::Transformation
     fossil_fuel_edge::Edge{<:T}
     fuel_edge::Edge{<:T}
@@ -206,5 +207,5 @@ function make(asset_type::Type{UpstreamEmissions}, data::AbstractDict{Symbol,Any
         get(transform_data, :emission_rate, 0.0) * flow(fossil_fuel_edge) == flow(co2_edge)
     )
 
-    return UpstreamEmissions(id, fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
+    return UpstreamEmissions(id, asset_tags(data), fossilfuelsupstream_transform, fossil_fuel_edge, fuel_edge, co2_edge)
 end

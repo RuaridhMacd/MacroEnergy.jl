@@ -1,5 +1,6 @@
 struct OneWayTransmissionLink{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     transmission_edge::UnidirectionalEdge{<:T}
 end
 
@@ -111,5 +112,5 @@ function make(asset_type::Type{<:OneWayTransmissionLink}, data::AbstractDict{Sym
         t_start_node,
         t_end_node,
     )
-    return OneWayTransmissionLink(id, transmission_edge)
+    return OneWayTransmissionLink(id, asset_tags(data), transmission_edge)
 end

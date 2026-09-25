@@ -1,5 +1,6 @@
 struct ThermalAmmoniaCCS{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalammoniaccs_transform::Transformation
     nh3_edge::Union{Edge{<:Ammonia},EdgeWithUC{<:Ammonia}}
     elec_edge::Edge{<:Electricity}
@@ -294,5 +295,5 @@ function make(asset_type::Type{ThermalAmmoniaCCS}, data::AbstractDict{Symbol,Any
         get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
     )
 
-    return ThermalAmmoniaCCS(id, thermalammoniaccs_transform, nh3_edge, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
+    return ThermalAmmoniaCCS(id, asset_tags(data), thermalammoniaccs_transform, nh3_edge, elec_edge, fuel_edge, co2_edge, co2_captured_edge)
 end

@@ -1,5 +1,6 @@
 struct ThermalMethanol{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalmethanol_transform::Transformation
     ch3oh_edge::Union{Edge{<:Methanol},EdgeWithUC{<:Methanol}}
     elec_edge::Edge{<:Electricity}
@@ -257,5 +258,5 @@ function make(asset_type::Type{ThermalMethanol}, data::AbstractDict{Symbol,Any},
         get(transform_data, :emission_rate, 0.0) * flow(fuel_edge) == flow(co2_edge)
     )
 
-    return ThermalMethanol(id, thermalmethanol_transform, ch3oh_edge, elec_edge, fuel_edge, co2_edge)
+    return ThermalMethanol(id, asset_tags(data), thermalmethanol_transform, ch3oh_edge, elec_edge, fuel_edge, co2_edge)
 end

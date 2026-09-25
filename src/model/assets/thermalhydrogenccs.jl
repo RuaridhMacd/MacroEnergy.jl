@@ -1,5 +1,6 @@
 struct ThermalHydrogenCCS{T} <: AbstractAsset
     id::AssetId
+    tags::AssetTags
     thermalhydrogenccs_transform::Transformation
     h2_edge::Union{Edge{<:Hydrogen},EdgeWithUC{<:Hydrogen}}
     elec_edge::Edge{<:Electricity}
@@ -350,5 +351,5 @@ function make(asset_type::Type{ThermalHydrogenCCS}, data::AbstractDict{Symbol,An
         get(transform_data, :capture_rate, 0.0) * flow(fuel_edge) == flow(co2_captured_edge)
     )
 
-    return ThermalHydrogenCCS(id, thermalhydrogenccs_transform, h2_edge, elec_edge,fuel_edge, co2_edge, co2_captured_edge)
+    return ThermalHydrogenCCS(id, asset_tags(data), thermalhydrogenccs_transform, h2_edge, elec_edge,fuel_edge, co2_edge, co2_captured_edge)
 end
