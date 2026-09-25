@@ -72,12 +72,13 @@ function test_max_capacity()
         @testset "tag selectors" begin
             @test MacroEnergy.asset_tags(Dict{Symbol,Any}()) === nothing
             @test MacroEnergy.asset_tags(Dict{Symbol,Any}(:tags => String[])) === nothing
+            @test MacroEnergy.asset_tags(Dict{Symbol,Any}(:tags => "Utility Scale")) == [:utility_scale]
             merged = only(MacroEnergy.merge_global_data(Dict{Symbol,Any}(
                 :type => "VRE",
-                :global_data => Dict{Symbol,Any}(:tags => ["Renewable", "Utility Scale"]),
-                :instance_data => [Dict{Symbol,Any}(:id => "solar", :tags => ["Solar-PV"])],
+                :global_data => Dict{Symbol,Any}(:tags => "Renewable"),
+                :instance_data => [Dict{Symbol,Any}(:id => "solar", :tags => "Solar-PV")],
             )))[:instance_data]
-            @test MacroEnergy.asset_tags(merged) == [:renewable, :solar_pv, :utility_scale]
+            @test MacroEnergy.asset_tags(merged) == [:renewable, :solar_pv]
 
             system = build_system()
             solarA, windB = system.assets
@@ -140,7 +141,7 @@ function test_max_capacity()
             build_test_model(system)
 
             @test ct.constraint_ref isa Dict{Symbol,Any}
-            # :VRE groups every VRE{...} in the system -> both assets contribute.
+            # :VRE groups both VRE assets in the system.
             @test nterms(ct.constraint_ref[:VRE]) == 2
         end
 

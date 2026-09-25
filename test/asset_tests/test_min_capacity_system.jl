@@ -68,7 +68,7 @@ function test_min_capacity()
             build_test_model(system)
 
             @test ct.constraint_ref isa Dict{Symbol,Any}
-            # :VRE groups every VRE{...} in the system -> both assets contribute.
+            # :VRE groups both VRE assets in the system.
             @test nterms(ct.constraint_ref[:VRE]) == 2
             @test is_geq(ct.constraint_ref[:VRE])
         end

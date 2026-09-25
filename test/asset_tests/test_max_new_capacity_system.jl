@@ -69,7 +69,7 @@ function test_max_new_capacity()
             build_test_model(system)
 
             @test ct.constraint_ref isa Dict{Symbol,Any}
-            # :VRE groups every VRE{...} in the system -> both assets contribute their new_capacity.
+            # :VRE groups both VRE assets in the system -> both contribute their new_capacity.
             @test nterms(ct.constraint_ref[:VRE]) == 2
             @test is_leq(ct.constraint_ref[:VRE])
         end

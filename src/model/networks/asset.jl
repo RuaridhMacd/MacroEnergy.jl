@@ -19,6 +19,12 @@ id(asset::AbstractAsset) = asset.id
 
 const AssetTags = Union{Nothing,Vector{Symbol}}
 
+function tag_values(raw_tags)
+    raw_tags isa Union{AbstractString,Symbol} && return [raw_tags]
+    raw_tags isa AbstractVector || throw(ArgumentError("Asset tags must be a string or an array of strings."))
+    return raw_tags
+end
+
 function normalize_tag(raw::Union{Symbol,AbstractString}, context::AbstractString)::Symbol
     tag = strip(String(raw))
     occursin(r"^[A-Za-z][A-Za-z0-9 _-]*$", tag) || throw(ArgumentError(
@@ -29,8 +35,7 @@ end
 
 function asset_tags(data::AbstractDict{Symbol,Any})::AssetTags
     haskey(data, :tags) || return nothing
-    raw_tags = data[:tags]
-    raw_tags isa AbstractVector || throw(ArgumentError("Asset tags must be an array."))
+    raw_tags = tag_values(data[:tags])
     isempty(raw_tags) && return nothing
     tags = Symbol[]
     for raw_tag in raw_tags
@@ -97,8 +102,8 @@ function print_struct_info(info::Vector{Tuple{Symbol, T}}) where T <: Union{Type
 end
 
 # The following functions are used to extract all the assets of a given type from a System or a Vector of Assets.
-# Matching is by subtyping (`isa`), so a parametric base type (e.g. the `VRE` UnionAll) returns all of
-# its variants. For a concrete type this is identical to exact-type matching, since concrete types have no subtypes.
+# Matching is by subtyping (`isa`). For a concrete type this is identical to exact-type matching, since
+# concrete types have no subtypes.
 function get_assets_sametype(assets::Vector{AbstractAsset}, asset_type::T) where T<:Type{<:AbstractAsset}
     return filter(a -> isa(a, asset_type), assets)
 end
