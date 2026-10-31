@@ -225,7 +225,7 @@ function prepare_to_json(data::Dict{Symbol,TimeData})
        Dict{Symbol,Int64}(:Period_Index => p, :Rep_Period => comm_time_data.subperiod_map[p], :Rep_Period_Index => rep_period_map[comm_time_data.subperiod_map[p]]) for p in 1:time_data[:NumberOfSubperiods]
     ])
     # Using JSONTables and JSON3 to automatically handle future formatting changes
-    time_data[:SubPeriodMap] = copy(JSON3.read(objecttable(period_map)))
+    time_data[:SubPeriodMap] = JSON.parse(objecttable(period_map); dicttype=Dict{Symbol,Any})
     return time_data
 end
 

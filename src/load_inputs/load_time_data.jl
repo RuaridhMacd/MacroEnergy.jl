@@ -29,7 +29,7 @@ function load_time_data(
 
     # Before reading the time data into the macro data structures
     # we make sure that the period map is loaded
-    time_data = copy(JSON3.read(path))
+    time_data = read_json(path)
     haskey(time_data, :SubPeriodMap) && load_subperiod_map!(time_data, rel_path)
     validate_and_set_default_total_hours_modeled!(time_data::AbstractDict{Symbol,Any})
     time_data[:SystemIndex] = period_index
