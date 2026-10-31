@@ -124,7 +124,7 @@ end
             "method" => Dict("name" => "kmeans"), "scaling" => "standardize",
         ))
         @test preprocess_inputs(source, output; tdr_settings_path=settings_path) === nothing
-        generated = MacroEnergy.read_json(joinpath(output, "system_data.json"))
+        generated = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "system_data.json")))
         @test generated["settings"]["path"] == "settings/case_settings.json"
         @test isfile(joinpath(output, "settings", "case_settings.json"))
         for (index, name) in enumerate(("one", "two"))
@@ -134,21 +134,21 @@ end
             @test isfile(joinpath(private, "custom", name, "asset.json"))
             @test !isdir(joinpath(private, "custom", index == 1 ? "two" : "one"))
             @test !isdir(joinpath(private, "custom", name, "unused"))
-            asset = MacroEnergy.read_json(joinpath(private, "custom", name, "asset.json"))
+            asset = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(private, "custom", name, "asset.json")))
             @test asset["input"]["path"] == "inputs/system_$index/shared.json"
-            shared = MacroEnergy.read_json(joinpath(private, "shared.json"))
+            shared = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(private, "shared.json")))
             @test shared["demand"]["timeseries"]["path"] == "inputs/system_$index/data/demand.csv"
             @test length(shared["availability"]) == 2 * index
             @test nrow(CSV.read(joinpath(private, "data", "demand.csv"), DataFrame)) == 2 * index
         end
         @test nrow(CSV.read(joinpath(source, "data", "demand.csv"), DataFrame)) == 4
-        @test MacroEnergy.read_json(joinpath(source, "shared.json"))["availability"] == [0.1, 0.1, 0.9, 0.9]
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(source, "shared.json")))["availability"] == [0.1, 0.1, 0.9, 0.9]
         @test !isfile(joinpath(output, "data", "demand.csv"))
         # Preparation can be repeated without nesting inputs/system_N again.
         prepared = MacroEnergy.tdr_prepare_inputs(output,
             MacroEnergy.load_tdr_settings_by_system(settings_path, 2))
         @test length(MacroEnergy.tdr_prepare_system_inputs!(output, prepared).systems) == 2
-        @test MacroEnergy.read_json(joinpath(output, "system_data.json")) == generated
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "system_data.json"))) == generated
         @test !isdir(joinpath(output, "inputs", "system_1", "inputs"))
     end
 
@@ -171,8 +171,8 @@ end
                 "timesteps_per_representative_period" => 2, "representative_periods" => [1, 1, 2, 2],
                 "method" => Dict("name" => "kmeans"), "scaling" => "standardize"))
             time_domain_reduction(root, settings_path)
-            systems = MacroEnergy.read_json(joinpath(root, "system_data.json"))["case"]
-            nodes = [MacroEnergy.read_json(joinpath(root, String(system["nodes"]["path"]))) for system in systems]
+            systems = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(root, "system_data.json")))["case"]
+            nodes = [MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(root, String(system["nodes"]["path"])))) for system in systems]
             paths = [String(node["demand"]["timeseries"]["path"]) for node in nodes]
             @test paths[1] == paths[2]
             @test paths[3] == paths[4]
@@ -207,11 +207,11 @@ end
             "representative_periods" => [1, 2], "method" => Dict("name" => "kmeans"),
             "scaling" => "standardize"))
         time_domain_reduction(root, settings)
-        systems = MacroEnergy.read_json(joinpath(root, "system_data.json"))["case"]
+        systems = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(root, "system_data.json")))["case"]
         path(index, key) = String(systems[index][key]["path"])
         @test path(1, "commodities") == path(2, "commodities") == "static.json"
         @test path(1, "settings") == path(2, "settings") == "parent.json"
-        parent = MacroEnergy.read_json(joinpath(root, path(1, "settings")))
+        parent = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(root, path(1, "settings"))))
         @test parent["child"]["path"] == path(1, "commodities")
         @test path(1, "nodes") != path(2, "nodes")
         @test path(1, "time_data") != path(2, "time_data")
@@ -223,7 +223,7 @@ end
             @test !isfile(joinpath(root, "inputs", "system_$index", "parent.json"))
             @test isfile(joinpath(root, path(index, "nodes")))
         end
-        @test MacroEnergy.read_json(joinpath(root, "static.json"))["commodities"] == ["Electricity"]
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(root, "static.json")))["commodities"] == ["Electricity"]
         # A subsequent preprocessing pass can discover the consolidated tree.
         prepared = MacroEnergy.tdr_prepare_inputs(root,
             MacroEnergy.load_tdr_settings_by_system(settings, 2))
@@ -289,7 +289,7 @@ end
                 @test configured[:ParameterScaling] == !defaults
                 @test configured[:ExpansionHorizon] isa MacroEnergy.PerfectForesight
                 @test CSV.read(joinpath(destination, "demand.csv"), DataFrame).demand == [3, 4]
-                @test !haskey(MacroEnergy.read_json(joinpath(destination, "system_data.json")), "case")
+                @test !haskey(MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(destination, "system_data.json"))), "case")
                 @test read(joinpath(source, "system_data.json"), String) == original_source
             end
         end

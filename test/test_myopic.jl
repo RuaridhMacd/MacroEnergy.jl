@@ -3,7 +3,7 @@ module TestMyopic
 using Test
 using HiGHS
 using DataFrames
-using JSON3
+using JSON, JSON3
 using JuMP
 
 import MacroEnergy:
@@ -30,7 +30,7 @@ include("utilities.jl")
 
 function write_two_period_myopic_case!(case_path::AbstractString)
     system_data_path = joinpath(case_path, "system_data.json")
-    system_data = JSON3.read(read(system_data_path, String), Dict{String,Any})
+    system_data = JSON.parsefile(system_data_path; dicttype=Dict{String,Any})
     case_data = Dict(
         "case" => [system_data, deepcopy(system_data)],
         "settings" => Dict("path" => "settings/case_settings.json"),

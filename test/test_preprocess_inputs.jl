@@ -1,6 +1,5 @@
 using CSV
 using DataFrames
-using JSON3
 using MacroEnergy
 using Test
 
@@ -28,7 +27,7 @@ function expand_tdr_fixture!(case_path::AbstractString)
         CSV.write(path, data)
     end
     time_data_path = joinpath(case_path, "system", "time_data.json")
-    time_data = Dict{String,Any}(String(key) => value for (key, value) in pairs(JSON3.read(read(time_data_path, String))))
+    time_data = MacroEnergy.mutable_json_data(MacroEnergy.read_json(time_data_path))
     time_data["NumberOfSubperiods"] = nrow(period_map)
     time_data["TotalHoursModeled"] = nrow(period_map) * PREPARE_CASE_PERIOD_LENGTH
     delete!(time_data, "SubPeriodMap")
@@ -127,7 +126,7 @@ end
         MacroEnergy.tdr_materialize_subperiod_case!(
             MacroEnergy.tdr_prepare_subperiod_inputs(only(MacroEnergy.tdr_prepare_inputs(source_case, [output_settings]).systems)),
             subperiod_case, 2, output_settings)
-        subperiod_time_data = JSON3.read(read(joinpath(subperiod_case, "system", "time_data.json"), String))
+        subperiod_time_data = MacroEnergy.read_json(joinpath(subperiod_case, "system", "time_data.json"))
         @test subperiod_time_data[:NumberOfSubperiods] == 1
         @test !haskey(subperiod_time_data, :SubPeriodMap)
         @test nrow(CSV.read(joinpath(subperiod_case, "system", "demand.csv"), DataFrame)) == 168
@@ -139,7 +138,7 @@ end
             Dict("output:flow:test" => [(output_settings.output_features.features[1], [1.0, 2.0])]),
         )
         @test isfile(result_path)
-        @test MacroEnergy.read_json(result_path)["period"] == 2
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(result_path))["period"] == 2
 
         nested_output_case = joinpath(source_case, "reduced")
         @test_throws ArgumentError preprocess_inputs(source_case, nested_output_case; tdr_settings_path=settings_path)
@@ -158,17 +157,17 @@ end
         @test !isfile(joinpath(output_case, "time_domain_reduction_provenance.json"))
         @test_throws ArgumentError preprocess_inputs(source_case, output_case; tdr_settings_path=settings_path)
 
-        reduced_time_data = JSON3.read(read(joinpath(output_case, "system", "time_data.json"), String))
+        reduced_time_data = MacroEnergy.read_json(joinpath(output_case, "system", "time_data.json"))
         @test reduced_time_data[:NumberOfSubperiods] == 3
         @test reduced_time_data[:TotalHoursModeled] == full_length
         reduced_map = CSV.read(joinpath(output_case, "system", "period_map.csv"), DataFrame)
         @test nrow(reduced_map) == full_length ÷ PREPARE_CASE_PERIOD_LENGTH
         @test length(unique(reduced_map.Rep_Period_Index)) == 3
         @test nrow(CSV.read(joinpath(output_case, "system", "demand.csv"), DataFrame)) == 3 * PREPARE_CASE_PERIOD_LENGTH
-        provenance = JSON3.read(read(joinpath(output_case, "preprocessing_logs", "time_domain_reduction_provenance.json"), String))
+        provenance = MacroEnergy.read_json(joinpath(output_case, "preprocessing_logs", "time_domain_reduction_provenance.json"))
         @test length(provenance[:forced_extreme_periods]) == 1
         @test only(provenance[:forced_extreme_periods]) in provenance[:representative_periods]
-        preprocess_log = JSON3.read(read(joinpath(output_case, "preprocessing_logs", "preprocess_log.json"), String))
+        preprocess_log = MacroEnergy.read_json(joinpath(output_case, "preprocessing_logs", "preprocess_log.json"))
         @test !haskey(preprocess_log, :stale)
         tdr_log = preprocess_log[:time_domain_reduction]
         @test tdr_log[:temporal_summary][:original_hours] == full_length
@@ -219,7 +218,7 @@ end
             ))
             prepared = MacroEnergy.tdr_prepare_inputs(source_case, [output_settings, output_settings])
             @test length(MacroEnergy.tdr_prepare_system_inputs!(source_case, prepared).systems) == 2
-            prepared_system_data = MacroEnergy.read_json(joinpath(source_case, "system_data.json"))
+            prepared_system_data = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(source_case, "system_data.json")))
             @test startswith(prepared_system_data["case"][1]["time_data"]["path"], "inputs/system_1/system/")
             @test prepared_system_data["case"][2]["assets"]["path"] == "inputs/system_2/assets"
             subperiod_case = joinpath(temporary_root, "system_2_period_1")
@@ -230,9 +229,9 @@ end
                 1,
                 output_settings,
             )
-            isolated_case_settings = MacroEnergy.read_json(joinpath(
+            isolated_case_settings = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(
                 subperiod_case, "settings", "case_settings.json",
-            ))
+            )))
             @test isolated_case_settings["PeriodLengths"] == [1]
             @test isolated_case_settings["ExpansionHorizon"] == "PerfectForesight"
             isolated_case = load_case(subperiod_case)

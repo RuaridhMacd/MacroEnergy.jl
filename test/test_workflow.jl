@@ -3,7 +3,7 @@ module TestWorkflow
 using Test
 using HiGHS
 using JuMP
-using CSV, DataFrames, JSON3
+using CSV, DataFrames
 import MacroEnergy
 import MacroEnergy:
     System,
@@ -65,15 +65,15 @@ const gurobi_available = is_gurobi_available()
 const optim = gurobi_available ? Gurobi.Optimizer : HiGHS.Optimizer
 const obj_true = 1.551272176298086e11
 
-function test_configure_settings(data::NamedTuple, data_true::T) where {T<:JSON3.Object}
-    @test data.ConstraintScaling == data_true.ConstraintScaling
+function test_configure_settings(data::NamedTuple, data_true::T) where {T<:AbstractDict{Symbol,Any}}
+    @test data.ConstraintScaling == data_true[:ConstraintScaling]
     return nothing
 end
 
 function test_load_commodities(
     commodities::Dict{Symbol,DataType},
     commodities_true::T,
-) where {T<:JSON3.Array}
+) where {T<:AbstractVector}
     commodities_true = Symbol.(commodities_true)
     @test length(commodities) == length(commodities_true)
     for (k, v) in commodities
@@ -86,7 +86,7 @@ end
 test_load(data, data_true) = @test data == data_true
 test_load(data::AssetId, data_true::String) = @test data == Symbol(data_true)
 
-function test_load(obj_in::Dict{DataType,Float64}, data_true::T) where {T<:JSON3.Object}
+function test_load(obj_in::Dict{DataType,Float64}, data_true::T) where {T<:AbstractDict{Symbol,Any}}
     @test length(obj_in) == length(data_true)
     for (k, v) in obj_in
         @test Symbol(k) in keys(data_true)
@@ -105,7 +105,7 @@ function find_by_id(id::Symbol, data_true::AbstractVector)
     return nothing
 end
 
-function test_load(obj_in::Vector{<:T}, data_true::JSON3.Array) where T <: Union{Node, Location, AbstractAsset}
+function test_load(obj_in::Vector{<:T}, data_true::AbstractVector) where T <: Union{Node, Location, AbstractAsset}
     @test length(obj_in) == length(data_true)
     for i = 1:length(obj_in)
             true_instance = find_by_id(obj_in[i].id, data_true)
@@ -118,7 +118,7 @@ function test_load(obj_in::Vector{<:T}, data_true::JSON3.Array) where T <: Union
     return nothing
 end
 
-function test_load(obj_in::Vector, data_true::JSON3.Array)
+function test_load(obj_in::Vector, data_true::AbstractVector)
     @test length(obj_in) == length(data_true)
     for i = 1:length(obj_in)
         test_load(obj_in[i], data_true[i])
@@ -129,7 +129,7 @@ end
 function test_load(
     obj_in::Vector{AbstractTypeConstraint},
     data_true::T,
-) where {T<:JSON3.Object}
+) where {T<:AbstractDict{Symbol,Any}}
     active_constraints = Dict(
         k => v for (k, v) in data_true if v
     )
@@ -145,10 +145,10 @@ function test_load(
     return nothing
 end
 
-function test_load(e_in::AbstractEdge{T}, e_true::S) where {T<:Commodity,S<:JSON3.Object}
-    @test e_in.start_vertex.id == Symbol(e_true.start_vertex)
-    @test e_in.end_vertex.id == Symbol(e_true.end_vertex)
-    @test typesymbol(commodity_type(e_in.timedata)) == Symbol(e_true.timedata)
+function test_load(e_in::AbstractEdge{T}, e_true::S) where {T<:Commodity,S<:AbstractDict{Symbol,Any}}
+    @test e_in.start_vertex.id == Symbol(e_true[:start_vertex])
+    @test e_in.end_vertex.id == Symbol(e_true[:end_vertex])
+    @test typesymbol(commodity_type(e_in.timedata)) == Symbol(e_true[:timedata])
     @test unidirectional(e_in) == get(e_true, :unidirectional, true)
     @test e_in.has_capacity == get(e_true, :has_capacity, false)
     @test e_in.can_retire == get(e_true, :can_retire, false)
@@ -175,7 +175,7 @@ function test_load(e_in::AbstractEdge{T}, e_true::S) where {T<:Commodity,S<:JSON
     return nothing
 end
 
-function test_load(e_in::EdgeWithUC{T}, e_true::S) where {T<:Commodity,S<:JSON3.Object}
+function test_load(e_in::EdgeWithUC{T}, e_true::S) where {T<:Commodity,S<:AbstractDict{Symbol,Any}}
     invoke(test_load, Tuple{AbstractEdge{T},S}, e_in, e_true)
     @test e_in.min_up_time == get(e_true, :min_up_time, 0)
     @test e_in.min_down_time == get(e_true, :min_down_time, 0)
@@ -189,11 +189,11 @@ function test_load(e_in::EdgeWithUC{T}, e_true::S) where {T<:Commodity,S<:JSON3.
     return nothing
 end
 
-function test_load(n_in::Node{T}, n_true::S) where {T<:Commodity,S<:JSON3.Object}
-    @test Symbol(T) == Symbol(n_true.type)
-    n_true_instance_data = n_true.instance_data
-    @test n_in.id == Symbol(n_true_instance_data.id)
-    @test typesymbol(commodity_type(n_in.timedata)) == Symbol(n_true_instance_data.timedata)
+function test_load(n_in::Node{T}, n_true::S) where {T<:Commodity,S<:AbstractDict{Symbol,Any}}
+    @test Symbol(T) == Symbol(n_true[:type])
+    n_true_instance_data = n_true[:instance_data]
+    @test n_in.id == Symbol(n_true_instance_data[:id])
+    @test typesymbol(commodity_type(n_in.timedata)) == Symbol(n_true_instance_data[:timedata])
     @test n_in.demand == get(n_true_instance_data, :demand, Vector{Float64}())
     @test n_in.price == get(n_true_instance_data, :price, Float64[])
     @test n_in.max_nsd == get(n_true_instance_data, :max_nsd, [0.0])
@@ -215,16 +215,16 @@ function test_load(n_in::Node{T}, n_true::S) where {T<:Commodity,S<:JSON3.Object
     return nothing
 end
 
-function test_load(t_in::Transformation, t_true::T) where {T<:JSON3.Object}
-    @test t_in.id == Symbol(t_true.id)
-    @test typesymbol(commodity_type(t_in.timedata)) == Symbol(t_true.timedata)
+function test_load(t_in::Transformation, t_true::T) where {T<:AbstractDict{Symbol,Any}}
+    @test t_in.id == Symbol(t_true[:id])
+    @test typesymbol(commodity_type(t_in.timedata)) == Symbol(t_true[:timedata])
     test_load(t_in.constraints, get(t_true, :constraints, Vector{AbstractTypeConstraint}()))
     return nothing
 end
 
-function test_load(s_in::AbstractStorage{T}, s_true::S) where {T<:Commodity,S<:JSON3.Object}
-    @test s_in.id == Symbol(s_true.id)
-    @test Symbol(commodity_type(s_in.timedata)) == Symbol(s_true.timedata)
+function test_load(s_in::AbstractStorage{T}, s_true::S) where {T<:Commodity,S<:AbstractDict{Symbol,Any}}
+    @test s_in.id == Symbol(s_true[:id])
+    @test Symbol(commodity_type(s_in.timedata)) == Symbol(s_true[:timedata])
     @test s_in.capacity == get(s_true, :capacity, 0.0)
     @test s_in.new_capacity == get(s_true, :new_capacity, 0.0)
     @test s_in.retired_capacity == get(s_true, :retired_capacity, 0.0)
@@ -247,29 +247,29 @@ function test_load(s_in::AbstractStorage{T}, s_true::S) where {T<:Commodity,S<:J
     return nothing
 end
 
-function test_load(a_in::AbstractAsset, a_true::T) where {T<:JSON3.Object}
-    # @test Symbol(typeof(a_in)) == Symbol(a_true.type)
-    a_true_instance_data = a_true.instance_data
+function test_load(a_in::AbstractAsset, a_true::T) where {T<:AbstractDict{Symbol,Any}}
+    # @test Symbol(typeof(a_in)) == Symbol(a_true[:type])
+    a_true_instance_data = a_true[:instance_data]
     for t in Base.fieldnames(typeof(a_in))
         data_in = getfield(a_in, t)
         if isa(data_in, AssetId)
-            test_load(data_in, a_true_instance_data.id)
+            test_load(data_in, a_true_instance_data[:id])
         elseif isa(data_in, UnidirectionalEdge) || isa(data_in, BidirectionalEdge) || isa(data_in, EdgeWithUC)
-            test_load(data_in, a_true_instance_data.edges[t])
+            test_load(data_in, a_true_instance_data[:edges][t])
         elseif isa(data_in, Storage)
-            test_load(data_in, a_true_instance_data.storage)
+            test_load(data_in, a_true_instance_data[:storage])
         elseif isa(data_in, Transformation)
-            test_load(data_in, a_true_instance_data.transforms)
+            test_load(data_in, a_true_instance_data[:transforms])
         end
     end
     return nothing
 end
 
-function test_load(s_in::System, s_true::T) where {T<:JSON3.Object}
-    test_configure_settings(s_in.settings, s_true.settings)
-    test_load_commodities(s_in.commodities, s_true.commodities)
-    test_load(s_in.locations, s_true.nodes)
-    test_load(s_in.assets, s_true.assets)
+function test_load(s_in::System, s_true::T) where {T<:AbstractDict{Symbol,Any}}
+    test_configure_settings(s_in.settings, s_true[:settings])
+    test_load_commodities(s_in.commodities, s_true[:commodities])
+    test_load(s_in.locations, s_true[:nodes])
+    test_load(s_in.assets, s_true[:assets])
     return nothing
 end
 
@@ -374,7 +374,7 @@ function test_full_timeseries(case)
 
     # Load period map and time data
     pmap_df = CSV.read(joinpath(test_path, "system", "Period_map.csv"), DataFrame)
-    time_data = JSON3.read(Base.read(joinpath(test_path, "system", "time_data.json"), String))
+    time_data = MacroEnergy.read_json(joinpath(test_path, "system", "time_data.json"))
     hours_per_subperiod = 168
     total_hours = time_data[:TotalHoursModeled]
 

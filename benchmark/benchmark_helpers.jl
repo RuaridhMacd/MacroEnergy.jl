@@ -1,4 +1,4 @@
-using JSON3
+using JSON, JSON3
 using MacroEnergy
 using Printf
 using Statistics
@@ -112,7 +112,7 @@ function run_worker_result(
     close(io)
     try
         worker_runner(worker_command(project_dir, case_path, result_path, label))
-        return JSON3.read(read(result_path, String))
+        return JSON.parsefile(result_path; dicttype=Dict{Symbol,Any})
     finally
         rm(result_path; force = true)
     end

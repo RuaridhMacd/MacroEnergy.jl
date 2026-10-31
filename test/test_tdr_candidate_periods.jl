@@ -41,8 +41,8 @@ end
             inputs = MacroEnergy.tdr_prepare_subperiod_inputs(only(prepared.systems))
             destination = joinpath(root, "isolated")
             MacroEnergy.tdr_materialize_subperiod_case!(inputs, destination, 2, settings)
-            @test only(MacroEnergy.read_json(joinpath(destination, "nodes.json"))["nodes"])["availability"] == [3, 4]
-            @test MacroEnergy.read_json(joinpath(destination, "user_additions", "metadata.json"))["items"] == ["shared", "addition"]
+            @test only(MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(destination, "nodes.json")))["nodes"])["availability"] == [3, 4]
+            @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(destination, "user_additions", "metadata.json")))["items"] == ["shared", "addition"]
         end
     end
 
@@ -66,18 +66,18 @@ end
         subperiod_inputs = MacroEnergy.tdr_prepare_subperiod_inputs(only(prepared.systems))
         MacroEnergy.tdr_materialize_subperiod_case!(subperiod_inputs, isolated, 3, output_settings)
         @test CSV.read(joinpath(isolated, "demand.csv"), DataFrame).demand == [6, 7]
-        isolated_time = MacroEnergy.read_json(joinpath(isolated, "time_data.json"))
+        isolated_time = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(isolated, "time_data.json")))
         @test isolated_time["HoursPerSubperiod"]["Electricity"] == 2
         @test isolated_time["NumberOfSubperiods"] == 1
         @test !haskey(isolated_time, "SubPeriodMap")
-        @test MacroEnergy.read_json(joinpath(isolated, "nodes.json"))["availability"] == [6, 7]
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(isolated, "nodes.json")))["availability"] == [6, 7]
         # Reusing the snapshot must not carry the first isolated case's slicing
         # or time settings into the next candidate or back into the source.
         second_isolated = joinpath(root, "second_isolated")
         MacroEnergy.tdr_materialize_subperiod_case!(subperiod_inputs, second_isolated, 1, output_settings)
         @test CSV.read(joinpath(second_isolated, "demand.csv"), DataFrame).demand == [1, 2]
-        @test MacroEnergy.read_json(joinpath(second_isolated, "nodes.json"))["availability"] == [1, 2]
-        @test MacroEnergy.read_json(joinpath(source, "time_data.json"))["HoursPerSubperiod"]["Electricity"] == 5
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(second_isolated, "nodes.json")))["availability"] == [1, 2]
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(source, "time_data.json")))["HoursPerSubperiod"]["Electricity"] == 5
         original_definition = read(joinpath(source, "system_data.json"), String)
         @test_throws ArgumentError time_domain_reduction(source, [output_settings, output_settings])
         @test read(joinpath(source, "system_data.json"), String) == original_definition
@@ -87,7 +87,7 @@ end
         MacroEnergy.write_json(settings_path, Dict("timesteps_per_representative_period" => 2,
             "representative_periods" => 2, "method" => Dict("name" => "kmeans"), "scaling" => "standardize"))
         preprocess_inputs(source, output; tdr_settings_path=settings_path)
-        reduced_time = MacroEnergy.read_json(joinpath(output, "time_data.json"))
+        reduced_time = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "time_data.json")))
         @test reduced_time["HoursPerSubperiod"]["Electricity"] == 2
         @test reduced_time["NumberOfSubperiods"] == 2
         @test reduced_time["TotalHoursModeled"] == 10
@@ -95,9 +95,9 @@ end
         @test nrow(frame) == 4
         @test all(value -> value ∉ (5, 10), frame.demand)
         @test frame.Time_Index == 1:4
-        @test MacroEnergy.read_json(joinpath(output, "nodes.json"))["availability"] == frame.demand
+        @test MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "nodes.json")))["availability"] == frame.demand
         @test nrow(CSV.read(joinpath(output, "period_map.csv"), DataFrame)) == 4
-        temporal = MacroEnergy.read_json(joinpath(output, "preprocessing_logs", "preprocess_log.json"))["time_domain_reduction"]["temporal_summary"]
+        temporal = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "preprocessing_logs", "preprocess_log.json")))["time_domain_reduction"]["temporal_summary"]
         @test temporal["candidate_periods"] == 4
         @test temporal["trimmed_stored_hours"] == 2
         loaded = MacroEnergy.load_time_data(joinpath(output, "time_data.json"),
@@ -212,7 +212,7 @@ end
             second_map = CSV.read(joinpath(second_output, "period_map.csv"), DataFrame)
             @test second_map.Period_Index == 1:16
             @test length(unique(second_map.Rep_Period_Index)) == 2
-            second_time = MacroEnergy.read_json(joinpath(second_output, "time_data.json"))
+            second_time = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(second_output, "time_data.json")))
             @test second_time["HoursPerSubperiod"]["Electricity"] == 1
             @test second_time["NumberOfSubperiods"] == 2
             @test second_time["TotalHoursModeled"] == 16
@@ -228,13 +228,13 @@ end
             MacroEnergy.write_json(settings_path, Dict("timesteps_per_representative_period" => 168,
                 "representative_periods" => 2, "method" => Dict("name" => "kmeans"), "scaling" => "standardize"))
             preprocess_inputs(source, output; tdr_settings_path=settings_path)
-            time_data = MacroEnergy.read_json(joinpath(output, "time_data.json"))
+            time_data = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "time_data.json")))
             @test time_data["HoursPerSubperiod"]["Electricity"] == 168
             @test time_data["NumberOfSubperiods"] == 2
             @test time_data["TotalHoursModeled"] == 8760
             @test nrow(CSV.read(joinpath(output, "demand.csv"), DataFrame)) == 336
             @test nrow(CSV.read(joinpath(output, "period_map.csv"), DataFrame)) == 52
-            temporal = MacroEnergy.read_json(joinpath(output, "preprocessing_logs", "preprocess_log.json"))["time_domain_reduction"]["temporal_summary"]
+            temporal = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "preprocessing_logs", "preprocess_log.json")))["time_domain_reduction"]["temporal_summary"]
             @test temporal["trimmed_stored_hours"] == 24
             @test temporal["trimmed_represented_hours"] == 24
             loaded = MacroEnergy.load_time_data(joinpath(output, "time_data.json"),

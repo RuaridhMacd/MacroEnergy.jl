@@ -4,7 +4,7 @@ using Test
 using JuMP
 using HiGHS
 using MacroEnergy
-using JSON3
+using JSON
 
 include("asset_test_utilities.jl")
 using .AssetTestUtilities
@@ -239,13 +239,13 @@ function test_max_capacity()
         end
 
         @testset "JSON payload scaling" begin
-            raw = JSON3.read("""
+            raw = JSON.parse("""
             {
               "MaxCapacityConstraint": {
                 "VRE": { "edge": "edge", "value": 1000.0 }
               }
             }
-            """)
+            """; dicttype=Dict{Symbol,Any})
             data = Dict{Symbol,Any}(:constraints => raw)
             MacroEnergy.check_and_convert_constraints!(data)
             ct = only(data[:constraints])

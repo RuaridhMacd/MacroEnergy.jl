@@ -3,7 +3,7 @@ module TestDuals
 using Test
 using HiGHS
 using Statistics
-using CSV, DataFrames, JSON3
+using CSV, DataFrames
 using JuMP
 import MacroEnergy:
     BalanceConstraint,

@@ -146,7 +146,7 @@ end
 
         output = joinpath(root, "output")
         preprocess_inputs(source, output; tdr_settings_path=settings_path)
-        generated = MacroEnergy.read_json(joinpath(output, "system_data.json"))["case"]
+        generated = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(output, "system_data.json")))["case"]
         for index in 1:2
             path = joinpath(output, String(generated[index]["assets"]["path"]))
             @test endswith(path, ".csv")
@@ -175,7 +175,7 @@ end
             "representative_periods" => 2, "scaling" => "standardize",
             "method" => Dict("name" => "kmeans")))
         preprocess_inputs(source, common; tdr_settings_path=common_settings)
-        systems = MacroEnergy.read_json(joinpath(common, "system_data.json"))["case"]
+        systems = MacroEnergy.mutable_json_data(MacroEnergy.read_json(joinpath(common, "system_data.json")))["case"]
         for system in systems
             frame = CSV.read(joinpath(common, String(system["assets"]["path"])), DataFrame)
             @test frame[!, "availability--timeseries--path"] == fill("data/profiles.csv", 2)

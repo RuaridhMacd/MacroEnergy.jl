@@ -208,13 +208,13 @@ function test_write_run_status()
             @test isfile(path)
 
             written = read_json(path)
-            @test written.status == "INFEASIBLE"
-            @test written.termination_status == "INFEASIBLE"
-            @test written.label == "period 1"
+            @test written[:status] == "INFEASIBLE"
+            @test written[:termination_status] == "INFEASIBLE"
+            @test written[:label] == "period 1"
 
             # Replacing an existing file leaves no temporary files behind
             @test write_run_status(path, run_status_running(dir)) === nothing
-            @test read_json(path).status == "RUNNING"
+            @test read_json(path)[:status] == "RUNNING"
             @test readdir(dir) == ["run_status.json"]
         end
     end
@@ -306,18 +306,18 @@ function test_run_case_writes_status_on_success()
             @test isfile(status_path)
 
             status = read_json(status_path)
-            @test status.status == "OK"
-            @test status.case_path == abspath(case_dir)
-            @test isdir(status.output_path)  # results really landed where the file says
-            @test status.elapsed_seconds > 0
+            @test status[:status] == "OK"
+            @test status[:case_path] == abspath(case_dir)
+            @test isdir(status[:output_path])  # results really landed where the file says
+            @test status[:elapsed_seconds] > 0
 
             # The results directory keeps its own copy, so a later run overwriting the
             # case-level file does not erase the record of this one
-            results_copy = joinpath(status.output_path, "run_status.json")
+            results_copy = joinpath(status[:output_path], "run_status.json")
             @test isfile(results_copy)
-            @test read_json(results_copy).status == "OK"
+            @test read_json(results_copy)[:status] == "OK"
             log_path = joinpath(case_dir, "case.log")
-            @test isfile(joinpath(status.output_path, "case.log"))
+            @test isfile(joinpath(status[:output_path], "case.log"))
             rm(log_path)
             @test !ispath(log_path)
         end
@@ -337,8 +337,8 @@ function test_run_case_writes_status_on_error()
             @test isfile(status_path)
 
             status = read_json(status_path)
-            @test status.status == "ERROR"
-            @test !isempty(status.message)
+            @test status[:status] == "ERROR"
+            @test !isempty(status[:message])
         end
     end
 end

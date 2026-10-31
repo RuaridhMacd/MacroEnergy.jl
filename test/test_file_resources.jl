@@ -23,7 +23,7 @@ JSON3.StructTypes.lower(::FailingJSON) = error("intentional serialization failur
             @test !ispath(path)
 
             MacroEnergy.write_json(path, Dict("value" => 3))
-            @test MacroEnergy.read_json(path)["value"] == 3
+            @test MacroEnergy.read_json(path)[:value] == 3
         end
     end
 end
