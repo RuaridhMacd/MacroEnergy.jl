@@ -6,7 +6,7 @@ function read_json(file_path::AbstractString)
     iscompressed = endswith(file_path, ".json.gz")
     io = iscompressed ? GZip.open(file_path, "r") : open(file_path, "r")
     try
-        return JSON3.read(io; allow_inf=true)
+        return JSON.parse(io; dicttype=Dict{Symbol,Any}, allownan=true)
     finally
         close(io)
     end
